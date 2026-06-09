@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ikarus-rcwa"
+version = "0.1.0"
+description = "High-precision 2D RCWA simulation for periodic photonic structures"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Ikarus contributors" }]
+keywords = ["rcwa", "photonics", "metasurface", "grating", "electromagnetics", "diffraction"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Intended Audience :: Science/Research",
+]
+dependencies = [
+    "numpy>=1.21",
+    "scipy>=1.7",
+]
+
+[project.optional-dependencies]
+viz = ["matplotlib>=3.4"]
+io = ["h5py>=3.0"]
+all = ["matplotlib>=3.4", "h5py>=3.0"]
+dev = ["pytest>=7.0", "matplotlib>=3.4", "h5py>=3.0"]
+
+[project.scripts]
+ikarus-add-material = "ikarus.tools.add_material:main"
+
+[tool.setuptools.packages.find]
+include = ["ikarus*"]
+
+[tool.setuptools.package-data]
+"ikarus.materials" = ["*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["ikarus/tests"]

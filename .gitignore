@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Testing / tooling
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Example & simulation outputs
+*.png
+*.h5
+*.hdf5
+
+# Original project brief (not part of the package)
+ikarus_prompt.md
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Claude Code local settings (machine-specific)
+.claude/settings.local.json
