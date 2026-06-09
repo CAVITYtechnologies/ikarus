@@ -110,10 +110,25 @@ xz = rcwa.get_fields(plane='xz')['xz']                              # cross-sect
 rcwa.visualize_structure(plane='xz', savefig='stack.png')
 rcwa.visualize_structure(plane='xy', layer_index=1, savefig='topology.png')
 from ikarus.visualization import plot_field
-plot_field(xz, component='intensity', savefig='field.png')
+plot_field(xz, component='intensity', savefig='field.png')           # |E|^2
+plot_field(xz, component='Ey', savefig='ey_mag.png')                 # |Ey|
+plot_field(xz, component='Eyphase', savefig='ey_phase.png')         # arg(Ey)
 ```
 
-`z = 0` is the cover / first-layer interface, increasing into the stack.
+`z = 0` is the cover / first-layer interface, increasing into the stack. Field
+plots **overlay the structure outline** semi-transparently by default (the
+topology for `xy` slices, the layer interfaces for `xz`/`yz`); pass
+`overlay=False` to disable.
+
+### Reflection / transmission phase
+
+The complex zero-order coefficients carry phase (key for phase-gradient
+metasurface design):
+
+```python
+T, R, result = rcwa.simulate()
+print(result.T_phase, result.R_phase)   # radians; dict {'co','cross'} for circular pol
+```
 
 ### Convergence control
 
@@ -180,10 +195,15 @@ diffraction efficiencies and field amplitudes.
 
 ```bash
 pytest ikarus/tests/                              # full suite (~1.4s)
+python -m ikarus.examples.feature_tour            # guided tour: structure/field plots, spectrum, HDF5
 python -m ikarus.examples.validation_fresnel      # machine-precision Fresnel check
 python -m ikarus.examples.grating_diffraction     # order-resolved grating
 python -m ikarus.examples.metasurface_spectrum    # resonant metasurface sweep
 ```
+
+`feature_tour` is the best starting point — it exercises the material database,
+structure/topology visualization, field reconstruction, a wavelength sweep,
+circular polarization and HDF5 export, saving figures to `ikarus_tour_output/`.
 
 ## License
 
