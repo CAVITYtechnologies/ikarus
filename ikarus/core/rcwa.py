@@ -59,6 +59,25 @@ class SimulationResult:
             raise KeyError(f"order ({p}, {q}) not in truncated set")
         return int(match[0])
 
+    @staticmethod
+    def _phase(coeff):
+        if isinstance(coeff, dict):
+            return {k: float(np.angle(v)) for k, v in coeff.items()}
+        return float(np.angle(coeff))
+
+    @property
+    def T_phase(self):
+        """Phase (radians) of the zero-order transmission coefficient.
+
+        A float for linear polarization, or ``{'co', 'cross'}`` for circular.
+        """
+        return self._phase(self.T)
+
+    @property
+    def R_phase(self):
+        """Phase (radians) of the zero-order reflection coefficient."""
+        return self._phase(self.R)
+
 
 class RCWA:
     def __init__(
@@ -314,8 +333,63 @@ class RCWA:
         from .fields import reconstruct
         if z_positions is None:
             z_positions = [0.0]
-        return reconstruct(self._last_solution, z_positions, nx=nx, ny=ny,
+        maps = reconstruct(self._last_solution, z_positions, nx=nx, ny=ny,
                            plane=plane, x_position=x_position, y_position=y_position)
+        # Attach the real-space permittivity on each map's grid so field plots
+        # can overlay the structure outline.
+        for fmap in maps.values():
+            try:
+                fmap.eps = self._structure_eps(fmap, plane, x_position, y_position)
+            except Exception:
+                fmap.eps = None
+        return maps
+
+    def _structure_eps(self, fmap, plane: str, x_position: float, y_position: float):
+        """Real part of eps sampled on a FieldMap's grid (for plot overlays)."""
+        wl = self.source.wavelength
+        lib = self.materials
+        interior = self.layers[1:-1]
+        heights = [lay.height for lay in interior]
+        edges = np.concatenate([[0.0], np.cumsum(heights)]) if heights else np.array([0.0])
+        total = float(edges[-1])
+
+        def region_at(z):
+            if z < 0:
+                return self.layers[0]
+            if z > total:
+                return self.layers[-1]
+            k = int(np.searchsorted(edges, z, side="right") - 1)
+            return interior[min(max(k, 0), len(interior) - 1)]
+
+        def profile(layer, axis, frac, n):
+            if layer.is_uniform:
+                return np.full(n, lib.permittivity(layer.material, wl).real)
+            g = layer.permittivity_grid(wl, lib, (n, n)).real
+            idx = min(int(frac * n), n - 1)
+            return g[:, idx] if axis == "x" else g[idx, :]
+
+        if plane == "xy":
+            nx, ny = len(fmap.coords["x"]), len(fmap.coords["y"])
+            lay = region_at(fmap.z)
+            if lay.is_uniform:
+                return np.full((nx, ny), lib.permittivity(lay.material, wl).real)
+            return lay.permittivity_grid(wl, lib, (nx, ny)).real
+
+        if plane == "xz":
+            axis, frac = "x", (y_position % self.period_y) / self.period_y
+            ax_arr = fmap.coords["x"]
+        else:  # yz
+            axis, frac = "y", (x_position % self.period_x) / self.period_x
+            ax_arr = fmap.coords["y"]
+        zc = fmap.coords["z"]
+        eps = np.empty((len(ax_arr), len(zc)))
+        cache: dict = {}
+        for jz, zz in enumerate(zc):
+            lay = region_at(float(zz))
+            if id(lay) not in cache:
+                cache[id(lay)] = profile(lay, axis, frac, len(ax_arr))
+            eps[:, jz] = cache[id(lay)]
+        return eps
 
     def visualize_structure(self, plane: str = "xz", layer_index: Optional[int] = None,
                             **kwargs):

@@ -35,6 +35,9 @@ class FieldMap:
     H: np.ndarray  # complex, shape (..., 3)
     coords: dict   # axis-name -> 1-D coordinate array (meters)
     z: float | None = None
+    # Real part of the permittivity sampled on the same grid as the field, used
+    # to draw the structure outline over field plots (set by RCWA.get_fields).
+    eps: np.ndarray | None = None
 
     @property
     def intensity(self) -> np.ndarray:
