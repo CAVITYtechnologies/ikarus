@@ -9,12 +9,19 @@ description = "High-precision 2D RCWA simulation for periodic photonic structure
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
-authors = [{ name = "Ikarus contributors" }]
+authors = [{ name = "Liam Shelling Neto", email = "liam.shelling-neto@cavity-technologies.com" }]
 keywords = ["rcwa", "photonics", "metasurface", "grating", "electromagnetics", "diffraction"]
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "Topic :: Scientific/Engineering :: Physics",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
     "numpy>=1.21",
@@ -26,6 +33,11 @@ viz = ["matplotlib>=3.4"]
 io = ["h5py>=3.0"]
 all = ["matplotlib>=3.4", "h5py>=3.0"]
 dev = ["pytest>=7.0", "matplotlib>=3.4", "h5py>=3.0"]
+
+[project.urls]
+Homepage = "https://github.com/CAVITYtechnologies/ikarus"
+Repository = "https://github.com/CAVITYtechnologies/ikarus"
+Issues = "https://github.com/CAVITYtechnologies/ikarus/issues"
 
 [project.scripts]
 ikarus-add-material = "ikarus.tools.add_material:main"

@@ -207,4 +207,5 @@ circular polarization and HDF5 export, saving figures to `ikarus_tour_output/`.
 
 ## License
 
-MIT.
+MIT — Copyright © 2026 CAVITY technologies UG. See [LICENSE](LICENSE).
+Created by Liam Shelling Neto.
