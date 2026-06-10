@@ -7,7 +7,8 @@ for 2-D periodic photonic structures — metasurfaces, gratings and photonic
 crystals. It uses a numerically stable scattering-matrix formulation, supports
 full vectorial (linear and circular) polarization, arbitrary pixel-map
 topologies, a built-in dispersive material database, real-space field
-reconstruction, automatic convergence testing and HDF5 I/O.
+reconstruction, automatic convergence testing, HDF5 I/O and gradient-free
+inverse design.
 
 ```python
 import numpy as np
@@ -31,6 +32,11 @@ and conserves energy to ~1e-9 for diffraction gratings. The patterned-layer
 machinery is independently validated against a direct mode-matching reference and
 the effective-medium limit. See `ikarus/tests/validation/`.
 
+It is also **fast** and **cross-validated**: head-to-head against
+[grcwa](https://github.com/weiliangjinca/grcwa) (an independent RCWA package) it
+agrees to ~1e-3 on R / T / co- and cross-pol across diverse metaatoms and a full
+wavelength sweep, while running **~1.5–1.7× faster per solve**.
+
 ## Features
 
 | Capability | Status |
@@ -47,14 +53,24 @@ the effective-medium limit. See `ikarus/tests/validation/`.
 | Automatic convergence testing (`never` / `once` / `always`) | ✅ |
 | HDF5 export / import of results | ✅ |
 | Numerically stable S-matrix cascade (no transfer-matrix overflow) | ✅ |
+| Gradient-free inverse design (pixels + parameters, GA / NSGA-III via pymoo) | ✅ |
 | Anisotropic (3×3 tensor) materials | ⛔ not yet (isotropic only) |
 | Li inverse-rule factorization (faster TM convergence) | ⛔ Laurent rule only |
 
 ## Installation
 
 ```bash
-pip install -e .            # core (numpy, scipy)
-pip install -e ".[all]"     # + matplotlib (viz) and h5py (HDF5 I/O)
+pip install ikarus-rcwa                # core (numpy, scipy)
+pip install "ikarus-rcwa[all]"         # + matplotlib (viz), h5py (HDF5), pymoo (inverse)
+pip install "ikarus-rcwa[inverse]"     # + pymoo, for gradient-free inverse design
+```
+
+The import name is `ikarus` (the distribution is `ikarus-rcwa`). From source for
+development:
+
+```bash
+git clone https://github.com/CAVITYtechnologies/ikarus.git
+cd ikarus && pip install -e ".[dev]"
 ```
 
 ## Usage
@@ -165,6 +181,48 @@ rcwa.save_results('run.h5', include=['T', 'R', 'fields', 'metadata'], result=res
 data = RCWA.load_results('run.h5')
 ```
 
+## Inverse design
+
+Define a metaatom with free degrees of freedom, declare what you want, optimize —
+gradient-free (genetic algorithm / NSGA-III via [pymoo](https://pymoo.org)).
+Install the extra: `pip install "ikarus-rcwa[inverse]"`.
+
+```python
+import numpy as np
+from ikarus.inverse import MetaAtom, free, pixels, Target, optimize
+
+# Si-on-SiO2 metaatom: free binary pixel map (c4v-symmetric) + free layer height
+atom = MetaAtom(period=700e-9, cover='Air', substrate='SiO2')
+atom.add_pattern(topology=pixels(12, 12, symmetry='c4v'),
+                 materials=['Air', 'Si'], height=free(300e-9, 900e-9))
+
+# maximize reflection into the 0th order at 1550 nm  ->  a metamirror, in one line
+best = optimize(atom, Target.maximize('R', order=(0, 0), at=1550e-9))
+print(best.report())
+mirror = best.metaatom          # the optimized, ready-to-simulate RCWA structure
+```
+
+**Degrees of freedom.** `free(lo, hi)` marks a continuous parameter (height,
+period); `pixels(nx, ny, symmetry=...)` a binary pixel map (bit-flip mutation,
+with optional `'c4v'` / `'mirror_x'` / `'c2'` … symmetry that both cuts the DOF
+count and enforces the structural symmetry — e.g. `c4v` reduces a 12×12 map from
+144 to 21 free bits).
+
+**Targets** declare the figure of merit, over one or many wavelengths:
+
+```python
+Target.maximize('R', order=(1, 0), at=1550e-9)        # anomalous reflection (+1 order)
+Target.match('r_co', 1, at=[1064e-9, 1550e-9])        # bispectral mirror
+Target.minimize('R', band=(1064e-9, 1550e-9))         # broadband AR coating
+Target.match('t_phase', np.pi/2, at=1550e-9)          # transmission-phase target
+```
+
+Metrics: `R`/`T` (per diffraction order), `r_co`/`t_co` (complex), `r_phase` /
+`t_phase`. Wavelengths via `at=` (scalar or list) or `band=(lo, hi[, n])`,
+aggregated by mean or `worst_case=True`. Pass a **list** of targets for
+multi-objective (NSGA-III) optimization — `best.X` / `best.F` then hold the
+Pareto set.
+
 ## Conventions
 
 * Time convention **`exp(-i ω t)`**: absorbing materials have `k > 0`,
@@ -183,6 +241,7 @@ ikarus/
 ├── materials/       JSON dispersion database
 ├── tools/           add_material (CLI), convergence, io (HDF5)
 ├── visualization/   structure & field plotting
+├── inverse/         gradient-free inverse design (MetaAtom, Target, optimize via pymoo)
 ├── tests/           unit + validation (Fresnel, gratings, fields, …)
 └── examples/        runnable scripts
 ```
@@ -199,6 +258,7 @@ python -m ikarus.examples.feature_tour            # guided tour: structure/field
 python -m ikarus.examples.validation_fresnel      # machine-precision Fresnel check
 python -m ikarus.examples.grating_diffraction     # order-resolved grating
 python -m ikarus.examples.metasurface_spectrum    # resonant metasurface sweep
+python -m ikarus.examples.inverse_metamirror      # one-line metamirror inverse design ([inverse])
 ```
 
 `feature_tour` is the best starting point — it exercises the material database,
