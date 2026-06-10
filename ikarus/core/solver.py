@@ -27,11 +27,18 @@ from dataclasses import dataclass
 
 import numpy as np
 
+import scipy.linalg as _sla
+
 from .fourier import HarmonicGrid, convolution_matrix
 
 
 def _inv(matrix: np.ndarray) -> np.ndarray:
-    return np.linalg.inv(matrix)
+    return _sla.inv(matrix, check_finite=False)
+
+
+def _rdiv(M: np.ndarray, K: np.ndarray) -> np.ndarray:
+    """Right division ``M @ inv(K)`` via a solve (never forms ``inv(K)``)."""
+    return _sla.solve(K.T, M.T, check_finite=False).T
 
 
 def _block(a: np.ndarray, b: np.ndarray, c: np.ndarray, d: np.ndarray) -> np.ndarray:
@@ -60,8 +67,8 @@ def redheffer_star(a: SMatrix, b: SMatrix) -> SMatrix:
     """Redheffer star product ``a ⋆ b`` (``a`` on top/left, ``b`` below/right)."""
     dim = a.S11.shape[0]
     I = np.eye(dim, dtype=complex)
-    D = a.S12 @ _inv(I - b.S11 @ a.S22)
-    F = b.S21 @ _inv(I - a.S22 @ b.S11)
+    D = _rdiv(a.S12, I - b.S11 @ a.S22)
+    F = _rdiv(b.S21, I - a.S22 @ b.S11)
     S11 = a.S11 + D @ b.S11 @ a.S21
     S12 = D @ b.S12
     S21 = F @ a.S21
@@ -104,14 +111,15 @@ def uniform_modes(eps: complex, Kx: np.ndarray, Ky: np.ndarray):
     order propagates (e.g. Fresnel slabs) but corrupts every diffraction grating.
     """
     p = Kx.shape[0]
-    I = np.eye(p, dtype=complex)
     kx, ky = np.diag(Kx), np.diag(Ky)
     # Modal eigenvalue per order: lam^2 = -(eps - kx^2 - ky^2).  Forward branch.
     lam_order = _forward_branch(kx ** 2 + ky ** 2 - eps)
     lam = np.concatenate([lam_order, lam_order])
     W = np.eye(2 * p, dtype=complex)
-    Q = _block(Kx @ Ky, eps * I - Kx @ Kx, Ky @ Ky - eps * I, -Ky @ Kx)
-    V = Q @ _inv(np.diag(lam))
+    # Every Q block is diagonal for a homogeneous medium -- build from vectors.
+    Q = _block(np.diag(kx * ky), np.diag(eps - kx * kx),
+               np.diag(ky * ky - eps), np.diag(-ky * kx))
+    V = Q / lam[np.newaxis, :]   # Q @ diag(1/lam)
     # Physical longitudinal wavevector: lam = i*kz for propagating, so kz = -i*lam
     # (Re(kz) > 0 for propagating orders, 0 for evanescent -- used in the energy
     # balance weighting and field reconstruction).
@@ -194,17 +202,20 @@ def layer_modes(ERC: np.ndarray, Kx: np.ndarray, Ky: np.ndarray) -> tuple[np.nda
     p = Kx.shape[0]
     I = np.eye(p, dtype=complex)
     Einv = _inv(ERC)
+    kx, ky = np.diag(Kx)[:, None], np.diag(Ky)[None, :]
+    kxc, kyr = np.diag(Kx), np.diag(Ky)  # 1-D, for the diagonal Q blocks
 
-    P = _block(Kx @ Einv @ Ky, I - Kx @ Einv @ Kx,
-               Ky @ Einv @ Ky - I, -Ky @ Einv @ Kx)
-    Q = _block(Kx @ Ky, ERC - Kx @ Kx,
-               Ky @ Ky - ERC, -Ky @ Kx)
+    # Kx/Ky are diagonal: their products with Einv are row/column scalings, and
+    # the Q blocks are diagonal -- avoid the dense O(N^3) matmuls.
+    P = _block(kx * Einv * ky, I - kx * Einv * kx.T,
+               (ky.T * Einv * ky) - I, -ky.T * Einv * kx.T)
+    Q = _block(np.diag(kxc * kyr), ERC - np.diag(kxc * kxc),
+               np.diag(kyr * kyr) - ERC, -np.diag(kyr * kxc))
 
     omega2 = P @ Q
-    eigvals, W = np.linalg.eig(omega2)
+    eigvals, W = _sla.eig(omega2, overwrite_a=True, check_finite=False)
     lam = _forward_branch(eigvals)
-    LAM = np.diag(lam)
-    V = Q @ W @ _inv(LAM)
+    V = (Q @ W) / lam[np.newaxis, :]   # Q @ W @ diag(1/lam)
     return W, V, lam
 
 
@@ -213,23 +224,27 @@ def layer_smatrix(
     Kx: np.ndarray,
     Ky: np.ndarray,
     k0L: float,
-    W0: np.ndarray,
     V0: np.ndarray,
 ) -> tuple[SMatrix, LayerModes]:
-    """Scattering matrix of a single finite layer, referenced to the gap medium."""
+    """Scattering matrix of a single finite layer, referenced to the gap medium.
+
+    The gap electric modes ``W0`` are the identity, so ``W^{-1} W0 = W^{-1}``.
+    The phase matrix ``X = exp(-lam k0 L)`` is diagonal and applied as a
+    row-broadcast rather than a dense matmul.
+    """
     W, V, lam = layer_modes(ERC, Kx, Ky)
 
     Winv = _inv(W)
-    Vinv = _inv(V)
-    A = Winv @ W0 + Vinv @ V0
-    B = Winv @ W0 - Vinv @ V0
-    X = np.diag(np.exp(-lam * k0L))
+    VinvV0 = _inv(V) @ V0
+    A = Winv + VinvV0
+    B = Winv - VinvV0
+    x = np.exp(-lam * k0L)[:, np.newaxis]   # X @ M == x * M
     Ainv = _inv(A)
 
-    XB = X @ B
+    XB = x * B
     fac = _inv(A - XB @ Ainv @ XB)
-    S11 = fac @ (XB @ Ainv @ X @ A - B)
-    S12 = fac @ X @ (A - B @ Ainv @ B)
+    S11 = fac @ (XB @ Ainv @ (x * A) - B)
+    S12 = fac @ (x * (A - B @ Ainv @ B))
     smat = SMatrix(S11=S11, S12=S12, S21=S12.copy(), S22=S11.copy())
     return smat, LayerModes(W=W, V=V, lam=lam, k0L=k0L, ERC=ERC)
 
@@ -237,11 +252,16 @@ def layer_smatrix(
 # ---------------------------------------------------------------------------
 # Semi-infinite region scattering matrices
 # ---------------------------------------------------------------------------
-def reflection_smatrix(eps_ref, Kx, Ky, W0, V0):
-    """Scattering matrix coupling the gap medium to the cover (reflection) region."""
-    W, V, Kz = uniform_modes(eps_ref, Kx, Ky)
-    A = _inv(W0) @ W + _inv(V0) @ V
-    B = _inv(W0) @ W - _inv(V0) @ V
+def reflection_smatrix(eps_ref, Kx, Ky, V0inv):
+    """Scattering matrix coupling the gap medium to the cover (reflection) region.
+
+    The region and gap electric modes are both the identity, so
+    ``A = I + V0^{-1} V`` and ``B = I - V0^{-1} V`` (``V0inv`` is precomputed once).
+    """
+    _, V, Kz = uniform_modes(eps_ref, Kx, Ky)
+    M = V0inv @ V
+    I = np.eye(M.shape[0], dtype=complex)
+    A, B = I + M, I - M
     Ainv = _inv(A)
     S = SMatrix(
         S11=-Ainv @ B,
@@ -252,11 +272,12 @@ def reflection_smatrix(eps_ref, Kx, Ky, W0, V0):
     return S, Kz
 
 
-def transmission_smatrix(eps_trn, Kx, Ky, W0, V0):
+def transmission_smatrix(eps_trn, Kx, Ky, V0inv):
     """Scattering matrix coupling the gap medium to the substrate (transmission)."""
-    W, V, Kz = uniform_modes(eps_trn, Kx, Ky)
-    A = _inv(W0) @ W + _inv(V0) @ V
-    B = _inv(W0) @ W - _inv(V0) @ V
+    _, V, Kz = uniform_modes(eps_trn, Kx, Ky)
+    M = V0inv @ V
+    I = np.eye(M.shape[0], dtype=complex)
+    A, B = I + M, I - M
     Ainv = _inv(A)
     S = SMatrix(
         S11=B @ Ainv,
@@ -358,6 +379,7 @@ def solve_stack(
     """
     Kx, Ky = wavevector_matrices(grid, kx0, ky0, period_x, period_y, wavelength)
     W0, V0 = free_space_modes(Kx, Ky)
+    V0inv = _inv(V0)   # gap admittance inverse, reused by both regions
     k0 = 2.0 * np.pi / wavelength
 
     # --- physics -> engineering convention bridge (conjugate permittivities).
@@ -367,16 +389,16 @@ def solve_stack(
     erc_list = [convolution_matrix(np.conj(g) - _ANOMALY_LOSS, grid) for g in eps_grids]
 
     # Assemble the global scattering matrix: cover ⋆ layers ⋆ substrate.
-    S_ref, Kz_ref = reflection_smatrix(eps_ref_e, Kx, Ky, W0, V0)
+    S_ref, Kz_ref = reflection_smatrix(eps_ref_e, Kx, Ky, V0inv)
     S = S_ref
     modes: list[LayerModes] = []
     layer_smats: list[SMatrix] = []
     for ERC, h in zip(erc_list, heights):
-        S_layer, lm = layer_smatrix(ERC, Kx, Ky, k0 * h, W0, V0)
+        S_layer, lm = layer_smatrix(ERC, Kx, Ky, k0 * h, V0)
         modes.append(lm)
         layer_smats.append(S_layer)
         S = redheffer_star(S, S_layer)
-    S_trn, Kz_trn = transmission_smatrix(eps_trn_e, Kx, Ky, W0, V0)
+    S_trn, Kz_trn = transmission_smatrix(eps_trn_e, Kx, Ky, V0inv)
     S = redheffer_star(S, S_trn)
 
     # Incident-mode coefficients: unit amplitude in the (0,0) order.  The
@@ -393,8 +415,11 @@ def solve_stack(
     c_trn = S.S21 @ c_src
     rx, ry = c_ref[:P], c_ref[P:]
     tx, ty = c_trn[:P], c_trn[P:]
-    rz = -_inv(Kz_ref) @ (Kx @ rx + Ky @ ry)
-    tz = -_inv(Kz_trn) @ (Kx @ tx + Ky @ ty)
+    # Kx, Ky, Kz are all diagonal -> longitudinal components are pure elementwise.
+    kx, ky = np.diag(Kx), np.diag(Ky)
+    kzr, kzt = np.diag(Kz_ref), np.diag(Kz_trn)
+    rz = -(kx * rx + ky * ry) / kzr
+    tz = -(kx * tx + ky * ty) / kzt
 
     # Diffraction efficiencies (mu = 1): |field|^2 weighted by Re(kz)/Re(kz_inc).
     kz_inc = np.sqrt(eps_ref_e - kx0**2 - ky0**2 + 0j)
@@ -402,8 +427,8 @@ def solve_stack(
         kz_inc = -kz_inc
     R2 = np.abs(rx) ** 2 + np.abs(ry) ** 2 + np.abs(rz) ** 2
     T2 = np.abs(tx) ** 2 + np.abs(ty) ** 2 + np.abs(tz) ** 2
-    R_orders = R2 * np.real(np.diag(Kz_ref)) / np.real(kz_inc)
-    T_orders = T2 * np.real(np.diag(Kz_trn)) / np.real(kz_inc)
+    R_orders = R2 * np.real(kzr) / np.real(kz_inc)
+    T_orders = T2 * np.real(kzt) / np.real(kz_inc)
 
     # Conjugate complex amplitudes back to the physics convention.
     rx, ry, rz = np.conj(rx), np.conj(ry), np.conj(rz)
