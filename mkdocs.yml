@@ -1,0 +1,109 @@
+site_name: Ikarus
+site_description: >-
+  High-precision 2-D RCWA (Fourier Modal Method) simulation for periodic
+  photonic structures — metasurfaces, gratings and photonic crystals.
+site_author: Liam Shelling Neto
+site_url: https://cavitytechnologies.github.io/ikarus/
+
+repo_name: CAVITYtechnologies/ikarus
+repo_url: https://github.com/CAVITYtechnologies/ikarus
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; 2026 CAVITY technologies UG — MIT License
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - footnotes
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+extra_css:
+  - stylesheets/extra.css
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Quick Start: quickstart.md
+  - Theory: theory.md
+  - Core Concepts: core-concepts.md
+  - API Reference:
+      - Overview: api/index.md
+      - RCWA & Results: api/rcwa.md
+      - Source: api/source.md
+      - Layers & Materials: api/materials-layers.md
+      - Shapes: api/shapes.md
+      - Inverse Design: api/inverse.md
+      - Fields & Visualization: api/fields-viz.md
+      - Tools (convergence, I/O): api/tools.md
+      - Low-level (Fourier, solver): api/low-level.md
+  - Tutorials:
+      - Overview: tutorials/index.md
+      - Reflection & Transmission spectra: tutorials/reflection-transmission.md
+      - Grating diffraction: tutorials/gratings.md
+      - Metasurface simulation: tutorials/metasurfaces.md
+      - Parameter sweeps: tutorials/parameter-sweeps.md
+      - Polarization analysis: tutorials/polarization.md
+      - Angular response: tutorials/angular-response.md
+  - Advanced Usage: advanced.md
+  - Examples Gallery: examples-gallery.md
+  - Performance: performance.md
+  - FAQ: faq.md
+  - Troubleshooting: troubleshooting.md
+  - Developer Guide: developer-guide.md
+  - Citation: citation.md
+  - License: license.md

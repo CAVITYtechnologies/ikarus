@@ -1,0 +1,7 @@
+# Documentation build dependencies (MkDocs + Material theme).
+#   pip install -r requirements-docs.txt
+#   mkdocs serve            # live preview at http://127.0.0.1:8000
+#   mkdocs build            # static site -> ./site
+mkdocs>=1.5
+mkdocs-material>=9.5
+pymdown-extensions>=10.0

@@ -1,0 +1,16 @@
+/* Slightly wider content column for equations and wide tables. */
+.md-grid {
+  max-width: 60rem;
+}
+
+/* Make MathJax display equations scroll horizontally on small screens. */
+mjx-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+}
+
+/* Tighten the API "signature" code blocks. */
+.api-signature > pre {
+  margin-bottom: 0.4rem;
+}

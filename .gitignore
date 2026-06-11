@@ -11,6 +11,9 @@ dist/
 .coverage
 htmlcov/
 
+# MkDocs build output
+site/
+
 # Example & simulation outputs
 *.png
 *.h5

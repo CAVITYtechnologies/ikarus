@@ -1,0 +1,196 @@
+# RCWA & Results
+
+The user-facing façade. It collects the layer stack, the illumination and the
+numerical settings, then orchestrates the stateless solver to produce diffraction
+efficiencies, complex coefficients and real-space fields.
+
+## `RCWA`
+
+```python
+RCWA(period_x, period_y, resolution=32, n_orders=25,
+     dtype=np.complex128, materials=None, convergence_tol=1e-6)
+```
+
+**Purpose.** Create a solver bound to one unit cell.
+
+**Parameters**
+
+| Name | Type | Default | Description |
+|---|---|---|---|
+| `period_x`, `period_y` | `float` | — | Unit-cell periods (m); must be positive. |
+| `resolution` | `int` or `(int, int)` | `32` | Real-space sampling grid for the convolution matrices. Raised internally to ≥ `4*n_orders + 1`. |
+| `n_orders` | `int` or `(int, int)` | `25` | Max positive harmonic order `M` per axis. Total harmonics \(P=(2M_x+1)(2M_y+1)\). |
+| `dtype` | numpy dtype | `complex128` | Working precision. |
+| `materials` | `MaterialLibrary` | `None` | Custom library; defaults to the shared `default_library`. |
+| `convergence_tol` | `float` | `1e-6` | Default tolerance for `auto_converge`. |
+
+**Raises.** `ValueError` if a period is non-positive.
+
+### Properties
+
+| Property | Description |
+|---|---|
+| `n_orders` | `(Mx, My)` tuple; **settable** (resets the convergence cache). |
+| `shapes` | Access to the shape-primitive library, `rcwa.shapes.circle(...)`. |
+| `last_solution` | The most recent `FieldSolution`, or `None`. |
+| `layers` | The list of `Layer` objects. |
+| `source` | The current `Source`, or `None`. |
+
+### Building the stack
+
+#### `add_uniform_layer(height, material, name="") -> Layer` { #add_uniform_layer }
+
+Append a uniform (single-material) layer. Use `height=np.inf` for the
+semi-infinite cover (first) and substrate (last).
+
+```python
+rcwa.add_uniform_layer(np.inf, "Air")       # cover
+rcwa.add_uniform_layer(220e-9, "TiO2")      # interior
+rcwa.add_uniform_layer(np.inf, "SiO2")      # substrate
+```
+
+#### `add_layer(height, topology, materials, resolution=None, name="") -> Layer` { #add_layer }
+
+Append a patterned layer. `topology` is an integer `(Nx, Ny)` array; `materials`
+is the list it indexes into.
+
+```python
+import numpy as np
+topo = np.zeros((128, 128), dtype=int)
+topo[32:96, 32:96] = 1                       # a square of material[1]
+rcwa.add_layer(200e-9, topo, ["Air", "Si"]) # 0 -> Air, 1 -> Si
+```
+
+### Defining the source
+
+#### `set_source(**kwargs) -> Source`
+
+Create or update the illumination. The **first** call must include `wavelength`.
+Later calls update only the fields you pass and retain the rest (ideal for
+sweeps). Accepts every [`Source`](source.md) field: `wavelength`, `theta`, `phi`,
+`polarization`, `linear_pol_angle`.
+
+```python
+rcwa.set_source(wavelength=600e-9, theta=0, polarization="linear", linear_pol_angle=90)
+rcwa.set_source(theta=15)   # keeps wavelength + polarization
+```
+
+### Solving
+
+#### `simulate(auto_converge="never", converge_tol=None, max_orders=200, verbose=False) -> (T, R, result)`
+
+Run a simulation and return the zero-order coefficients plus the full
+[`SimulationResult`](#simulationresult).
+
+| `auto_converge` | Behaviour |
+|---|---|
+| `"never"` (default) | Use the current `n_orders`. |
+| `"once"` | Find and **cache** a converged `n_orders` (subsequent calls reuse it). |
+| `"always"` | Re-converge on every call. |
+
+```python
+T, R, result = rcwa.simulate()
+T, R, result = rcwa.simulate(auto_converge="once", verbose=True)
+```
+
+**Returns.** `(T, R, result)` — `T`/`R` are the zero-order coefficients (complex
+scalar for linear polarization, `{"co", "cross"}` for circular);
+`result` is a `SimulationResult`.
+
+!!! warning "Energy-balance warnings"
+    `simulate` emits a `RuntimeWarning` if `R+T` exceeds `1.01` (likely
+    unconverged) or `1.5` (numerical breakdown — reduce `n_orders` or raise
+    `resolution`). See [Troubleshooting](../troubleshooting.md).
+
+### Field extraction
+
+#### `get_fields(z_positions=None, plane="xy", nx=64, ny=64, x_position=0.0, y_position=0.0) -> dict` { #get_fields }
+
+Reconstruct real-space `E`/`H` fields from the last simulation (solving first if
+needed). Returns a dict of [`FieldMap`](fields-viz.md#fieldmap).
+
+- `plane="xy"` → one map per depth `z` in `z_positions` (meters; `z=0` at the
+  cover/first-layer interface, increasing into the stack).
+- `plane="xz"` / `"yz"` → a single cross-section sweeping the whole stack at fixed
+  `y_position` / `x_position`.
+
+```python
+xy = rcwa.get_fields(z_positions=[80e-9], plane="xy", nx=128, ny=128)
+xz = rcwa.get_fields(plane="xz", nx=160, y_position=rcwa.period_y / 2)["xz"]
+```
+
+Each map carries the structure permittivity on its grid (`FieldMap.eps`) so plots
+can overlay material outlines.
+
+### Visualization
+
+#### `visualize_structure(plane="xz", layer_index=None, **kwargs)`
+
+Plot the layer stack (`plane="xz"`) or a patterned layer's topology
+(`plane="xy"`, with `layer_index`). Requires matplotlib. See
+[Fields & Visualization](fields-viz.md).
+
+#### `visualize_fields(field_map=None, component="intensity", **kwargs)`
+
+Plot a reconstructed field map (computes an `xz` map if none is supplied).
+
+### Result I/O
+
+#### `save_results(path, include=("T", "R", "metadata"), result=None)`
+
+Write the most recent (or supplied) result to HDF5. `include` may also contain
+`"fields"`. Requires h5py.
+
+#### `load_results(path)` *(staticmethod)*
+
+Load an Ikarus HDF5 result file into a nested dict.
+
+---
+
+## `SimulationResult`
+
+The rich object returned as the third element of `simulate()`.
+
+### Attributes
+
+| Attribute | Type | Description |
+|---|---|---|
+| `T`, `R` | complex or dict | Zero-order coefficient(s); `abs(.)**2` = specular efficiency. |
+| `T_total`, `R_total` | `float` | Total transmitted / reflected power. |
+| `T_orders`, `R_orders` | `ndarray` | Per-order efficiencies, aligned with `orders`. |
+| `orders` | `(ndarray, ndarray)` | `(p, q)` integer order labels. |
+| `theta_out_trn`, `phi_out_trn` | `ndarray` | Transmitted exit angles (deg); `NaN` if evanescent. |
+| `theta_out_ref`, `phi_out_ref` | `ndarray` | Reflected exit angles (deg). |
+| `energy_balance` | `float` | `R_total + T_total`. |
+| `solution` | `FieldSolution` | Underlying modal solution (for field reconstruction). |
+
+### Properties
+
+| Property | Description |
+|---|---|
+| `R_phase`, `T_phase` | Phase (rad) of the zero-order coefficient — a `float` (linear) or `{"co","cross"}` dict (circular). |
+
+### Methods
+
+#### `order_index(p, q) -> int`
+
+Flat index of harmonic `(p, q)` into the `*_orders` / angle arrays. Raises
+`KeyError` if the order is outside the truncated set.
+
+```python
+i = result.order_index(0, 0)
+print("specular T:", result.T_orders[i], "at", result.theta_out_trn[i], "deg")
+
+# Power into the +1 reflected order of a grating:
+ip1 = result.order_index(1, 0)
+print("R(+1):", result.R_orders[ip1])
+```
+
+### Best practices
+
+- Treat `energy_balance` as your first diagnostic: for a lossless structure it
+  must be 1 to within convergence error.
+- Use `T`/`R` (and `T_phase`/`R_phase`) for **specular** metasurface design; use
+  `T_orders`/`R_orders` with `order_index` for **grating** order steering.
+- The exit-angle arrays are `NaN` for evanescent orders — mask with
+  `np.isfinite(...)` before plotting.
