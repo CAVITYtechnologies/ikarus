@@ -1,22 +1,70 @@
-# Tutorials
+# Flight School
 
-Task-oriented walkthroughs. Each is self-contained and runnable; together they
-cover the everyday workflows. They assume you have read the
-[Quick Start](../quickstart.md).
+*Six lessons from first taxi to confident aerobatics.* Each one is
+self-contained, copy-paste runnable, states what you should expect to see, and
+ends with the habits that separate good pilots from lucky ones. Prerequisite:
+the [Quick Start](../quickstart.md).
 
-| Tutorial | You will learn |
-|---|---|
-| [Reflection & Transmission spectra](reflection-transmission.md) | Sweep wavelength, read totals and the specular order, handle absorption. |
-| [Grating diffraction](gratings.md) | 1-D gratings, diffraction orders, exit angles, the grating equation. |
-| [Metasurface simulation](metasurfaces.md) | Patterned 2-D layers from shapes, fields, phase. |
-| [Parameter sweeps](parameter-sweeps.md) | Efficient sweeps, convergence studies, 2-D maps. |
-| [Polarization analysis](polarization.md) | Linear angle sweeps, circular co/cross, chirality. |
-| [Angular response](angular-response.md) | Incidence-angle sweeps, dispersion, Wood anomalies. |
+<div class="grid cards" markdown>
 
-All snippets use SI units (meters, degrees) and the physics \(\exp(-i\omega t)\)
-convention. Most run in well under a second at the order counts shown.
+-   :material-chart-bell-curve:{ .lg .middle } **Lesson 1 · Spectra 101**
 
-!!! tip "Runnable example scripts"
-    The package also ships full scripts under `ikarus/examples/` — see the
-    [Examples Gallery](../examples-gallery.md). Run e.g.
-    `python -m ikarus.examples.feature_tour`.
+    ---
+
+    Sweep wavelength, read totals vs. the specular order, and meet
+    absorption — the honest reason R+T < 1.
+
+    [:octicons-arrow-right-24: Start](reflection-transmission.md)
+
+-   :material-view-week:{ .lg .middle } **Lesson 2 · Splitting Light**
+
+    ---
+
+    1-D gratings: diffraction orders as exit lanes, exit angles checked
+    against the grating equation.
+
+    [:octicons-arrow-right-24: Start](gratings.md)
+
+-   :material-dots-grid:{ .lg .middle } **Lesson 3 · Sculpting Wavefronts**
+
+    ---
+
+    Metasurfaces: build meta-atoms from shapes, harvest 2π of phase, peek at
+    the near field.
+
+    [:octicons-arrow-right-24: Start](metasurfaces.md)
+
+-   :material-tune-variant:{ .lg .middle } **Lesson 4 · Sweeping Gracefully**
+
+    ---
+
+    Efficient parameter sweeps, the convergence ritual, and 2-D design maps.
+
+    [:octicons-arrow-right-24: Start](parameter-sweeps.md)
+
+-   :material-rotate-orbit:{ .lg .middle } **Lesson 5 · Twisting Light**
+
+    ---
+
+    Linear angles, circular co/cross decomposition, and measuring chirality.
+
+    [:octicons-arrow-right-24: Start](polarization.md)
+
+-   :material-angle-acute:{ .lg .middle } **Lesson 6 · Coming in at an Angle**
+
+    ---
+
+    Oblique incidence, dispersion maps, and spotting Rayleigh–Wood
+    anomalies in the wild.
+
+    [:octicons-arrow-right-24: Start](angular-response.md)
+
+</div>
+
+After graduation: [Aerobatics](../advanced.md) (batch runs, ML pipelines,
+custom everything), [The Hangar](../examples-gallery.md) (complete worked
+examples) and [Need for Speed](../performance.md) (making it all fast).
+
+!!! tip "Shipped demo scripts"
+    The package carries runnable examples too — try
+    `python -m ikarus.examples.feature_tour` for the full guided airshow.

@@ -1,15 +1,14 @@
-# Advanced Usage
+# Aerobatics
 
-## Batch simulations
+*Advanced maneuvers for licensed pilots:* batch fleets, optimization loops,
+machine-learning pipelines, clusters, and custom everything.
 
-Wavelength, angle and geometry sweeps are **embarrassingly parallel** — every
-solve is independent. The serial pattern (reuse one `RCWA`, change the source) is
-covered in [Parameter sweeps](tutorials/parameter-sweeps.md); here is how to
-distribute the work.
+## Batch simulations { #batch-simulations }
 
-Because each solve is CPU- and BLAS-bound, the right pattern is **process-level
-parallelism with single-threaded BLAS in each worker** (otherwise the workers and
-BLAS fight over cores):
+Every Ikarus solve is independent — sweeps and populations are embarrassingly
+parallel. The right pattern on one machine is **process-level parallelism with
+single-threaded BLAS in each worker** (otherwise your workers and BLAS fight
+over the same cores and everyone loses):
 
 ```python
 import os
@@ -39,55 +38,50 @@ if __name__ == "__main__":
         R = np.array(list(pool.map(reflectance_at, wls)))
 ```
 
-!!! tip "Worker granularity"
-    Make each task a *whole* solve (or a small batch of them), not a fraction —
-    the per-task overhead of pickling a tiny job dominates otherwise. For very fast
-    solves, chunk the wavelengths so each worker does dozens.
+!!! tip "Right-size the cargo"
+    Each task should be a whole solve (or a batch of them) — pickling overhead
+    eats tiny jobs alive. If single solves are very fast, chunk dozens of
+    wavelengths per task.
 
 ## Optimization workflows
 
-The built-in [`ikarus.inverse`](api/inverse.md) module covers gradient-free
-inverse design (mixed-variable GA / NSGA-III). Typical workflows:
+The built-in [inverse module](api/inverse.md) covers the common cases:
 
-- **Single objective** (e.g. broadband AR, a beam deflector): one `Target`, the
-  GA runs automatically.
-- **Multi-objective** (e.g. high transmittance *and* a phase target): pass a list
-  of `Target`s; `optimize` switches to NSGA-III and `OptimizeResult.report()`
-  summarizes the Pareto front.
-- **Custom figures of merit**: if a metric is not built in, write your own loop
-  over `atom.build(params, n_orders)` and drive any optimizer (scipy,
-  Optuna, CMA-ES, …) — `MetaAtom.variables()` gives you the search space.
+- **Single objective** — one `Target`, the mixed-variable GA runs automatically.
+- **Multi-objective** — a list of `Target`s switches to NSGA-III;
+  `OptimizeResult.report()` summarizes the Pareto front.
+- **Bring-your-own optimizer** — `MetaAtom` is also a clean parameterization
+  layer for *any* black-box optimizer (scipy, Optuna, CMA-ES…):
 
 ```python
-# A hand-rolled objective using your own optimizer:
 from ikarus.inverse import MetaAtom, free, pixels
 
 atom = MetaAtom(period=180e-9, cover="Air", substrate="SiO2")
 atom.add_pattern(topology=pixels(8, 8, "c4v"), materials=["Air", "Si3N4"],
                  height=free(40e-9, 200e-9))
 
-def objective(params):
+def objective(params):                       # feed this to anything
     rcwa = atom.build(params, n_orders=6)
     rcwa.set_source(wavelength=450e-9, theta=0, polarization="linear")
-    return rcwa.simulate()[2].R_total      # minimize reflection
+    return rcwa.simulate()[2].R_total        # minimize reflection
+
+print(atom.variables())                      # the labelled search space
 ```
 
-See [Performance](performance.md) for why single-threaded BLAS matters inside
-these loops.
+Inside any tight loop, the [BLAS-pinning trick](performance.md#blas-threading)
+is worth roughly an order of magnitude. Really.
 
 ## Integration with machine learning
 
-Ikarus is a fast, differentiable-free **forward model**, which makes it a natural
-data generator and evaluator for ML-driven photonics:
+Ikarus is a fast black-box forward model — prime surrogate-training material:
 
-- **Dataset generation.** Sample random `MetaAtom` parameters (or topologies),
-  solve, and store `(geometry → spectrum)` pairs to train a surrogate. Parallelize
-  as in [Batch simulations](#batch-simulations).
-- **Surrogate-in-the-loop.** Train a neural network on the dataset, optimize on the
-  surrogate, then verify candidates with the true Ikarus solve.
-- **Population optimizers.** The GA/NSGA-III backend already treats the solver as a
-  black box; swap in CMA-ES, Bayesian optimization or RL by reusing
-  `MetaAtom.build` + `simulate`.
+- **Dataset generation.** Sample random parameters/topologies, solve, store
+  `(geometry → spectrum)` pairs. Parallelize as above.
+- **Surrogate-in-the-loop.** Train a network on the dataset, optimize against
+  the surrogate, verify winners with the true solve.
+- **Population methods.** GA/NSGA-III already treat the solver as a black box;
+  swapping in CMA-ES, Bayesian optimization or RL is just a different driver
+  around `MetaAtom.build` + `simulate`.
 
 ```python
 import numpy as np
@@ -96,12 +90,12 @@ from ikarus.inverse import MetaAtom, free, pixels
 atom = MetaAtom(period=180e-9, cover="Air", substrate="SiO2")
 atom.add_pattern(topology=pixels(10, 10, "c4v"), materials=["Air", "Si3N4"],
                  height=free(40e-9, 220e-9))
-spec = atom.variables()       # the labelled search space for sampling
+spec = atom.variables()
 
 def random_sample(rng):
-    params = {}
-    for name, kind in spec.items():
-        params[name] = rng.uniform(*kind[1]) if kind[0] == "real" else int(rng.integers(2))
+    params = {name: (rng.uniform(*kind[1]) if kind[0] == "real"
+                     else int(rng.integers(2)))
+              for name, kind in spec.items()}
     rcwa = atom.build(params, n_orders=6)
     spectrum = []
     for wl in np.linspace(400e-9, 700e-9, 16):
@@ -110,74 +104,75 @@ def random_sample(rng):
     return params, np.array(spectrum)
 ```
 
-!!! note "No autodiff"
-    Ikarus does not provide analytic/AD gradients. For gradient-based topology
-    optimization you would need a differentiable RCWA (e.g. a JAX/autograd
-    implementation); Ikarus targets gradient-free and surrogate workflows.
+!!! note "No autodiff on board"
+    Ikarus provides no analytic or AD gradients — it targets gradient-free and
+    surrogate workflows. Gradient-based topology optimization needs a
+    differentiable RCWA (JAX/autograd-based) instead.
 
 ## High-performance computing
 
-- **Single node, many cores:** process pool + single-thread BLAS (above). This
-  scales near-linearly across a sweep until memory-bound.
-- **Clusters:** because tasks are independent, a job array (SLURM `--array`, or any
-  scheduler) over wavelength/angle/parameter chunks is the simplest and most
-  robust approach — no inter-process communication needed.
-- **Memory:** the dominant object is the set of `2P×2P` complex matrices per layer,
-  \(P=(2M_x+1)(2M_y+1)\). Budget memory by `n_orders` (see
-  [Performance → Memory scaling](performance.md#memory-scaling)); reduce `n_orders`
-  or the number of simultaneously-live solves if you hit limits.
-- **Large single solves** (\(M \gtrsim 20\)) *do* benefit from multi-threaded BLAS —
-  there, let BLAS use the cores and parallelize at a coarser grain.
+- **One node, many cores:** process pool + single-thread BLAS. Near-linear
+  scaling across a sweep until memory-bound.
+- **Clusters:** independent tasks → a plain job array (SLURM `--array`, any
+  scheduler) over parameter chunks. No MPI, no communication, no drama.
+- **Memory budget:** the big objects are \(2P \times 2P\) complex matrices per
+  layer, \(P=(2M_x+1)(2M_y+1)\) — see
+  [Memory scaling](performance.md#memory-scaling). Lower `n_orders` or the
+  number of live solves if you hit the ceiling.
+- **Large single solves** (\(M \gtrsim 20\)): the opposite regime — let BLAS
+  thread, parallelize coarser.
 
-## Custom materials
+## Custom materials { #custom-materials }
 
-Three ways to add a material (full API: [Layers & Materials](api/materials-layers.md)):
+Three escalating levels of commitment
+(full API: [Layers & Materials](api/materials-layers.md)):
 
 ```python
 from ikarus import RCWA, MaterialLibrary, Material
 
-# 1. Inline constant index (quick tests):
+# 1. Commitment-free: a constant index inline.
 rcwa.add_uniform_layer(100e-9, 1.46)
 
-# 2. Import tabulated n,k from CSV into a library:
+# 2. Session-scoped: tabulated n,k from CSV into a library.
 lib = MaterialLibrary()
-lib.add_from_file("ito_nk.csv", name="ITO")            # columns: lambda_nm n [k]
+lib.add_from_file("ito_nk.csv", name="ITO")        # columns: lambda_nm n [k]
 rcwa = RCWA(period_x=1e-6, period_y=1e-6, materials=lib)
 rcwa.add_uniform_layer(50e-9, "ITO")
 
-# 3. A Lorentz-model material from JSON, persisted to the database:
+# 3. A physical model: Lorentz oscillators from JSON.
 mat = Material.from_file("my_lorentz.json")
 lib.register(mat)
 ```
 
-For a permanent, name-addressable material across sessions, use the
+For a permanent, name-addressable entry across sessions, use the
 [`ikarus-add-material` CLI](api/tools.md#material-import-cli) or
 `add_from_file(..., persist=True)`.
 
-## Custom geometries
+## Custom geometries { #custom-geometries }
 
-Beyond the [shape primitives](api/shapes.md), a topology is just an integer
-`numpy.ndarray` — build it however you like:
+A topology is just an integer NumPy array — the
+[shape primitives](api/shapes.md) are a convenience, not a cage:
 
 ```python
 import numpy as np
 from ikarus import shapes
 
-# From an analytic mask (a super-ellipse):
+# Analytic mask: a super-ellipse.
 N = 160
 x = (np.arange(N) + 0.5) / N - 0.5
 X, Y = np.meshgrid(x, x, indexing="ij")
 topo = ((np.abs(X) ** 4 + np.abs(Y) ** 4) < 0.3 ** 4).astype(int)
 
-# From an image (binarized) -- e.g. an inverse-designed pattern:
+# From an image (binarized) — e.g. a published inverse design:
 # topo = (imageio.imread("design.png").mean(-1) > 127).astype(int)
 
-# Multi-material by composing shapes:
+# Three materials by composing shapes:
 ring = shapes.ring(inner_radius=0.25, outer_radius=0.4, grid_shape=(N, N), value=1)
 core = shapes.circle(radius=0.18, grid_shape=(N, N), value=2)
-topo3 = shapes.combine(ring, core)        # indices 0,1,2 -> three materials
+topo3 = shapes.combine(ring, core)        # indices 0,1,2
 ```
 
-Slanted or curved sidewalls are handled by **slicing** the feature into several
-thin patterned layers of progressively different cross-section (RCWA is uniform
-within a layer — see [Theory → Limitations](theory.md#limitations-of-rcwa)).
+Slanted or curved sidewalls? Slice them into several thin layers of
+progressively varying cross-section — RCWA is uniform within a layer, and the
+staircase converges as the slices thin
+([Theory → Limitations](theory.md#limitations-of-rcwa)).

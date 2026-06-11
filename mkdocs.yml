@@ -13,33 +13,40 @@ copyright: Copyright &copy; 2026 CAVITY technologies UG — MIT License
 
 theme:
   name: material
+  custom_dir: overrides
   features:
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
     - navigation.top
     - navigation.indexes
     - navigation.footer
+    - navigation.instant
+    - navigation.tracking
     - toc.follow
     - search.suggest
     - search.highlight
     - content.code.copy
     - content.code.annotate
+    - content.tooltips
+    - announce.dismiss
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: indigo
-      accent: indigo
+      primary: deep orange
+      accent: amber
       toggle:
         icon: material/weather-night
-        name: Switch to dark mode
+        name: Fly by night
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: indigo
-      accent: indigo
+      primary: deep orange
+      accent: amber
       toggle:
         icon: material/weather-sunny
-        name: Switch to light mode
+        name: Fly by day
   icon:
+    logo: material/feather
     repo: fontawesome/brands/github
 
 markdown_extensions:
@@ -51,6 +58,7 @@ markdown_extensions:
   - toc:
       permalink: true
   - pymdownx.details
+  - pymdownx.mark
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite
@@ -59,6 +67,9 @@ markdown_extensions:
       alternate_style: true
   - pymdownx.arithmatex:
       generic: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
@@ -77,33 +88,37 @@ plugins:
 
 nav:
   - Home: index.md
-  - Installation: installation.md
-  - Quick Start: quickstart.md
-  - Theory: theory.md
-  - Core Concepts: core-concepts.md
-  - API Reference:
-      - Overview: api/index.md
-      - RCWA & Results: api/rcwa.md
-      - Source: api/source.md
-      - Layers & Materials: api/materials-layers.md
-      - Shapes: api/shapes.md
-      - Inverse Design: api/inverse.md
-      - Fields & Visualization: api/fields-viz.md
-      - Tools (convergence, I/O): api/tools.md
-      - Low-level (Fourier, solver): api/low-level.md
-  - Tutorials:
-      - Overview: tutorials/index.md
-      - Reflection & Transmission spectra: tutorials/reflection-transmission.md
-      - Grating diffraction: tutorials/gratings.md
-      - Metasurface simulation: tutorials/metasurfaces.md
-      - Parameter sweeps: tutorials/parameter-sweeps.md
-      - Polarization analysis: tutorials/polarization.md
-      - Angular response: tutorials/angular-response.md
-  - Advanced Usage: advanced.md
-  - Examples Gallery: examples-gallery.md
-  - Performance: performance.md
-  - FAQ: faq.md
-  - Troubleshooting: troubleshooting.md
-  - Developer Guide: developer-guide.md
-  - Citation: citation.md
-  - License: license.md
+  - 🚀 Getting Started:
+      - Installation: installation.md
+      - Quick Start: quickstart.md
+  - 🌊 The Physics:
+      - How RCWA Works: theory.md
+      - Core Concepts: core-concepts.md
+  - 🛫 Flight School:
+      - tutorials/index.md
+      - "Lesson 1 · Spectra 101": tutorials/reflection-transmission.md
+      - "Lesson 2 · Splitting Light": tutorials/gratings.md
+      - "Lesson 3 · Sculpting Wavefronts": tutorials/metasurfaces.md
+      - "Lesson 4 · Sweeping Gracefully": tutorials/parameter-sweeps.md
+      - "Lesson 5 · Twisting Light": tutorials/polarization.md
+      - "Lesson 6 · Coming in at an Angle": tutorials/angular-response.md
+      - Aerobatics (Advanced): advanced.md
+      - The Hangar (Examples): examples-gallery.md
+      - Need for Speed (Performance): performance.md
+  - 📚 Reference:
+      - API:
+          - api/index.md
+          - RCWA & Results: api/rcwa.md
+          - Source: api/source.md
+          - Layers & Materials: api/materials-layers.md
+          - Shapes: api/shapes.md
+          - Inverse Design: api/inverse.md
+          - Fields & Visualization: api/fields-viz.md
+          - Tools: api/tools.md
+          - Low-level: api/low-level.md
+      - FAQ: faq.md
+      - Troubleshooting: troubleshooting.md
+  - 🤝 Project:
+      - Developer Guide: developer-guide.md
+      - Citation: citation.md
+      - License: license.md

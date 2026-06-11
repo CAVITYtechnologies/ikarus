@@ -1,8 +1,9 @@
 # RCWA & Results
 
 The user-facing façade. It collects the layer stack, the illumination and the
-numerical settings, then orchestrates the stateless solver to produce diffraction
-efficiencies, complex coefficients and real-space fields.
+numerical settings, then orchestrates the stateless solver into diffraction
+efficiencies, complex coefficients and real-space fields. If you only learn two
+objects in Ikarus, learn these.
 
 ## `RCWA`
 
@@ -31,7 +32,7 @@ RCWA(period_x, period_y, resolution=32, n_orders=25,
 | Property | Description |
 |---|---|
 | `n_orders` | `(Mx, My)` tuple; **settable** (resets the convergence cache). |
-| `shapes` | Access to the shape-primitive library, `rcwa.shapes.circle(...)`. |
+| `shapes` | The shape-primitive library: `rcwa.shapes.circle(...)`. |
 | `last_solution` | The most recent `FieldSolution`, or `None`. |
 | `layers` | The list of `Layer` objects. |
 | `source` | The current `Source`, or `None`. |
@@ -65,10 +66,10 @@ rcwa.add_layer(200e-9, topo, ["Air", "Si"]) # 0 -> Air, 1 -> Si
 
 #### `set_source(**kwargs) -> Source`
 
-Create or update the illumination. The **first** call must include `wavelength`.
-Later calls update only the fields you pass and retain the rest (ideal for
-sweeps). Accepts every [`Source`](source.md) field: `wavelength`, `theta`, `phi`,
-`polarization`, `linear_pol_angle`.
+Create or update the illumination. The **first** call must include
+`wavelength`. Later calls update only what you pass and retain the rest —
+the backbone of every sweep. Accepts every [`Source`](source.md) field:
+`wavelength`, `theta`, `phi`, `polarization`, `linear_pol_angle`.
 
 ```python
 rcwa.set_source(wavelength=600e-9, theta=0, polarization="linear", linear_pol_angle=90)
@@ -79,13 +80,13 @@ rcwa.set_source(theta=15)   # keeps wavelength + polarization
 
 #### `simulate(auto_converge="never", converge_tol=None, max_orders=200, verbose=False) -> (T, R, result)`
 
-Run a simulation and return the zero-order coefficients plus the full
+Run a simulation; return the zero-order coefficients plus the full
 [`SimulationResult`](#simulationresult).
 
 | `auto_converge` | Behaviour |
 |---|---|
 | `"never"` (default) | Use the current `n_orders`. |
-| `"once"` | Find and **cache** a converged `n_orders` (subsequent calls reuse it). |
+| `"once"` | Find and **cache** a converged `n_orders` (later calls reuse it). |
 | `"always"` | Re-converge on every call. |
 
 ```python
@@ -93,8 +94,8 @@ T, R, result = rcwa.simulate()
 T, R, result = rcwa.simulate(auto_converge="once", verbose=True)
 ```
 
-**Returns.** `(T, R, result)` — `T`/`R` are the zero-order coefficients (complex
-scalar for linear polarization, `{"co", "cross"}` for circular);
+**Returns.** `(T, R, result)` — `T`/`R` are the zero-order coefficients
+(complex scalar for linear polarization, `{"co", "cross"}` for circular);
 `result` is a `SimulationResult`.
 
 !!! warning "Energy-balance warnings"
@@ -106,21 +107,21 @@ scalar for linear polarization, `{"co", "cross"}` for circular);
 
 #### `get_fields(z_positions=None, plane="xy", nx=64, ny=64, x_position=0.0, y_position=0.0) -> dict` { #get_fields }
 
-Reconstruct real-space `E`/`H` fields from the last simulation (solving first if
-needed). Returns a dict of [`FieldMap`](fields-viz.md#fieldmap).
+Reconstruct real-space `E`/`H` fields from the last simulation (solving first
+if needed). Returns a dict of [`FieldMap`](fields-viz.md#fieldmap).
 
 - `plane="xy"` → one map per depth `z` in `z_positions` (meters; `z=0` at the
   cover/first-layer interface, increasing into the stack).
-- `plane="xz"` / `"yz"` → a single cross-section sweeping the whole stack at fixed
-  `y_position` / `x_position`.
+- `plane="xz"` / `"yz"` → a single cross-section sweeping the whole stack at
+  fixed `y_position` / `x_position`.
 
 ```python
 xy = rcwa.get_fields(z_positions=[80e-9], plane="xy", nx=128, ny=128)
 xz = rcwa.get_fields(plane="xz", nx=160, y_position=rcwa.period_y / 2)["xz"]
 ```
 
-Each map carries the structure permittivity on its grid (`FieldMap.eps`) so plots
-can overlay material outlines.
+Each map carries the structure permittivity on its grid (`FieldMap.eps`) so
+plots can overlay material outlines.
 
 ### Visualization
 
@@ -147,9 +148,9 @@ Load an Ikarus HDF5 result file into a nested dict.
 
 ---
 
-## `SimulationResult`
+## `SimulationResult` { #simulationresult }
 
-The rich object returned as the third element of `simulate()`.
+The full flight report, returned as the third element of `simulate()`.
 
 ### Attributes
 
@@ -181,16 +182,15 @@ Flat index of harmonic `(p, q)` into the `*_orders` / angle arrays. Raises
 i = result.order_index(0, 0)
 print("specular T:", result.T_orders[i], "at", result.theta_out_trn[i], "deg")
 
-# Power into the +1 reflected order of a grating:
-ip1 = result.order_index(1, 0)
+ip1 = result.order_index(1, 0)          # +1 reflected order of a grating
 print("R(+1):", result.R_orders[ip1])
 ```
 
 ### Best practices
 
-- Treat `energy_balance` as your first diagnostic: for a lossless structure it
-  must be 1 to within convergence error.
-- Use `T`/`R` (and `T_phase`/`R_phase`) for **specular** metasurface design; use
-  `T_orders`/`R_orders` with `order_index` for **grating** order steering.
-- The exit-angle arrays are `NaN` for evanescent orders — mask with
-  `np.isfinite(...)` before plotting.
+- `energy_balance` first, always: a lossless structure must read 1 within
+  convergence error.
+- Specular metasurface design → `T`/`R` (+ `T_phase`/`R_phase`). Grating order
+  steering → `T_orders`/`R_orders` with `order_index`.
+- Exit-angle arrays carry `NaN` for evanescent orders — `np.isfinite(...)`
+  before plotting.

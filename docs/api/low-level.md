@@ -1,8 +1,9 @@
 # Low-level API
 
-These modules are the engine internals. Most users never call them directly — the
-[`RCWA`](rcwa.md) façade orchestrates everything — but they are public, documented
-and useful for custom workflows, teaching, or validation.
+*The engine room.* Most users never come down here — the [`RCWA`](rcwa.md)
+façade runs the machinery for you — but everything below deck is public,
+documented, and genuinely useful for custom workflows, teaching, or auditing
+the physics.
 
 ## Fourier machinery — `ikarus.core.fourier`
 
@@ -13,8 +14,8 @@ from ikarus import HarmonicGrid
 HarmonicGrid(n_orders_x, n_orders_y)
 ```
 
-Bookkeeping for the truncated harmonic set. Orders run `-n_orders … +n_orders`
-inclusive.
+Bookkeeping for the truncated harmonic set; orders run
+`-n_orders … +n_orders` inclusive.
 
 | Member | Description |
 |---|---|
@@ -26,10 +27,11 @@ inclusive.
 
 ### `convolution_matrix(cell, grid) -> ndarray`
 
-Build the convolution (Toeplitz) matrix of a periodic cell function sampled on an
-`(Nx, Ny)` grid, for the harmonics in `grid`. Returns a complex `(P, P)` matrix.
-Raises `ValueError` if the sampling is too coarse to resolve the required
-difference orders (it needs ≥ `4*n_orders + 1` samples per axis).
+The convolution (Toeplitz) matrix of a periodic cell function sampled on an
+`(Nx, Ny)` grid, for the harmonics in `grid` — how geometry enters the
+algebra. Returns a complex `(P, P)` matrix. Raises `ValueError` if the
+sampling can't resolve the required difference orders (needs ≥
+`4*n_orders + 1` samples per axis).
 
 ```python
 import numpy as np
@@ -43,24 +45,24 @@ EPS = convolution_matrix(eps_cell, grid)        # (P, P)
 
 ### `reciprocal_vectors(period_x, period_y) -> (float, float)`
 
-Return the reciprocal-lattice spacings \((2\pi/\Lambda_x,\ 2\pi/\Lambda_y)\).
+The reciprocal-lattice spacings \((2\pi/\Lambda_x,\ 2\pi/\Lambda_y)\).
 
 ## Solver — `ikarus.core.solver`
 
-The stateless heart of the method. Key public names:
+The stateless heart. Public names:
 
 | Name | Description |
 |---|---|
-| `solve_stack(...)` | Solve a full stack; returns a `FieldSolution`. |
-| `FieldSolution` | Modal solution: mode matrices, S-matrices, per-order efficiencies and coefficients, wavevector matrices. |
+| `solve_stack(...)` | Solve a full stack → `FieldSolution`. |
+| `FieldSolution` | The modal solution: mode matrices, S-matrices, per-order efficiencies/coefficients, wavevector matrices. |
 | `SMatrix` | A scattering matrix with four `2P×2P` blocks (`S11`…`S22`); `SMatrix.identity(dim)`. |
-| `redheffer_star(a, b) -> SMatrix` | Redheffer star product (computed via `solve`, never an explicit inverse). |
+| `redheffer_star(a, b) -> SMatrix` | The star product — computed via `solve`, never an explicit inverse. |
 | `uniform_modes(eps, Kx, Ky)` | Analytic eigenmodes `(W, V, Kz)` of a homogeneous medium, with the consistent forward-branch selection. |
 | `layer_modes(...)`, `layer_smatrix(...)` | Per-layer eigenmodes and scattering matrix. |
 | `wavevector_matrices(grid, kx0, ky0, period_x, period_y, wavelength)` | Diagonal normalized `Kx, Ky`. |
 
-`solve_stack` is what `RCWA._solve()` calls. Its signature (all wavevectors
-normalized by `k0`):
+`solve_stack` is exactly what `RCWA._solve()` calls (wavevectors normalized by
+\(k_0\)):
 
 ```python
 solve_stack(eps_grids, heights, eps_ref, eps_trn, grid,
@@ -72,7 +74,7 @@ solve_stack(eps_grids, heights, eps_ref, eps_trn, grid,
 | `eps_grids` | List of `(Nx, Ny)` permittivity grids, one per **interior** layer. |
 | `heights` | Interior layer thicknesses (m). |
 | `eps_ref`, `eps_trn` | Cover and substrate scalar permittivities. |
-| `grid` | a `HarmonicGrid`. |
+| `grid` | A `HarmonicGrid`. |
 | `kx0`, `ky0` | Incident in-plane wavevector (normalized). |
 | `period_x`, `period_y`, `wavelength` | Geometry / wavelength (m). |
 | `polarization_xy` | The `(p_x, p_y)` transverse polarization components. |
@@ -96,21 +98,20 @@ i0 = grid.zero_order_index()
 print("specular T:", sol.T_orders[i0], "  R+T:", sol.R_total + sol.T_total)
 ```
 
-!!! tip "When to drop to this level"
-    Use the low-level API when you want to (a) reuse a single eigendecomposition
-    across many cascades, (b) build a non-standard excitation, or (c) validate the
-    façade. For everyday work the [`RCWA`](rcwa.md) object is both clearer and
-    safer (it validates the stack and packages results).
+!!! tip "When to come down here"
+    (a) Reusing one eigendecomposition across many cascades, (b) building a
+    non-standard excitation, (c) validating the façade. For daily flying, the
+    [`RCWA`](rcwa.md) object is clearer and safer — it validates the stack and
+    packages the results.
 
-## Numerical notes
+## Numerical fine print
 
-- **Branch selection.** `uniform_modes` and the patterned-layer modes share a
-  single forward/decaying branch selection (`_forward_branch`) so evanescent
-  magnetic-mode signs stay consistent across the gap, regions and layers. This is
-  essential for correct diffraction-grating results.
-- **No explicit inverses.** The Redheffer star and several internal steps use
-  `scipy.linalg.solve` (right-division) rather than forming inverses, both for
-  speed and conditioning.
-- **Anomaly regularization.** Orders sitting exactly on a Rayleigh–Wood anomaly
-  (the light line) are regularized with a tiny imaginary loss to keep the algebra
-  non-singular.
+- **Branch selection.** `uniform_modes` and the patterned-layer modes share one
+  forward/decaying branch rule (`_forward_branch`) — evanescent magnetic-mode
+  signs stay consistent across gap, regions and layers. Without this, every
+  grating result is silently wrong
+  ([the war story](../theory.md#branch-selection-and-stability)).
+- **No explicit inverses.** The Redheffer star and other hot paths use
+  `scipy.linalg.solve` right-division — faster *and* better conditioned.
+- **Anomaly regularization.** Orders sitting exactly on a Rayleigh–Wood
+  anomaly get a vanishing imaginary loss so the algebra stays non-singular.

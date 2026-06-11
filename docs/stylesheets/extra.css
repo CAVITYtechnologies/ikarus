@@ -1,16 +1,176 @@
-/* Slightly wider content column for equations and wide tables. */
-.md-grid {
-  max-width: 60rem;
+/* ============================================================
+   Ikarus docs — sun-flight theme
+   ============================================================ */
+
+:root {
+  --ikarus-sun-1: #ffb300;   /* amber */
+  --ikarus-sun-2: #ff7043;   /* deep orange */
+  --ikarus-sun-3: #f4511e;
+  --ikarus-sky:   #1a237e;
 }
 
-/* Make MathJax display equations scroll horizontally on small screens. */
+/* Slightly wider content column for equations and wide tables. */
+.md-grid {
+  max-width: 61rem;
+}
+
+/* ---------- Hero (landing page) ---------- */
+.ikarus-hero {
+  border-radius: 1rem;
+  padding: 2.4rem 2rem 2rem 2rem;
+  margin: 0.5rem 0 1.5rem 0;
+  text-align: center;
+  color: #fff;
+  background:
+    radial-gradient(ellipse 80% 120% at 50% -20%,
+      rgba(255, 213, 79, 0.55), transparent 60%),
+    linear-gradient(160deg, #e65100 0%, #bf360c 45%, #4e342e 100%);
+  box-shadow: 0 10px 40px -12px rgba(230, 81, 0, 0.5);
+}
+
+.ikarus-hero h1 {
+  color: #fff !important;
+  font-size: 2.4rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.4rem;
+}
+
+.ikarus-hero p {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.85rem;
+  max-width: 38rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ikarus-hero .md-button {
+  margin: 0.3rem 0.25rem 0 0.25rem;
+  border-color: rgba(255, 255, 255, 0.85);
+  color: #fff;
+}
+
+.ikarus-hero .md-button--primary {
+  background-color: #fff;
+  border-color: #fff;
+  color: #bf360c;
+}
+
+.ikarus-hero .md-button:hover {
+  background-color: rgba(255, 255, 255, 0.18);
+  border-color: #fff;
+  color: #fff;
+}
+
+.ikarus-hero .md-button--primary:hover {
+  background-color: #ffe0b2;
+  color: #bf360c;
+}
+
+/* ---------- Sun-gradient text accent ---------- */
+.sun-text {
+  background: linear-gradient(90deg, var(--ikarus-sun-1), var(--ikarus-sun-3));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 800;
+}
+
+/* ---------- Stat band ---------- */
+.ikarus-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.8rem;
+  margin: 1.2rem 0;
+}
+
+.ikarus-stats > div {
+  border-radius: 0.7rem;
+  padding: 1rem 0.8rem;
+  text-align: center;
+  border: 1px solid rgba(255, 112, 67, 0.35);
+  background: linear-gradient(180deg,
+    rgba(255, 179, 0, 0.10), rgba(255, 112, 67, 0.06));
+}
+
+.ikarus-stats .stat-number {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 800;
+  background: linear-gradient(90deg, var(--ikarus-sun-2), var(--ikarus-sun-1));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.ikarus-stats .stat-label {
+  display: block;
+  font-size: 0.66rem;
+  opacity: 0.8;
+  margin-top: 0.15rem;
+}
+
+/* ---------- Feather divider ---------- */
+hr.wing {
+  border: none;
+  height: 2px;
+  margin: 2rem auto;
+  width: 60%;
+  background: linear-gradient(90deg,
+    transparent, var(--ikarus-sun-1), var(--ikarus-sun-2), transparent);
+  opacity: 0.7;
+}
+
+/* ---------- Cards polish ---------- */
+.md-typeset .grid.cards > ul > li,
+.md-typeset .grid.cards > ol > li {
+  border-radius: 0.7rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease,
+              border-color 0.15s ease;
+}
+
+.md-typeset .grid.cards > ul > li:hover,
+.md-typeset .grid.cards > ol > li:hover {
+  transform: translateY(-2px);
+  border-color: var(--ikarus-sun-2);
+  box-shadow: 0 8px 24px -10px rgba(244, 81, 30, 0.45);
+}
+
+/* ---------- Tables: rounded + hover ---------- */
+.md-typeset table:not([class]) {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.md-typeset table:not([class]) tbody tr:hover {
+  background-color: rgba(255, 179, 0, 0.08);
+}
+
+/* ---------- Math overflow on small screens ---------- */
 mjx-container {
   overflow-x: auto;
   overflow-y: hidden;
   max-width: 100%;
 }
 
-/* Tighten the API "signature" code blocks. */
-.api-signature > pre {
-  margin-bottom: 0.4rem;
+/* ---------- Announce bar ---------- */
+.md-banner {
+  background: linear-gradient(90deg, #bf360c, #e65100, #bf360c);
+  color: #fff;
+}
+
+.md-banner code {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+/* ---------- Dark scheme adjustments ---------- */
+[data-md-color-scheme="slate"] .ikarus-stats > div {
+  border-color: rgba(255, 179, 0, 0.25);
+  background: linear-gradient(180deg,
+    rgba(255, 179, 0, 0.07), rgba(255, 112, 67, 0.04));
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) tbody tr:hover {
+  background-color: rgba(255, 179, 0, 0.06);
 }

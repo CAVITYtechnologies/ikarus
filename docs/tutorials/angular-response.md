@@ -1,12 +1,13 @@
-# Angular response
+# Lesson 6 · Coming in at an Angle
 
-**Goal.** Sweep the incidence angle, build an angle–wavelength dispersion map, and
-recognize Rayleigh–Wood anomalies.
+**Mission:** tilt the illumination, paint an angle–wavelength dispersion map,
+and learn to recognize a Rayleigh–Wood anomaly when one streaks across your
+plot.
 
-## Incidence-angle sweep
+## Tilting the source
 
-`theta` is the polar angle from +z (degrees); `phi` is the azimuth. As before,
-reuse one `RCWA` and vary only the source.
+`theta` tilts from straight-down (+z), `phi` picks the compass direction of the
+tilt. The sweep pattern is the same golden one — touch only the source:
 
 ```python
 import numpy as np
@@ -22,20 +23,21 @@ rcwa.add_uniform_layer(np.inf, "SiO2")
 thetas = np.linspace(0, 60, 61)
 R = np.empty_like(thetas)
 for i, th in enumerate(thetas):
-    rcwa.set_source(wavelength=600e-9, theta=th, phi=0, polarization="linear", linear_pol_angle=90)
-    R[i] = rcwa.simulate()[2].R_total      # TM (p-pol); watch for the Brewster dip
+    rcwa.set_source(wavelength=600e-9, theta=th, phi=0,
+                    polarization="linear", linear_pol_angle=90)
+    R[i] = rcwa.simulate()[2].R_total      # TM: watch for the Brewster dip
 ```
 
-!!! info "Conical (off-plane) incidence"
-    A non-zero `phi` tilts the plane of incidence out of the x–z plane (conical
-    mounting). The solver handles it natively — the full 2-D harmonic set is always
-    in play once `theta > 0`.
+!!! info "Conical incidence comes free"
+    A non-zero `phi` swings the plane of incidence out of x–z (conical
+    mounting). No special flags — once `theta > 0`, the full 2-D harmonic
+    machinery is engaged anyway.
 
-## Angle–wavelength dispersion map
+## The dispersion map
 
-The most informative diagnostic for a periodic structure is a 2-D map of
-reflectance over (wavelength, angle): resonances appear as dispersive bands and
-diffraction onsets as sharp lines.
+The single most informative plot for any periodic structure: reflectance over
+(wavelength, angle). Resonances trace dispersive bands; diffraction onsets cut
+sharp lines:
 
 ```python
 import numpy as np
@@ -62,10 +64,10 @@ plt.xlabel("wavelength (nm)"); plt.ylabel("incidence angle (deg)")
 plt.colorbar(label="Reflectance"); plt.savefig("dispersion.png", dpi=150)
 ```
 
-## Rayleigh–Wood anomalies
+## Spotting Rayleigh–Wood anomalies
 
-A diffraction order cuts on/off when its in-plane wavevector reaches the light line.
-For the first order into the cover (index \(n_c\)) at azimuth \(\phi=0\):
+A diffraction lane opens (or closes) when its in-plane wavevector touches the
+light line. For the first order into the cover (index \(n_c\)) at \(\phi = 0\):
 
 \[
 n_c\,\sin\theta + \frac{\lambda}{\Lambda} = n_c
@@ -73,13 +75,14 @@ n_c\,\sin\theta + \frac{\lambda}{\Lambda} = n_c
 \lambda_{\text{RW}} = \Lambda\,n_c\,(1 - \sin\theta).
 \]
 
-These appear as bright cusps in the map. Ikarus regularizes orders sitting exactly
-on the light line with a tiny imaginary loss, so the solve stays well-posed across
-the anomaly — but expect the energy defect to rise locally and the convergence to
-slow there.
+Those are the bright cusps streaking across your map — a new lane opening and
+briefly rearranging all the traffic. Ikarus regularizes orders sitting *exactly*
+on the light line with a vanishing imaginary loss, so the solve stays
+well-posed straight through the anomaly; just expect the local energy defect to
+tick up and convergence to slow there.
 
 ```python
-# Track the number of propagating reflected orders as theta grows:
+# Watch the lane count grow with angle:
 for th in (0, 20, 40):
     rcwa.set_source(wavelength=600e-9, theta=th, polarization="linear")
     _, _, res = rcwa.simulate()
@@ -89,14 +92,20 @@ for th in (0, 20, 40):
 
 ## Expected results
 
-- A smooth specular response at small angles, with TM showing a Brewster-like dip.
-- Diffraction onsets (Wood anomalies) trace bright curves across the dispersion
-  map; the order count changes as you cross them.
+- Smooth specular response at small angles; a Brewster-like TM dip.
+- Wood anomalies as bright curves \(\lambda_{\text{RW}}(\theta)\) across the
+  dispersion map, with the order count changing as you cross them.
 
-## Best practices
+## Pilot habits
 
-- Re-check convergence at the **largest** angle of your sweep — oblique incidence
-  populates more orders and can need a higher `n_orders`.
-- Near a Wood anomaly, expect a slightly larger energy defect; refine `n_orders`
-  if it matters for your metric.
-- Mask `NaN` exit angles (evanescent orders) before plotting angle data.
+- Re-run the [convergence ritual](parameter-sweeps.md#convergence-study) at
+  your **largest** angle — oblique incidence populates more orders.
+- Mask `NaN` exit angles (`np.isfinite`) before plotting angle data.
+- Near an anomaly, a slightly larger energy defect is expected; refine
+  `n_orders` only if your metric lives there.
+
+---
+
+🎓 **Flight School complete.** Onward:
+[Aerobatics](../advanced.md) · [The Hangar](../examples-gallery.md) ·
+[Need for Speed](../performance.md)

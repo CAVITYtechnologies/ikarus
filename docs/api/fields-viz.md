@@ -1,35 +1,35 @@
 # Fields & Visualization
 
-Real-space field reconstruction (`ikarus.core.fields`) and the matplotlib plotting
-helpers (`ikarus.visualization`).
+*Where numbers become pictures.* Real-space field reconstruction
+(`ikarus.core.fields`) and the matplotlib plotting helpers
+(`ikarus.visualization`).
 
 !!! note "Optional dependency"
-    Plotting needs **matplotlib**: `pip install "ikarus-rcwa[viz]"`. Field
-    *reconstruction* itself only needs NumPy/SciPy.
+    Plotting needs **matplotlib** (`pip install "ikarus-rcwa[viz]"`); field
+    *reconstruction* itself runs on NumPy/SciPy alone.
 
 ## Field reconstruction
 
-### `FieldMap`
+### `FieldMap` { #fieldmap }
 
 A dataclass holding real-space vector fields on a sampling grid.
 
 | Attribute | Description |
 |---|---|
-| `E`, `H` | Complex arrays of shape `(..., 3)` → `(Ex, Ey, Ez)` / `(Hx, Hy, Hz)`. |
+| `E`, `H` | Complex arrays, shape `(..., 3)` → `(Ex, Ey, Ez)` / `(Hx, Hy, Hz)`. |
 | `coords` | Dict mapping axis name (`"x"`, `"y"`, `"z"`) → 1-D coordinate array (m). |
 | `z` | The depth (m) for an `xy` slice, else `None`. |
-| `eps` | Real part of the permittivity on the same grid (set by `RCWA.get_fields`, used for structure overlays). |
+| `eps` | Real permittivity on the same grid (attached by `RCWA.get_fields`; used for structure overlays). |
 | `intensity` *(property)* | \(|E|^2\) summed over components. |
 
 ### `RCWA.get_fields(...)`
 
-The high-level entry point — see
-[`RCWA.get_fields`](rcwa.md#get_fields).
-It returns a `dict` of `FieldMap`s keyed by depth label (`xy`) or plane name
-(`xz`/`yz`).
+The high-level entry point — full signature at
+[`RCWA.get_fields`](rcwa.md#get_fields). Returns a `dict` of `FieldMap`s keyed
+by depth label (`xy`) or plane name (`xz`/`yz`).
 
 ```python
-# xy slices at three depths inside the structure:
+# xy slices at three depths:
 maps = rcwa.get_fields(z_positions=[0, 100e-9, 200e-9], plane="xy", nx=128, ny=128)
 for label, fm in maps.items():
     print(label, fm.intensity.max())
@@ -38,10 +38,10 @@ for label, fm in maps.items():
 xz = rcwa.get_fields(plane="xz", nx=200, y_position=rcwa.period_y / 2)["xz"]
 ```
 
-!!! info "z convention"
-    `z = 0` is the cover / first-interior-layer interface and `z` increases into
-    the stack toward the substrate. Negative `z` is inside the cover; `z` beyond
-    the total interior thickness is inside the substrate.
+!!! info "The z convention"
+    `z = 0` is the cover / first-interior-layer interface; `z` grows
+    **into** the stack. Negative `z` = inside the cover; beyond the total
+    interior thickness = inside the substrate.
 
 ### `reconstruct(...)` *(low-level)*
 
@@ -52,7 +52,7 @@ reconstruct(sol, z_positions, nx=64, ny=64, plane="xy",
 ```
 
 Operates directly on a `FieldSolution` (`result.solution`). `RCWA.get_fields`
-wraps this and additionally attaches the structure permittivity for overlays.
+wraps this and attaches the structure permittivity for overlays.
 
 ## Plotting
 
@@ -62,42 +62,39 @@ from ikarus.visualization import plot_field, plot_stack, plot_topology, plot_fie
 
 ### `plot_field(field_map, component="intensity", ax=None, savefig=None, cmap=None, overlay=True, overlay_color="white", overlay_alpha=0.45)`
 
-Plot a 2-D `FieldMap` cross-section. `component` is `"intensity"`, a field
-component (`"Ex"`…`"Hz"`) for magnitude, or `"<comp>phase"` (e.g. `"Eyphase"`) for
-phase. If `overlay` is true and the map carries `eps`, material boundaries are
-drawn as semi-transparent contours.
+Plot a 2-D `FieldMap` cross-section. `component` is `"intensity"`, a component
+(`"Ex"`…`"Hz"`) for magnitude, or `"<comp>phase"` (e.g. `"Eyphase"`) for phase.
+With `overlay=True` and `eps` present, material boundaries are drawn as
+semi-transparent contours — your built-in sanity check that the field lives
+where the structure is.
 
 ```python
 ax = plot_field(xz, component="intensity")
 ax.figure.savefig("field.png", dpi=150)
 
-plot_field(xz, component="Eyphase", cmap="twilight")  # phase map
+plot_field(xz, component="Eyphase", cmap="twilight")  # a phase map
 ```
 
 ### `plot_field_xy(field_dict, component="intensity", savefig=None)`
 
-Plot one or more `xy` maps (the dict from `get_fields`) side by side.
+Several `xy` maps (the dict from `get_fields`) side by side.
 
 ### `plot_stack(rcwa, ax=None, savefig=None, finite_frac=0.25)`
 
-Draw the layer stack as an xz cross-section, color-coded by material. The
-semi-infinite cover/substrate are drawn with a finite visual height
-(`finite_frac` of the interior thickness).
+The layer stack as an xz cross-section, color-coded by material. Semi-infinite
+cover/substrate get a finite visual height (`finite_frac` of the interior).
 
 ### `plot_topology(rcwa, layer_index, wavelength=None, ax=None, savefig=None)`
 
-Show a patterned layer's permittivity (real part) over the unit cell.
+A patterned layer's permittivity (real part) over the unit cell.
 
 ### Via the façade
 
-`RCWA.visualize_structure(plane=..., layer_index=...)` and
-`RCWA.visualize_fields(...)` are convenience wrappers around `plot_stack` /
-`plot_topology` / `plot_field`.
-
 ```python
-rcwa.visualize_structure(plane="xz")                       # stack
-rcwa.visualize_structure(plane="xy", layer_index=1,        # topology
+rcwa.visualize_structure(plane="xz")                       # the stack
+rcwa.visualize_structure(plane="xy", layer_index=1,        # a topology
                          savefig="topology.png")
+rcwa.visualize_fields()                                    # auto xz field map
 ```
 
 ## Full example
@@ -118,14 +115,15 @@ rcwa.set_source(wavelength=600e-9, theta=0, polarization="linear")
 rcwa.simulate()
 
 xz = rcwa.get_fields(plane="xz", nx=120, y_position=period / 2)["xz"]
-ax = plot_field(xz, component="intensity")     # |E|^2 with structure outline
+ax = plot_field(xz, component="intensity")     # |E|² with structure outline
 ax.figure.savefig("cross_field_xz.png", dpi=150, bbox_inches="tight")
 ```
 
 ### Best practices
 
-- Call `simulate()` (or any solve) before `get_fields`; otherwise it solves
-  implicitly with the current settings.
-- For publication figures, reconstruct on a finer `nx`/`ny` than the solver
-  `resolution` — reconstruction is independent of the Fourier sampling.
-- Keep `overlay=True` to verify the field is registered with the geometry.
+- Run a solve before `get_fields` (it will solve implicitly otherwise, with
+  whatever settings are current).
+- Reconstruct on a finer `nx`/`ny` than the solver `resolution` for
+  publication figures — the reconstruction grid is independent and free.
+- Leave `overlay=True` on: a field that ignores its structure outline is a
+  bug telling you about itself.

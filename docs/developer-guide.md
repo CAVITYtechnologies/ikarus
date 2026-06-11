@@ -1,121 +1,114 @@
 # Developer Guide
 
-## Repository structure
+*Build your own wings.* Everything you need to navigate, extend and test the
+codebase — plus the architectural decisions that keep it honest.
+
+## Repository map
 
 ```text
 ikarus/
 ├── __init__.py            # public API surface (re-exports)
-├── core/                  # the solver engine
-│   ├── rcwa.py            #   RCWA facade + SimulationResult
-│   ├── solver.py          #   stateless linear algebra: modes, S-matrices, cascade
+├── core/                  # ⚙️ the engine
+│   ├── rcwa.py            #   RCWA façade + SimulationResult
+│   ├── solver.py          #   stateless heart: modes, S-matrices, cascade
 │   ├── source.py          #   Source (plane-wave illumination)
 │   ├── layer.py           #   Layer (uniform / patterned)
 │   ├── materials.py       #   Material, MaterialLibrary, default_library
 │   ├── fourier.py         #   HarmonicGrid, convolution_matrix
 │   ├── fields.py          #   FieldMap, real-space reconstruction
 │   └── polarization.py    #   circular co/cross decomposition
-├── inverse/               # gradient-free inverse design (optional: pymoo)
+├── inverse/               # 🧬 gradient-free inverse design (opt: pymoo)
 │   ├── dof.py             #   MetaAtom, free, pixels
 │   ├── targets.py         #   Target (figures of merit)
 │   └── optimize.py        #   optimize(), OptimizeResult
-├── shapes/                # topology primitives
-│   └── primitives.py
-├── tools/                 # convergence, HDF5 I/O, material CLI
-│   ├── convergence.py
-│   ├── io.py              #   (optional: h5py)
-│   └── add_material.py    #   `ikarus-add-material` console script
-├── visualization/         # matplotlib helpers (optional: matplotlib)
-│   ├── structure.py
-│   └── fields.py
-├── examples/              # runnable example scripts
-├── materials/             # shipped material database (*.json)
-└── tests/                 # pytest suite
-    └── validation/        # analytic Fresnel + 1-D grating references
+├── shapes/                # 🔵 topology primitives
+├── tools/                 # 🔧 convergence, HDF5 I/O, material CLI
+├── visualization/         # 🎨 matplotlib helpers (opt: matplotlib)
+├── examples/              # 🎪 runnable demo scripts
+├── materials/             # 📚 shipped material database (*.json)
+└── tests/                 # ✅ pytest suite
+    └── validation/        #   analytic Fresnel + 1-D grating references
 ```
 
 ```mermaid
 flowchart TD
-    U[User] --> F[core.rcwa.RCWA facade]
+    U["👤 User"] --> F["core.rcwa.RCWA — the façade"]
     F --> L[core.layer.Layer]
     F --> M[core.materials.MaterialLibrary]
     F --> S[core.source.Source]
-    F --> SV[core.solver.solve_stack  -- stateless]
+    F --> SV["core.solver.solve_stack — stateless"]
     SV --> FO[core.fourier]
     SV --> RES[SimulationResult]
     RES --> FLD[core.fields.reconstruct]
-    F -. optional .-> INV[inverse]
-    F -. optional .-> VIZ[visualization]
-    F -. optional .-> IO[tools.io  HDF5]
+    F -. lazy import .-> INV[inverse]
+    F -. lazy import .-> VIZ[visualization]
+    F -. lazy import .-> IO[tools.io]
 ```
 
-## Internal architecture
+## The architecture in one idea
 
-The design separates a **stateless numerical core** from a **stateful façade**:
+**A stateless numerical core behind a stateful façade.**
 
-- `core.solver.solve_stack` is a pure function: geometry + source in, a
-  `FieldSolution` out. It holds no state and is independently testable. This is
-  where the eigenmodes, scattering matrices and Redheffer cascade live.
-- `core.rcwa.RCWA` collects user inputs, validates the stack, calls the solver and
-  *packages* the result (`SimulationResult`). It owns the convenience features —
-  field extraction, visualization hooks, I/O, auto-convergence.
-- **Optional features are lazily imported** inside the methods that use them, so
-  the core never hard-depends on matplotlib, h5py or pymoo.
+- `core.solver.solve_stack` is a pure function: geometry + source in,
+  `FieldSolution` out, no hidden state. Eigenmodes, scattering matrices and
+  the Redheffer cascade all live here — independently testable, reusable,
+  auditable.
+- `core.rcwa.RCWA` collects user input, validates the stack, calls the engine
+  and packages results. Convenience features (fields, plots, I/O,
+  auto-convergence) hang off the façade, never off the core.
+- **Optional dependencies are imported lazily** inside the methods that need
+  them — the core never hard-depends on matplotlib, h5py or pymoo, and each
+  raises a clear `ImportError` naming the right extra.
 
-Key numerical decisions worth knowing before you touch the solver:
+Numerical decisions you should know before touching the solver:
 
-- **Scattering-matrix (Redheffer) cascade**, not transfer matrices — for
-  unconditional stability with thick/evanescent layers.
-- **Consistent forward-branch eigenvalue selection** (`_forward_branch`,
-  `uniform_modes`) across gap, regions and patterned layers — required for correct
-  evanescent-mode signs in diffraction gratings.
-- **No explicit inverses** in hot paths — `scipy.linalg.solve` right-division
-  (`_rdiv`) for the star product, diagonal broadcasting for homogeneous regions.
-- **Physics \(\exp(-i\omega t)\)** convention externally; the solver works in the
-  engineering convention internally and conjugates at the boundary
-  (`core.fields`, `core.rcwa`).
+| Decision | Why |
+|---|---|
+| Scattering-matrix (Redheffer) cascade, never transfer matrices | unconditional stability for thick/evanescent layers |
+| One consistent forward-branch eigenvalue rule (`_forward_branch`, `uniform_modes`) | wrong-branch evanescent modes silently corrupt every grating |
+| No explicit inverses in hot paths — `scipy.linalg.solve` right-division | speed *and* conditioning |
+| Physics \(\exp(-i\omega t)\) outside, engineering convention inside, conjugation at the boundary | matches both the literature and the reference formulations |
 
-## How to contribute
+## Contributing
 
-1. Fork and clone; create a feature branch.
-2. Install in editable mode with the dev extras:
-   ```bash
-   pip install -e ".[dev]"
-   ```
-3. Make your change with a test that fails before and passes after.
-4. Run the suite and ensure no regressions (`pytest`).
-5. Open a pull request describing the change and the validation you ran.
+1. Fork, clone, branch.
+2. `pip install -e ".[dev]"`
+3. Make the change **with a test that fails before and passes after**.
+4. `pytest` — no regressions.
+5. PR with a description of the change and the validation you ran.
 
-Good first contributions, mapped to the roadmap gaps:
+Wish-list items, mapped to the known gaps:
 
-- **Li's inverse-rule factorization** for faster TM/metal convergence.
+- **Li's inverse-rule factorization** — faster TM/metal convergence; the
+  single highest-value solver contribution.
 - **Anisotropic (3×3 tensor) materials** in `core.layer` / `core.solver`.
-- Additional database materials (with a cited source) under `ikarus/materials/`.
+- New database materials (with a cited source) under `ikarus/materials/`.
 - More worked examples and tutorials.
 
 ## Testing
 
-The suite uses **pytest**; `testpaths` is `ikarus/tests`.
+Pytest; `testpaths` is `ikarus/tests`:
 
 ```bash
-pytest                      # everything
-pytest ikarus/tests/validation -q     # the physics validation only
-pytest -k fresnel           # a subset by keyword
+pytest                                 # everything
+pytest ikarus/tests/validation -q      # the physics gate only
+pytest -k fresnel                      # subset by keyword
 ```
 
-The validation tests (`ikarus/tests/validation/`) are the correctness backbone:
+The **validation suite** is the project's conscience:
 
-- `test_fresnel.py` — single-interface and slab reflectance/transmittance vs. the
-  analytic Fresnel/transfer-matrix solution (machine precision).
-- `test_grating.py` — a 1-D grating vs. an independent mode-matching reference and
-  energy conservation.
+- `test_fresnel.py` — single interfaces and slabs vs. the analytic
+  Fresnel/transfer-matrix solution, to machine precision.
+- `test_grating.py` — a 1-D grating vs. an independent mode-matching
+  reference, plus energy conservation.
 
-When changing the solver, treat these as the gate: they catch branch-selection,
-convention and conditioning regressions that unit tests miss. Add a validation
-case for any new physics.
+Treat these as the merge gate for solver changes: they catch branch-selection,
+convention and conditioning regressions that unit tests sail past. New physics
+⇒ new validation case. No exceptions — this is how the wings stay attached.
 
-## Documentation generation
+## Building these docs
 
-The docs are built with **MkDocs** + the **Material** theme (this site).
+MkDocs + Material (the site you're reading):
 
 ```bash
 pip install -r requirements-docs.txt
@@ -123,31 +116,25 @@ mkdocs serve      # live preview at http://127.0.0.1:8000
 mkdocs build      # static site -> ./site
 ```
 
-- Pages live under `docs/`; the navigation and theme are configured in
-  `mkdocs.yml`.
-- Math uses `pymdownx.arithmatex` + MathJax (`docs/javascripts/mathjax.js`);
-  diagrams use Mermaid via `pymdownx.superfences`.
-- A GitHub Actions workflow (`.github/workflows/docs.yml`) builds with
-  `--strict` and deploys to GitHub Pages on every push to `main`. Enable Pages
-  once under *Settings → Pages → Source: GitHub Actions*.
+- Content in `docs/`, configuration in `mkdocs.yml`, theme tweaks in
+  `docs/stylesheets/extra.css`, announcement bar in `overrides/main.html`.
+- Math: `pymdownx.arithmatex` + MathJax. Diagrams: Mermaid via
+  `pymdownx.superfences`. Icons/emoji: `pymdownx.emoji`.
+- CI: `.github/workflows/docs.yml` builds with `--strict` and deploys to
+  GitHub Pages on every push to `main`.
 
-!!! tip "Auto-generated API docs (optional)"
-    The API pages here are written by hand for stability. If you prefer to generate
-    them from docstrings, add [`mkdocstrings`](https://mkdocstrings.github.io/) to
-    the docs requirements and replace an API page body with a `::: ikarus.RCWA`
-    block — the codebase is already richly docstringed.
+!!! tip "Docstring-generated API pages (optional)"
+    The API reference is hand-written for stability. Prefer generation? Add
+    [`mkdocstrings`](https://mkdocstrings.github.io/) and replace a page body
+    with a `::: ikarus.RCWA` block — the codebase is richly docstringed.
 
-## Coding standards
+## House style
 
-- **Python ≥ 3.9**, `from __future__ import annotations` at the top of modules.
-- **Type hints** on public signatures; `@dataclass` for plain data carriers
-  (`Source`, `Layer`, `SimulationResult`, `FieldMap`, `SMatrix`).
-- **SI units** (meters) everywhere; the \(\exp(-i\omega t)\) convention with
-  \(k>0\) for loss.
-- **Docstrings** on every public class/function, with a one-line summary, the
-  parameters and the conventions used.
-- **Lazy-import optional dependencies** inside the function that needs them, and
-  raise a clear `ImportError` pointing at the right extra.
-- Keep the **numerical core stateless and inverse-free** in hot paths; prefer
-  `scipy.linalg.solve` over `inv`.
-- Match the surrounding style (naming, comment density) when editing a module.
+- Python ≥ 3.9, `from __future__ import annotations` at module top.
+- Type hints on public signatures; `@dataclass` for plain data carriers.
+- **SI units**, \(\exp(-i\omega t)\), \(k>0\) for loss — everywhere, always.
+- Docstrings on every public name: one-line summary, parameters, conventions.
+- Lazy-import optional dependencies; raise an `ImportError` that names the fix.
+- Keep the core **stateless** and the hot paths **inverse-free**.
+- Match the surrounding code's style when editing — the codebase reads as one
+  voice, and that's a feature.

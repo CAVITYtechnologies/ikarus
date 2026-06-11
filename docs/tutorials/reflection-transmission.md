@@ -1,19 +1,20 @@
-# Reflection & Transmission spectra
+# Lesson 1 · Spectra 101
 
-**Goal.** Compute reflectance \(R(\lambda)\) and transmittance \(T(\lambda)\) of a
-layered structure, read off the specular order, and account for absorption.
+**Mission:** compute \(R(\lambda)\) and \(T(\lambda)\) for a layered structure,
+learn to read the specular order, and meet absorption — the legitimate reason
+the books don't always sum to one.
 
 ## A thin-film stack
 
-We start with a uniform stack — a 120 nm TiO₂ film on glass — and sweep the
-visible band. Because the structure is unpatterned, only the specular order
-exists and the result is the exact transfer-matrix spectrum.
+A 120 nm TiO₂ film on glass, swept across the visible. Nothing is patterned,
+so only the specular lane exists and RCWA reproduces the exact transfer-matrix
+spectrum — at `n_orders=0`, which makes it effectively free:
 
 ```python
 import numpy as np
 from ikarus import RCWA
 
-rcwa = RCWA(period_x=400e-9, period_y=400e-9, n_orders=0)  # 0 orders: specular only
+rcwa = RCWA(period_x=400e-9, period_y=400e-9, n_orders=0)  # specular only
 rcwa.add_uniform_layer(np.inf, "Air")
 rcwa.add_uniform_layer(120e-9, "TiO2")
 rcwa.add_uniform_layer(np.inf, "SiO2")
@@ -27,15 +28,15 @@ for wl in wavelengths:
     T.append(res.T_total)
 
 R, T = np.array(R), np.array(T)
-print(f"R+T spans [{(R+T).min():.6f}, {(R+T).max():.6f}]")  # ~1: TiO2 lossless here
+print(f"R+T spans [{(R+T).min():.6f}, {(R+T).max():.6f}]")  # ≈ 1: lossless here
 ```
 
-!!! note "Why `n_orders=0`"
-    For a **uniform** stack there is no diffraction, so a single harmonic (the
-    specular order) is exact and instant. Use `n_orders=0` (or a small value) for
-    thin-film calculations; reserve large `n_orders` for patterned layers.
+!!! tip "Why `n_orders=0` is not cheating"
+    A uniform stack has no pattern to diffract from — one harmonic (the
+    specular order) captures the physics *exactly*. Save the big harmonic
+    budgets for patterned layers; thin films fly free.
 
-## Plotting the spectrum
+## Plot it
 
 ```python
 import matplotlib.pyplot as plt
@@ -50,26 +51,27 @@ ax.legend(); ax.grid(alpha=0.3)
 fig.savefig("thin_film_spectrum.png", dpi=150, bbox_inches="tight")
 ```
 
-## Reading the specular order explicitly
+## Totals vs. the specular lane
 
-For a patterned structure `R_total`/`T_total` sum over *all* propagating orders.
-To isolate the **specular** (0,0) order use `order_index`:
+`R_total`/`T_total` sum over **all** propagating orders. For patterned
+structures you'll often want just the straight-through lane:
 
 ```python
 i00 = res.order_index(0, 0)
-print("specular transmittance T(0,0) =", res.T_orders[i00])
-print("specular reflectance  R(0,0) =", res.R_orders[i00])
+print("specular T(0,0) =", res.T_orders[i00])
+print("specular R(0,0) =", res.R_orders[i00])
 ```
 
-## Absorption
+For this thin film they coincide — there *is* only the one lane.
 
-`energy_balance = R_total + T_total`. For an **absorbing** material it is below 1,
-and the absorptance is the remainder:
+## Absorption: when R + T honestly isn't 1
+
+Put 50 nm of gold in the path and watch the energy ledger:
 
 ```python
 rcwa = RCWA(period_x=400e-9, period_y=400e-9, n_orders=0)
 rcwa.add_uniform_layer(np.inf, "Air")
-rcwa.add_uniform_layer(50e-9, "Au")     # gold: strongly absorbing in the visible
+rcwa.add_uniform_layer(50e-9, "Au")          # gold: a glutton in the visible
 rcwa.add_uniform_layer(np.inf, "SiO2")
 
 rcwa.set_source(wavelength=550e-9, theta=0, polarization="linear")
@@ -78,18 +80,28 @@ A = 1.0 - res.energy_balance
 print(f"R={res.R_total:.3f}  T={res.T_total:.3f}  A={A:.3f}")
 ```
 
+`A` is real ohmic loss, not an error. The diagnostic rule:
+
+| `energy_balance` reads… | Verdict |
+|---|---|
+| ≈ 1 (lossless materials) | converged, healthy |
+| < 1 (lossy materials) | absorption — physics, working as intended |
+| ≳ 1.01 (lossless) | **unconverged** — raise `n_orders` |
+| ≫ 1 | numerical trouble — see [Troubleshooting](../troubleshooting.md) |
+
 ## Expected results
 
-- **TiO₂/glass:** smooth thin-film interference fringes; `R+T ≈ 1` to ~10⁻⁹
-  (TiO₂ is essentially lossless across the visible in the shipped data).
-- **Au film:** large absorptance `A`, with `R+T` well below 1 — *not* a sign of an
-  error but of real ohmic loss.
+- **TiO₂/glass:** smooth interference fringes; `R+T ≈ 1` to ~10⁻⁹.
+- **Au film:** large `A`, `R+T` well below 1 — gold doing gold things.
 
-## Best practices
+## Pilot habits
 
-- Use `n_orders=0` for thin films; it is exact and fast.
-- Treat `energy_balance` as a built-in correctness check: for lossless materials it
-  must be ≈ 1. If it drifts above 1 for a *patterned* layer, raise `n_orders`
-  ([convergence study](parameter-sweeps.md#convergence-study)).
-- Reuse one `RCWA` across the sweep and change only the wavelength via
-  `set_source(wavelength=...)`.
+- `n_orders=0` for thin films — exact and instant.
+- One `RCWA`, many `set_source(wavelength=...)` calls — never rebuild a fixed
+  stack inside a sweep.
+- Glance at `energy_balance` after every new structure. It's the cheapest bug
+  detector in photonics.
+
+---
+
+*Next:* [Lesson 2 · Splitting Light →](gratings.md)

@@ -1,50 +1,118 @@
-# Ikarus
+---
+hide:
+  - toc
+---
 
-**High-precision 2-D RCWA simulation for periodic photonic structures.**
+<div class="ikarus-hero" markdown>
 
-Ikarus is a rigorous coupled-wave analysis (RCWA / Fourier Modal Method) solver
-for **2-D periodic** photonic structures — metasurfaces, crossed gratings and
-photonic crystal slabs. It is implemented in pure NumPy/SciPy, uses a numerically
-stable **scattering-matrix (Redheffer) cascade**, and is validated against the
-analytic Fresnel solution to machine precision.
+# Fly closer to the sun ☀️
+
+**Ikarus** is a high-precision RCWA engine for periodic photonics —
+metasurfaces, gratings and photonic crystals — with machine-precision
+validation, real-space field maps and inverse design built in.
+Pure NumPy/SciPy. No mesh. No time stepping. Just light, decomposed.
+
+[Take your first flight](quickstart.md){ .md-button .md-button--primary }
+[How RCWA works](theory.md){ .md-button }
+[API reference](api/index.md){ .md-button }
+
+</div>
 
 ```python
 import numpy as np
 from ikarus import RCWA
 
 rcwa = RCWA(period_x=1e-6, period_y=1e-6, resolution=64, n_orders=15)
-rcwa.add_uniform_layer(height=np.inf, material="Air")    # semi-infinite cover
-rcwa.add_uniform_layer(height=200e-9, material="Si")     # a 200 nm Si film
-rcwa.add_uniform_layer(height=np.inf, material="SiO2")   # semi-infinite substrate
+rcwa.add_uniform_layer(height=np.inf, material="Air")    # the sky
+rcwa.add_uniform_layer(height=200e-9, material="Si")     # the obstacle
+rcwa.add_uniform_layer(height=np.inf, material="SiO2")   # the landing zone
 rcwa.set_source(wavelength=1550e-9, theta=0, polarization="linear")
 
 T, R, result = rcwa.simulate()
 print(f"R = {result.R_total:.4f}  T = {result.T_total:.4f}  "
-      f"R+T = {result.energy_balance:.6f}")
+      f"R+T = {result.energy_balance:.6f}")   # the books always balance
 ```
+
+<div class="ikarus-stats" markdown>
+<div markdown><span class="stat-number">~10⁻¹⁵</span><span class="stat-label">agreement with analytic Fresnel</span></div>
+<div markdown><span class="stat-number">1.5–1.7×</span><span class="stat-label">faster than grcwa, head-to-head</span></div>
+<div markdown><span class="stat-number">9</span><span class="stat-label">dispersive materials built in</span></div>
+<div markdown><span class="stat-number">1</span><span class="stat-label">pip install, zero config</span></div>
+</div>
+
+---
+
+## Pick your runway
+
+<div class="grid cards" markdown>
+
+-   :material-clock-fast:{ .lg .middle } **Five minutes to first photon**
+
+    ---
+
+    Install with pip, build a three-layer stack, get reflectance,
+    transmittance and phase — with every input explained.
+
+    [:octicons-arrow-right-24: Quick Start](quickstart.md)
+
+-   :material-sine-wave:{ .lg .middle } **Understand the machine**
+
+    ---
+
+    RCWA explained like you're a photon: harmonics as exit lanes,
+    layers with natural gaits, scattering matrices whose wax never melts.
+
+    [:octicons-arrow-right-24: How RCWA Works](theory.md)
+
+-   :material-school:{ .lg .middle } **Flight School**
+
+    ---
+
+    Six hands-on lessons: spectra, gratings, metasurfaces, sweeps,
+    polarization and oblique incidence. All copy-paste runnable.
+
+    [:octicons-arrow-right-24: Tutorials](tutorials/index.md)
+
+-   :material-dna:{ .lg .middle } **Let the machine design for you**
+
+    ---
+
+    Declare *what you want* — "minimize reflection from 300 to 600 nm" —
+    and a genetic algorithm sculpts the metaatom. Three lines of intent.
+
+    [:octicons-arrow-right-24: Inverse Design](api/inverse.md)
+
+</div>
 
 ---
 
 ## Why Ikarus exists
 
-Most research-grade RCWA codes fall into one of two camps: terse academic scripts
-that are fast but hard to read and extend, or large frameworks with steep setup
-costs. Ikarus aims for a third point in that space:
+Most research RCWA codes are either terse academic scripts (fast, but you need
+the author in the room to modify them) or heavyweight frameworks (powerful, but
+the setup costs a weekend). Ikarus aims for the missing third thing:
 
-- **A readable, decomposed implementation.** The numerically heavy core
-  (`ikarus.core.solver`) is *stateless* and separated from the user-facing
-  [`RCWA`](api/rcwa.md) façade, the [materials](api/materials-layers.md) layer and
-  the [Fourier machinery](api/low-level.md). Each piece is independently testable.
-- **Correctness you can audit.** The package ships a validation suite
-  (`ikarus/tests/validation/`) that checks the engine against the analytic
-  Fresnel/transfer-matrix solution and an independent 1-D mode-matching reference.
-- **An ergonomic API** that still exposes the full per-order, vectorial result —
-  diffraction efficiencies, complex coefficients, exit angles, and real-space
-  field maps.
-- **Gradient-free inverse design** built in, so that the same metaatom definition
-  can be optimized for a target response without leaving the package.
+- **A readable, decomposed engine.** The numerically heavy core is *stateless*
+  and lives apart from the user-facing façade, the material database and the
+  Fourier machinery. Every piece is independently testable — and tested.
+- **Correctness you can audit.** A validation suite checks the engine against
+  the analytic Fresnel solution (to ~10⁻¹⁵) and an independent mode-matching
+  reference. Energy is conserved to ~10⁻⁹ for lossless gratings.
+- **An API that respects your time.** Full per-order, vectorial results —
+  efficiencies, complex amplitudes, exit angles, fields — without ceremony.
+- **Inverse design in the box.** The same metaatom you simulate forward can be
+  optimized backward, gradient-free, with one function call.
 
-## Key features
+!!! example "🪶 Myth break — why \"Ikarus\"?"
+
+    In the myth, Ikaros strapped on wings of wax and feathers, ignored the
+    flight envelope, and performed an unscheduled rapid disassembly over the
+    Aegean. Our Ikarus is built differently: the **scattering-matrix cascade**
+    is *unconditionally stable* — thick layers, evanescent waves, lossy metals —
+    crank them all you like. The wax doesn't melt.
+    (Transfer-matrix codes, on the other hand… [see the Theory chapter](theory.md).)
+
+## What's in the toolbox
 
 | Capability | Status |
 |---|---|
@@ -61,45 +129,18 @@ costs. Ikarus aims for a third point in that space:
 | HDF5 export / import of results | ✅ |
 | Numerically stable S-matrix cascade (no transfer-matrix overflow) | ✅ |
 | Gradient-free inverse design (pixels + parameters, GA / NSGA-III via pymoo) | ✅ |
-| Anisotropic (3×3 tensor) materials | ⛔ not yet (isotropic only) |
+| Anisotropic (3×3 tensor) materials | ⛔ on the roadmap |
 | Li inverse-rule factorization (faster TM convergence) | ⛔ Laurent rule only |
 | GPU acceleration | ⛔ CPU (NumPy/SciPy) only |
 
-## Main advantages
+## Sixty seconds of metasurface
 
-- **Validated to machine precision.** Reproduces the analytic Fresnel solution to
-  ~10⁻¹⁵ at any incidence angle and polarization; conserves energy to ~10⁻⁹ for
-  lossless diffraction gratings.
-- **Numerically stable for thick/evanescent layers.** The scattering-matrix
-  cascade avoids the exponential overflow that destroys transfer-matrix products.
-- **Cross-validated and fast.** Head-to-head against the independent
-  [grcwa](https://github.com/weiliangjinca/grcwa) package, Ikarus agrees on R/T
-  and phase to ~10⁻³ while running ~1.5–1.7× faster per solve (see
-  [Performance](performance.md)).
-
-## Example results
-
-A guided end-to-end demo (a TiO₂ "cross" antenna metasurface on glass) is shipped
-as a runnable script and exercises every major feature — structure plots,
-order-resolved efficiencies, field maps, a wavelength spectrum, circular
-polarization and HDF5 output:
-
-```bash
-python -m ikarus.examples.feature_tour
-# writes figures + results.h5 to ./ikarus_tour_output/
-```
-
-See the [Examples Gallery](examples-gallery.md) for the full catalogue.
-
-## Quick-start example
-
-A complete reflection/transmission calculation for a patterned layer:
+A square lattice of TiO₂ disks on glass — the classic metasurface building block:
 
 ```python
 import numpy as np
 from ikarus import RCWA, shapes
 
-# A square lattice of TiO2 pillars (circles) in air, on a glass substrate.
 period = 500e-9
 disk = shapes.circle(center=(0.5, 0.5), radius=0.3, grid_shape=(128, 128))
 
@@ -110,9 +151,20 @@ rcwa.add_uniform_layer(np.inf, "SiO2")
 rcwa.set_source(wavelength=600e-9, theta=0, polarization="linear")
 
 T, R, result = rcwa.simulate()
-print(f"Transmittance = {result.T_total:.3f}")
-print(f"Specular (0,0) order efficiency = {result.T_orders[result.order_index(0, 0)]:.3f}")
+print(f"T = {result.T_total:.3f}")
+print(f"specular (0,0) order = {result.T_orders[result.order_index(0, 0)]:.3f}")
 ```
 
-Continue with the [Installation](installation.md) and [Quick Start](quickstart.md)
-guides, or read the [Theory](theory.md) chapter for the method background.
+Want the full show — structure plots, field maps, spectra, circular
+polarization, HDF5? One command:
+
+```bash
+python -m ikarus.examples.feature_tour
+```
+
+<hr class="wing">
+
+<p style="text-align: center;">
+<em>Ready for takeoff?</em> &nbsp;
+<a href="installation/">Strap on the wings →</a>
+</p>

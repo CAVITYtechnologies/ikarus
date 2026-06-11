@@ -1,6 +1,7 @@
 # Citation
 
-If you use Ikarus in academic work, please cite the software.
+If Ikarus carried your results somewhere good, please cite it — it's how
+open-source scientific software earns its keep.
 
 ## How to cite
 
@@ -22,33 +23,33 @@ If you use Ikarus in academic work, please cite the software.
 }
 ```
 
-Replace `version` with the release you actually used (`import ikarus;
-ikarus.__version__`, or the installed `ikarus-rcwa` distribution version).
+Set `version` to the release you actually used —
+`python -c "import ikarus; print(ikarus.__version__)"`.
 
-!!! tip "Add a DOI for archival citation"
-    For a permanently citable, versioned reference, archive a release on
-    [Zenodo](https://zenodo.org/) (it integrates with GitHub releases) and add the
-    resulting DOI to the `doi`/`url` field above.
+!!! tip "Want a DOI?"
+    For a permanently archived, versioned reference, connect the GitHub repo to
+    [Zenodo](https://zenodo.org/) — each release then mints a DOI you can drop
+    into the entry above.
 
-## Background references
+## Background references { #background-references }
 
-Ikarus implements the scattering-matrix formulation of rigorous coupled-wave
-analysis (the Fourier Modal Method). The method rests on:
+The method itself stands on classic shoulders. If you discuss RCWA in your
+paper, these are the canonical citations:
 
-- M. G. Moharam and T. K. Gaylord, "Rigorous coupled-wave analysis of planar-grating
-  diffraction," *J. Opt. Soc. Am.* **71**, 811 (1981).
-- M. G. Moharam, E. B. Grann, D. A. Pommet, T. K. Gaylord, "Formulation for stable
-  and efficient implementation of the rigorous coupled-wave analysis of binary
-  gratings," *J. Opt. Soc. Am. A* **12**, 1068 (1995).
+- M. G. Moharam and T. K. Gaylord, "Rigorous coupled-wave analysis of
+  planar-grating diffraction," *J. Opt. Soc. Am.* **71**, 811 (1981) — the
+  original formulation.
+- M. G. Moharam, E. B. Grann, D. A. Pommet, T. K. Gaylord, "Formulation for
+  stable and efficient implementation of the rigorous coupled-wave analysis of
+  binary gratings," *J. Opt. Soc. Am. A* **12**, 1068 (1995).
 - L. Li, "Use of Fourier series in the analysis of discontinuous periodic
-  structures," *J. Opt. Soc. Am. A* **13**, 1870 (1996) — Fourier factorization
-  rules (the inverse rule Ikarus does not yet use).
-- L. Li, "Formulation and comparison of two recursive matrix algorithms for modeling
-  layered diffraction gratings," *J. Opt. Soc. Am. A* **13**, 1024 (1996) — the
-  S-matrix recursion.
-- R. C. Rumpf, "Improved formulation of scattering matrices for semi-analytical
-  methods that is consistent with convention," *PIER B* **35**, 241 (2011) — the
-  scattering-matrix conventions this implementation follows.
+  structures," *J. Opt. Soc. Am. A* **13**, 1870 (1996) — the factorization
+  rules (including the inverse rule on Ikarus's roadmap).
+- L. Li, "Formulation and comparison of two recursive matrix algorithms for
+  modeling layered diffraction gratings," *J. Opt. Soc. Am. A* **13**, 1024
+  (1996) — the S-matrix recursion.
+- R. C. Rumpf, "Improved formulation of scattering matrices for
+  semi-analytical methods that is consistent with convention," *PIER B*
+  **35**, 241 (2011) — the scattering-matrix conventions Ikarus follows.
 
-These are background for the *method*, not citations *of Ikarus*; cite the
-software entry above for the implementation.
+These cite the *method*; the software entry above cites the *implementation*.

@@ -1,103 +1,107 @@
 # Troubleshooting
 
-Common errors, what they mean, and how to fix them. Each entry quotes the message
-(or symptom) you will see.
+*Splashdown procedures.* Every pilot ditches occasionally — what matters is
+how fast you're back in the air. Find your error below; each entry quotes the
+exact message (or symptom), explains the cause, and gives the fix.
 
 ## Stack construction
 
 ??? failure "`ValueError: need at least a cover and a substrate layer`"
-    A stack needs **at least two** layers. Add a semi-infinite cover and substrate:
+    Every flight needs a sky and a ground:
     ```python
     rcwa.add_uniform_layer(np.inf, "Air")    # cover
     rcwa.add_uniform_layer(np.inf, "SiO2")   # substrate
     ```
 
 ??? failure "`ValueError: the cover/substrate layer must be uniform and semi-infinite (height=inf)`"
-    The **first** and **last** layers are the incidence and transmission
-    half-spaces; they must be `add_uniform_layer(np.inf, ...)`. Patterned or
-    finite-thickness boundary layers are not allowed.
+    The first and last layers are the incidence and transmission half-spaces —
+    `add_uniform_layer(np.inf, ...)`, no patterns, no finite thickness.
 
 ??? failure "`ValueError: interior layers must have finite thickness`"
-    Only the cover and substrate may be `np.inf`. Give every interior layer a real
-    thickness in meters.
+    Only the two outer layers may be `np.inf`. Give everything in between a
+    real thickness in meters.
 
 ??? failure "`ValueError: topology references N materials but only M provided`"
-    The integer topology contains an index without a matching entry in `materials`.
-    The list must be at least `topology.max() + 1` long (index `0` → `materials[0]`).
+    Your integer map contains an index with no matching entry. The `materials`
+    list must be at least `topology.max() + 1` long (index `0` →
+    `materials[0]`).
 
 ??? failure "`ValueError: patterned layer requires a 'materials' list`"
-    `add_layer(height, topology, materials)` needs the `materials` list the topology
-    indexes into.
+    `add_layer(height, topology, materials)` — the third argument isn't
+    optional.
 
 ## Source
 
 ??? failure "`ValueError: first set_source call requires 'wavelength'`"
-    The first `set_source` must include `wavelength`. Later calls can omit it (it is
-    retained).
+    The first call must name a wavelength; afterwards it's retained and you can
+    update fields one at a time.
 
 ??? failure "`ValueError: polarization must be one of ('linear', 'RCP', 'LCP')`"
-    Use one of those exact strings. For a specific linear orientation use
-    `polarization="linear"` with `linear_pol_angle=...`.
+    Exactly those strings. A specific linear orientation is
+    `polarization="linear"` + `linear_pol_angle=...`.
 
 ??? failure "`ValueError: call set_source(...) before simulating`"
-    Define the illumination before `simulate()`.
+    No light, no flight. Define the source first.
 
-## Convergence & energy balance
+## Energy balance & convergence
 
 ??? warning "`RuntimeWarning: Energy balance R+T=... exceeds 1.01`"
-    Usually **incomplete convergence** for a lossless structure — raise `n_orders`
-    (or use `simulate(auto_converge="once")`). If a material legitimately has gain,
-    check the sign of its `k` (Ikarus expects \(k>0\) for loss).
+    For a lossless structure: **unconverged** — raise `n_orders` or use
+    `simulate(auto_converge="once")`. If a material is *supposed* to be
+    lossy, check its `k` sign (Ikarus expects \(k>0\) for absorption; gain-sign
+    data manufactures free energy).
 
 ??? warning "`RuntimeWarning: Energy balance R+T=... is far above 1`"
-    **Numerical breakdown** at very high `n_orders` — the eigenmode/scattering
-    algebra loses conditioning for high-contrast structures. **Reduce** `n_orders`
-    or **increase** `resolution`; the optimum is the smallest converged order count,
-    not the largest.
+    You flew too close to the sun: at very high `n_orders` the eigenmode
+    algebra loses conditioning for high-contrast structures. Counterintuitive
+    fix: **reduce** `n_orders` (or raise `resolution`). The goal is the
+    smallest *converged* order count, not the largest survivable one.
 
 ??? failure "`ValueError: Cell resolution too coarse for the requested harmonic orders`"
-    The real-space grid cannot resolve the difference orders the convolution matrix
-    needs (≥ `4*n_orders + 1` samples per axis). Increase `resolution`, or lower
-    `n_orders`. The façade auto-raises sampling, so this typically appears only when
-    calling `convolution_matrix` directly.
+    The convolution matrix needs ≥ `4*n_orders + 1` real-space samples per
+    axis. Raise `resolution` or lower `n_orders`. (The `RCWA` façade auto-raises
+    sampling, so you'll usually meet this only when calling
+    `convolution_matrix` directly.)
 
-??? failure "`numpy.linalg.LinAlgError: ... singular matrix` during a solve"
-    Often an order sitting exactly on a Rayleigh–Wood anomaly (the light line) for a
-    perfectly lossless structure. Ikarus regularizes these with a tiny imaginary
-    loss; if it still occurs, nudge the wavelength/angle/period slightly off the
-    exact anomaly or add a small material loss. The auto-convergence loop catches
-    `LinAlgError` and stops the sweep.
+??? failure "`numpy.linalg.LinAlgError: ... singular matrix`"
+    Usually an order parked *exactly* on a Rayleigh–Wood anomaly (the light
+    line) in a perfectly lossless structure. Ikarus regularizes these with a
+    vanishing imaginary loss; if it still bites, nudge wavelength/angle/period
+    off the exact anomaly or add a whisper of material loss. The
+    auto-convergence loop catches `LinAlgError` and stops the sweep gracefully.
 
 ## Optional dependencies
 
 ??? failure "`ImportError: inverse.optimize needs pymoo`"
-    `pip install "ikarus-rcwa[inverse]"` (or `pip install pymoo`).
+    `pip install "ikarus-rcwa[inverse]"`
 
 ??? failure "`ImportError: HDF5 I/O requires the 'h5py' package`"
-    `pip install "ikarus-rcwa[io]"` (or `pip install h5py`).
+    `pip install "ikarus-rcwa[io]"`
 
-??? failure "`ModuleNotFoundError: No module named 'matplotlib'` on a plot call"
-    `pip install "ikarus-rcwa[viz]"` (or `pip install matplotlib`).
+??? failure "`ModuleNotFoundError: No module named 'matplotlib'`"
+    `pip install "ikarus-rcwa[viz]"`
 
 ## Results & fields
 
 ??? failure "`KeyError: order (p, q) not in truncated set`"
-    `order_index(p, q)` was asked for an order outside `-M..+M`. Increase `n_orders`
-    or request an order within range.
+    `order_index(p, q)` asked for a harmonic outside \(-M..+M\). Increase
+    `n_orders` or request an order inside the kept set.
 
 ??? failure "Exit angles are `NaN`"
-    Not an error — `NaN` marks an **evanescent** order (it does not propagate).
-    Mask with `np.isfinite(result.theta_out_trn)` before plotting.
+    Not an error — `NaN` marks an **evanescent** order (a ghost lane carrying
+    no far-field power). Mask with `np.isfinite(...)` before plotting.
 
-??? failure "Field maps look uniform / empty"
-    Make sure you ran a solve first (`simulate()` or any solve) before
-    `get_fields`; reconstruct a patterned layer's depth (`z` inside the interior)
-    rather than deep in the cover/substrate; and increase `nx`/`ny` for detail.
+??? failure "Field maps look empty or uniform"
+    Three usual suspects: no solve ran yet (call `simulate()` first); you
+    reconstructed at a depth inside the cover/substrate instead of the
+    patterned layer (check the z convention: 0 = cover/first-layer interface,
+    increasing downward); or `nx`/`ny` is too coarse to show the detail.
 
 ## Performance
 
-??? failure "Sweeps/optimization are far slower than expected on a many-core machine"
-    BLAS thread oversubscription. Pin BLAS to one thread **before importing NumPy**:
+??? failure "Sweeps/optimization crawl on a many-core machine"
+    BLAS thread oversubscription — the classic. Pin one thread **before
+    importing NumPy**:
     ```python
     import os
     for v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS",
@@ -105,16 +109,18 @@ Common errors, what they mean, and how to fix them. Each entry quotes the messag
         os.environ.setdefault(v, "1")
     import numpy as np
     ```
-    See [Performance → BLAS threading](performance.md#blas-threading).
+    Full reasoning: [Need for Speed → BLAS](performance.md#blas-threading).
 
-??? failure "A single large solve is slow"
-    The eigensolve is \(\mathcal{O}(P^3)\) in the harmonic count. Confirm you are not
-    over-resolving `n_orders` (run a convergence study), keep 1-D gratings 1-D, and
-    for genuinely large \(M\) let BLAS use multiple threads.
+??? failure "One big solve is slow"
+    The eigensolve is \(\mathcal{O}(P^3)\). Confirm `n_orders` isn't
+    over-dialed (run the
+    [convergence ritual](tutorials/parameter-sweeps.md#convergence-study)),
+    keep 1-D problems 1-D, and for genuinely large \(M\) let BLAS use its
+    threads.
 
-## Still stuck?
+## Still in the water?
 
-Open an issue with a minimal reproducer at
+Open an issue with a minimal reproducer:
 [github.com/CAVITYtechnologies/ikarus/issues](https://github.com/CAVITYtechnologies/ikarus/issues).
 Include the structure definition, `n_orders`, `resolution`, the source, and the
-full warning/traceback.
+full warning or traceback — rescue is much faster with coordinates.

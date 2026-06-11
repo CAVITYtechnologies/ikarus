@@ -1,8 +1,7 @@
 # License
 
-Ikarus is released under the **MIT License** — a permissive license that allows
-commercial and academic use, modification and redistribution, provided the
-copyright notice and permission notice are retained.
+Ikarus is released under the **MIT License** — use it, modify it, ship it,
+commercially or academically. Just keep the notice attached.
 
 ```text
 MIT License
@@ -29,10 +28,11 @@ SOFTWARE.
 ```
 
 The canonical text lives in the repository's
-[`LICENSE`](https://github.com/CAVITYtechnologies/ikarus/blob/main/LICENSE) file.
+[`LICENSE`](https://github.com/CAVITYtechnologies/ikarus/blob/main/LICENSE)
+file.
 
 ## Dependencies
 
-Ikarus depends on NumPy and SciPy (both BSD-licensed) at runtime, and optionally
-on matplotlib, h5py and pymoo. Those packages carry their own licenses; review
-them if license compatibility matters for your distribution.
+Ikarus runs on NumPy and SciPy (BSD-licensed), with optional matplotlib, h5py
+and pymoo. Each carries its own license — review them if compatibility matters
+for your distribution.

@@ -1,18 +1,61 @@
 # API Reference
 
-The public API is re-exported from the top-level `ikarus` package. The reference
-is organized by responsibility:
+*The cockpit manual.* Reference pages are organized by responsibility — fun is
+rationed here in favor of precision, because this is where you come mid-flight
+with a question.
 
-| Page | Contents |
-|---|---|
-| [RCWA & Results](rcwa.md) | `RCWA` façade, `SimulationResult` |
-| [Source](source.md) | `Source` plane-wave illumination |
-| [Layers & Materials](materials-layers.md) | `Layer`, `Material`, `MaterialLibrary`, `default_library` |
-| [Shapes](shapes.md) | topology primitives (`circle`, `ring`, `polygon`, …) |
-| [Inverse Design](inverse.md) | `MetaAtom`, `free`, `pixels`, `Target`, `optimize` |
-| [Fields & Visualization](fields-viz.md) | `FieldMap`, `reconstruct`, plotting helpers |
-| [Tools](tools.md) | convergence utilities, HDF5 I/O, the material CLI |
-| [Low-level](low-level.md) | `HarmonicGrid`, `convolution_matrix`, the solver internals |
+<div class="grid cards" markdown>
+
+-   :material-movie-open:{ .lg .middle } **[RCWA & Results](rcwa.md)**
+
+    ---
+
+    The `RCWA` façade and the `SimulationResult` it returns — the two objects
+    you'll touch every day.
+
+-   :material-lightbulb-on:{ .lg .middle } **[Source](source.md)**
+
+    ---
+
+    Plane-wave illumination: wavelength, angles, polarization.
+
+-   :material-palette:{ .lg .middle } **[Layers & Materials](materials-layers.md)**
+
+    ---
+
+    `Layer`, `Material`, `MaterialLibrary` and the shipped database.
+
+-   :material-shape:{ .lg .middle } **[Shapes](shapes.md)**
+
+    ---
+
+    Topology primitives: circle, ellipse, rectangle, ring, cross, polygon.
+
+-   :material-dna:{ .lg .middle } **[Inverse Design](inverse.md)**
+
+    ---
+
+    `MetaAtom`, `free`, `pixels`, `Target`, `optimize` — declare, then evolve.
+
+-   :material-map:{ .lg .middle } **[Fields & Visualization](fields-viz.md)**
+
+    ---
+
+    `FieldMap`, `reconstruct`, and the matplotlib plotting helpers.
+
+-   :material-wrench:{ .lg .middle } **[Tools](tools.md)**
+
+    ---
+
+    Convergence automation, HDF5 I/O, the material-import CLI.
+
+-   :material-engine:{ .lg .middle } **[Low-level](low-level.md)**
+
+    ---
+
+    `HarmonicGrid`, `convolution_matrix`, `solve_stack` — the engine room.
+
+</div>
 
 ## Top-level exports
 
@@ -30,7 +73,7 @@ from ikarus import (
 )
 ```
 
-The optional subpackages are imported explicitly:
+Optional subpackages are imported explicitly:
 
 ```python
 from ikarus.inverse import MetaAtom, free, pixels, Target, optimize  # needs pymoo
@@ -38,9 +81,10 @@ from ikarus.visualization import plot_field, plot_stack, plot_topology  # needs 
 from ikarus.tools import convergence, io
 ```
 
-!!! note "Conventions used throughout"
-    - **Units:** SI (meters) for all lengths; degrees for angles.
-    - **Time convention:** \(\exp(-i\omega t)\); absorbing media have \(k>0\).
-    - **`n_orders = M`** keeps harmonics \(-M..+M\) per axis (count \(2M+1\)).
-    - A *material specifier* is a database name, a number (constant index), a JSON
-      path or a `Material`.
+!!! note "House conventions (memorize once)"
+    - **Units:** SI — meters for lengths, degrees for angles.
+    - **Time convention:** \(\exp(-i\omega t)\); absorbers have \(k>0\).
+    - **`n_orders = M`** keeps harmonics \(-M..+M\) per axis (count \(2M+1\),
+      total \(P=(2M_x+1)(2M_y+1)\)).
+    - A *material specifier* is a database name, a number (constant index), a
+      JSON path, or a `Material`.

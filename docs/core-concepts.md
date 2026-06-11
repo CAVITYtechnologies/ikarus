@@ -1,140 +1,151 @@
 # Core Concepts
 
-This chapter explains the objects you compose to run a simulation and how they map
-onto the physics. Each concept links to its full [API reference](api/index.md).
+*The cast of characters.* Every Ikarus simulation is the same short play: a
+**stage** (the unit cell), a **stack** of layers wearing **materials**, one
+**light source**, and a **result** that tells you how the performance went.
+This page introduces each character and how they fit together — with links to
+their full [API pages](api/index.md).
 
 ```mermaid
 flowchart LR
-    subgraph Inputs
-      M[Materials] --> L[Layers]
-      G[Geometry: periods, resolution, n_orders] --> R[RCWA]
+    subgraph You compose
+      M["🎨 Materials"] --> L["🥞 Layers"]
+      G["📐 Geometry<br/>periods · resolution · n_orders"] --> R["🎬 RCWA"]
       L --> R
-      S[Source] --> R
+      S["💡 Source"] --> R
     end
-    R -->|simulate| Res[SimulationResult]
-    Res --> F[Field maps]
-    Res --> IO[HDF5 I/O]
+    R -->|simulate| Res["📊 SimulationResult"]
+    Res --> F["🗺️ Field maps"]
+    Res --> IO["💾 HDF5"]
 ```
 
-## Geometry definition
+## The stage — geometry
 
-A simulation lives on a single **unit cell** with periods `period_x`, `period_y`
-(meters). Two resolutions are involved and must not be confused:
+Everything happens on one **unit cell** with periods `period_x`, `period_y`
+(meters), repeated to infinity in both directions. Two numbers govern the
+numerics, and confusing them is the classic rookie mistake:
 
-- **`resolution`** — the real-space grid on which each layer's permittivity is
-  sampled to build the Fourier convolution matrices. Passed to `RCWA(...)` (a
-  global default) and optionally per-layer.
-- **`n_orders`** — the number of retained Fourier harmonics, `M`. This is the
-  accuracy/cost knob; `resolution` only needs to be fine enough to represent the
-  geometry and is internally raised to at least `4*M + 1`.
+| Dial | What it controls | Mental model |
+|---|---|---|
+| `n_orders` | How many Fourier harmonics describe the *field* | the **accuracy/cost dial** — turn with intention |
+| `resolution` | How many pixels sample the *geometry* | just needs to draw your shape — auto-raised to ≥ `4*M+1` |
 
-For a **1-D grating**, store the topology as an `(Nx, 2)` map and set
-`n_orders=(M, 0)` so only x-orders are expanded.
+For a **1-D grating** (pattern varies only along x), store the topology as an
+`(Nx, 2)` map and set `n_orders=(M, 0)` — you'll get the physics of a 1-D
+problem at a 1-D price.
 
-## Materials
+## The wardrobe — materials
 
 A [`Material`](api/materials-layers.md#material) maps wavelength to a complex
-permittivity \(\varepsilon = (n+ik)^2\). Anywhere the API expects a material you
-may pass:
+permittivity \(\varepsilon = (n+ik)^2\). Anywhere the API wants a material, you
+can hand it:
 
-| Specifier | Example | Meaning |
+| You pass | Example | You get |
 |---|---|---|
-| Database name (`str`) | `"Si"` | a shipped or registered material |
-| A number | `1.5`, `2.4+0.01j` | constant (non-dispersive) index |
-| A JSON path (`str`) | `"my_mat.json"` | loaded on demand |
-| A `Material` object | `Material.constant(2.0)` | used directly |
+| A database name | `"Si"` | dispersive tabulated data, spline-interpolated |
+| A bare number | `1.5`, `2.4 + 0.01j` | constant index — instant test material |
+| A JSON path | `"my_mat.json"` | loaded on demand |
+| A `Material` object | `Material.constant(2.0)` | used as-is |
 
-The [`MaterialLibrary`](api/materials-layers.md#materiallibrary) resolves these and
-caches the result. A module-level `default_library` is shared by every `RCWA`
-unless you pass your own. Built-in materials: **Air, Au, GaN, GaP, Si, Si₃N₄,
-SiO₂, TiO₂, aSi**. See [Advanced → Custom materials](advanced.md#custom-materials)
-to add your own from CSV or a Lorentz model.
+The [`MaterialLibrary`](api/materials-layers.md#materiallibrary) resolves and
+caches all of these; a shared `default_library` ships with **Air, Au, GaN, GaP,
+Si, Si₃N₄, SiO₂, TiO₂, aSi**. Adding your own from CSV or a Lorentz model takes
+one call — see [Aerobatics → Custom materials](advanced.md#custom-materials).
 
-!!! info "Sign convention"
-    Ikarus uses \(\exp(-i\omega t)\): absorbing media have \(k>0\) and
-    \(\mathrm{Im}(\varepsilon) > 0\). If you import data with gain-sign \(k\), the
-    energy balance will exceed 1 — flip the sign of \(k\).
+!!! warning "The sign that bites"
+    Ikarus speaks \(\exp(-i\omega t)\): **absorbers have \(k > 0\)**. Import
+    data with the opposite sign and your structure becomes a laser — the energy
+    balance exceeding 1 is the tell.
 
-## Layers
+## The stack — layers
 
-A [`Layer`](api/materials-layers.md#layer) has a thickness and a recipe for its
-permittivity \(\varepsilon(x, y)\). Two kinds:
+A [`Layer`](api/materials-layers.md#layer) is a thickness plus a recipe for
+\(\varepsilon(x, y)\). Two flavors:
 
-- **Uniform** — one material fills the cell. Add with
-  `add_uniform_layer(height, material)`.
-- **Patterned** — an integer `topology` pixel map selects among a `materials`
-  list (index `0` → `materials[0]`, etc.). Add with
-  `add_layer(height, topology, materials)`.
+```python
+rcwa.add_uniform_layer(np.inf, "Air")               # uniform: one material
+rcwa.add_layer(200e-9, topology, ["Air", "Si"])     # patterned: pixel map
+```
 
-### Stack rules (boundary layers)
+The patterned `topology` is an integer array; index `0` wears `materials[0]`,
+index `1` wears `materials[1]`, and so on.
 
-The layer list is ordered **cover → … → substrate**:
+**The stack rules** (Ikarus validates them and refuses bad stacks):
 
-- The **first** (cover) and **last** (substrate) layers must be **uniform and
-  semi-infinite**: `height=np.inf`. They are the incidence and transmission
-  half-spaces; the cover index sets the incident wavevector.
-- All **interior** layers must have **finite** thickness.
+1. Layers are listed **cover → … → substrate** (sky to ground).
+2. First and last layer: **uniform + semi-infinite** (`height=np.inf`). The
+   cover's index sets the incident wavevector.
+3. Interior layers: **finite** thickness, any number, any mix of flavors.
 
-Violating these raises a `ValueError` from `RCWA._validate_stack`.
+## The scenery — topologies and shapes
 
-## Unit cells & topology maps
-
-A topology is an integer `numpy.ndarray` of shape `(Nx, Ny)`. You can build one by
-hand or with the [`shapes`](api/shapes.md) primitives, which work in **fractional**
-unit-cell coordinates in \([0, 1)\) so a shape is resolution-independent:
+You can draw a topology by hand (it's just a NumPy integer array) or use the
+[`shapes`](api/shapes.md) primitives, which work in **fractional** unit-cell
+coordinates \([0, 1)\) so your design is resolution-independent:
 
 ```python
 from ikarus import shapes
+
 disk = shapes.circle(center=(0.5, 0.5), radius=0.3, grid_shape=(128, 128))
 ring = shapes.ring(inner_radius=0.2, outer_radius=0.35, grid_shape=(128, 128))
-both = shapes.combine(disk, ring)   # overlay maps
+both = shapes.combine(disk, ring)     # overlay several maps
 ```
 
-A patterned layer resamples its topology (nearest-neighbour) to the solver's
-sampling grid, so the topology resolution and `resolution` need not match.
+The layer resamples its topology (nearest-neighbour) onto the solver's grid, so
+topology resolution and `resolution` don't need to match.
 
-## Sources
+## The light — sources
 
-A [`Source`](api/source.md) is a monochromatic plane wave: vacuum `wavelength`,
-direction (`theta` from \(+z\), `phi` from \(+x\), degrees) and polarization
-(`linear` with `linear_pol_angle`, or `RCP`/`LCP`). Create or update it with
-`set_source(**kwargs)`, which **retains** unspecified fields so a sweep can change
-one parameter at a time. See [Polarization](tutorials/polarization.md) and
-[Angular response](tutorials/angular-response.md).
+A [`Source`](api/source.md) is one monochromatic plane wave: vacuum
+`wavelength`, direction (`theta` from \(+z\), `phi` from \(+x\), degrees), and
+polarization (`linear` + `linear_pol_angle`, or `RCP`/`LCP`).
 
-## Boundary conditions
+The killer convenience: `set_source(**kwargs)` **remembers**. After the first
+call it updates only what you pass — so sweeps mutate one parameter at a time:
 
-Two boundary conditions are built in and need no configuration:
+```python
+rcwa.set_source(wavelength=600e-9, theta=0, polarization="linear")
+rcwa.set_source(theta=15)          # wavelength & polarization retained
+```
 
-- **Transverse:** Bloch-periodic over the unit cell — the field of harmonic
-  \((m,n)\) carries the wavevector \(k_{x0} - m\,2\pi/\Lambda_x\), etc.
-- **Longitudinal:** semi-infinite **radiation** conditions in the cover and
-  substrate — only outgoing (or evanescently decaying) modes are kept, enforced by
-  the forward-branch eigenvalue selection.
+## The physics you get for free — boundary conditions
 
-## Solvers
+Nothing to configure:
 
-The numerically heavy work lives in the **stateless** `ikarus.core.solver`
-(`solve_stack`). The user-facing `RCWA` object only collects inputs, calls the
-solver and packages results, which keeps the engine easy to test and reuse. You
-normally never call the solver directly; see [Low-level
-API](api/low-level.md) if you want to.
+- **Sideways:** Bloch periodicity over the unit cell — harmonic \((m,n)\)
+  carries wavevector \(k_{x0} - m\,2\pi/\Lambda_x\), etc.
+- **Up/down:** radiation conditions in the semi-infinite cover and substrate —
+  only outgoing or decaying modes survive, enforced by the solver's
+  forward-branch eigenvalue selection.
 
-Harmonic-order **convergence** is automated via
-[`simulate(auto_converge=...)`](api/rcwa.md) and `ikarus.tools.convergence`.
+## The engine room — solvers
 
-## Result objects
+The numerically heavy lifting lives in the **stateless**
+`ikarus.core.solver` (`solve_stack`): geometry and source in, modal solution
+out, no hidden state. The `RCWA` object you actually touch is a thin director —
+it validates the stack, calls the engine, and packages the output. You'll
+likely never call the solver directly, but it's public and documented in the
+[Low-level API](api/low-level.md) if you want to lift the hood.
+
+Harmonic convergence can be automated:
+`simulate(auto_converge="once")` finds and caches a sufficient `n_orders`
+([Tools](api/tools.md)).
+
+## The flight report — results
 
 [`simulate()`](api/rcwa.md) returns `(T, R, result)`:
 
-- **`T`, `R`** — the convenience zero-order coefficients (complex scalar for
-  linear polarization; `{"co", "cross"}` dict for circular).
-- **`result`** — a [`SimulationResult`](api/rcwa.md#simulationresult) carrying
-  totals (`R_total`, `T_total`), per-order arrays (`R_orders`, `T_orders`, with
-  `orders = (p, q)`), exit angles, `energy_balance`, the zero-order phases
-  (`R_phase`, `T_phase`) and the underlying `solution` for
+- **`T`, `R`** — zero-order complex amplitudes (or `{"co", "cross"}` dicts for
+  circular light).
+- **`result`** — a [`SimulationResult`](api/rcwa.md#simulationresult): totals,
+  per-order efficiencies with `(p, q)` labels, exit angles (`NaN` =
+  evanescent), `energy_balance`, zero-order phases, and the raw `solution` for
   [field reconstruction](api/fields-viz.md).
 
-A `FieldSolution` (the `result.solution`) can be turned into real-space
-[`FieldMap`](api/fields-viz.md#fieldmap)s with `get_fields(...)`, and any result
-can be written to / read from [HDF5](api/tools.md).
+From there, `get_fields(...)` turns the modal solution into real-space
+[`FieldMap`](api/fields-viz.md#fieldmap)s, and
+[`save_results`](api/tools.md) writes everything to self-describing HDF5.
+
+<hr class="wing">
+
+*Characters introduced. See them act:* [Flight School →](tutorials/index.md)

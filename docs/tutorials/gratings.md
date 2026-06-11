@@ -1,12 +1,14 @@
-# Grating diffraction
+# Lesson 2 · Splitting Light
 
-**Goal.** Simulate a 1-D binary grating, enumerate its propagating diffraction
-orders, and verify the exit angles against the grating equation.
+**Mission:** simulate a 1-D binary grating, enumerate the exit lanes light
+takes, and verify their angles against the grating equation — a satisfying
+moment of "the simulation agrees with the chalkboard."
 
 ## A 1-D binary grating
 
-A 1-D grating is invariant along \(y\); store its topology as an `(Nx, 2)` map and
-expand only x-orders with `n_orders=(M, 0)`.
+A 1-D grating doesn't vary along \(y\), so we tell Ikarus both things: an
+`(Nx, 2)` topology (two identical rows) and `n_orders=(M, 0)` (expand x-orders
+only). One-dimensional physics at a one-dimensional price.
 
 ```python
 import numpy as np
@@ -26,12 +28,13 @@ _, _, res = rcwa.simulate()
 print(f"R={res.R_total:.4f}  T={res.T_total:.4f}  R+T={res.energy_balance:.6f}")
 ```
 
-!!! info "Polarization on a 1-D grating"
-    With the grating grooves along \(y\), `linear_pol_angle=0` (TE, E along +y) is
-    the fast-converging case; `90` (TM, E across the grooves) converges more slowly
-    and may need a larger `n_orders`.
+!!! info "TE is the easy runway"
+    With grooves along \(y\), `linear_pol_angle=0` (TE — E-field along the
+    grooves) converges fast. `90` (TM — E-field across the grooves) is the slow
+    case in any Laurent-rule RCWA; budget more harmonics there
+    ([why](../theory.md#limitations-of-rcwa)).
 
-## Listing diffraction orders with exit angles
+## Reading the exit lanes
 
 ```python
 p, q = res.orders
@@ -42,11 +45,11 @@ for i in np.argsort(-res.T_orders):
               f"@ theta={res.theta_out_trn[i]:5.1f} deg")
 ```
 
-Only propagating orders have finite angles; evanescent ones carry `NaN`.
+Propagating lanes get real angles; evanescent ghosts get `NaN`.
 
-## Checking the grating equation
+## Checking against the chalkboard
 
-For normal incidence the transmitted order \(m\) leaves the substrate (index
+At normal incidence, transmitted order \(m\) exits the substrate (index
 \(n_t\)) at
 
 \[
@@ -65,12 +68,13 @@ for m in (-1, 0, 1):
               f"grating eq {predicted:6.2f} deg")
 ```
 
-The two should agree to plotting precision.
+They agree to numerical precision. (The *angles* come from geometry alone; the
+*efficiencies* are where RCWA earns its keep.)
 
-## Wavelength dependence of the order content
+## Watching lanes open and close
 
-As \(\lambda\) crosses \(\Lambda/n\) the higher orders cut on/off (Rayleigh–Wood
-anomalies). Sweep to watch orders appear:
+As \(\lambda\) crosses \(\Lambda/n\), higher orders switch on and off —
+Rayleigh–Wood anomalies, the traffic reports of grating physics:
 
 ```python
 for wl in (450e-9, 550e-9, 650e-9, 750e-9):
@@ -83,17 +87,20 @@ for wl in (450e-9, 550e-9, 650e-9, 750e-9):
 
 ## Expected results
 
-- **Energy conservation:** `R+T ≈ 1` to ~10⁻⁶ or better (TiO₂/air/SiO₂ are
-  lossless here). Near an anomaly the order count changes and you may need a few
-  more harmonics.
-- **Exit angles** match the grating equation to numerical precision.
+- `R+T ≈ 1` to ~10⁻⁶ or better (this stack is lossless).
+- Exit angles match the grating equation exactly.
+- The order count changes with wavelength; near an anomaly, convergence slows
+  a touch — normal.
 
-## Best practices
+## Pilot habits
 
-- Keep gratings genuinely 1-D: `(Nx, 2)` topology + `n_orders=(M, 0)`. A `(Nx, N)`
-  map with `N>2` and a 2-D `n_orders` is a *crossed* grating and far more
-  expensive.
-- Run a [convergence study](parameter-sweeps.md#convergence-study) in TM — it is
-  the slow case (Ikarus uses Laurent's rule; see [Theory →
-  Limitations](../theory.md#limitations-of-rcwa)).
-- See the runnable script `python -m ikarus.examples.grating_diffraction`.
+- Keep 1-D problems 1-D: `(Nx, 2)` topology + `n_orders=(M, 0)`. A full 2-D
+  expansion of a 1-D grating is the most common self-inflicted slowdown.
+- Run your [convergence study](parameter-sweeps.md#convergence-study) in
+  **TM** — it's the demanding passenger.
+- The shipped version of this lesson:
+  `python -m ikarus.examples.grating_diffraction`.
+
+---
+
+*Next:* [Lesson 3 · Sculpting Wavefronts →](metasurfaces.md)

@@ -4,34 +4,33 @@
 from ikarus.inverse import MetaAtom, free, pixels, Target, optimize
 ```
 
-!!! note "Optional dependency"
-    The inverse module needs **pymoo**: `pip install "ikarus-rcwa[inverse]"`.
+*Declare what you want; let evolution do the drafting.* Three steps: define a
+parameterized **metaatom**, state one or more **targets**, call **optimize**.
+Binary pixels evolve by bit-flip, continuous parameters by SBX/PM, under a
+mixed-variable GA (one objective) or NSGA-III (several).
 
-Gradient-free inverse design in three steps: define a parameterized **metaatom**,
-declare one or more **targets**, then **optimize**. The optimizer treats the binary
-pixels with bit-flip mutation and continuous parameters with SBX/PM, and runs a
-mixed-variable genetic algorithm (single objective) or NSGA-III (multi-objective).
+!!! note "Optional dependency"
+    Needs **pymoo**: `pip install "ikarus-rcwa[inverse]"`.
 
 ```mermaid
 flowchart LR
-    A[MetaAtom + free/pixels DOF] --> O[optimize]
-    T[Target.minimize / maximize / match] --> O
-    O --> Rres[OptimizeResult]
-    Rres --> RC[.metaatom -> ready RCWA]
+    A["🧬 MetaAtom<br/>free + pixels DOF"] --> O["⚙️ optimize"]
+    T["🎯 Target(s)<br/>minimize / maximize / match"] --> O
+    O --> Rres["🏆 OptimizeResult"]
+    Rres --> RC[".metaatom → ready RCWA"]
 ```
 
 ## Degrees of freedom
 
 #### `free(low, high) -> Free`
 
-Mark a continuous parameter (a height or period) as a free DOF bounded to
+Mark a continuous parameter (height or period) as a free DOF bounded to
 `[low, high]` (SI units).
 
 #### `pixels(nx, ny, symmetry=None) -> Pixels`
 
-Mark the patterned-layer topology as a free binary pixel map. `symmetry` reduces
-the number of independent pixels and enforces the corresponding structural
-symmetry:
+Mark the patterned-layer topology as a free binary pixel map. `symmetry`
+shrinks the search space *and* enforces the physical symmetry:
 
 | `symmetry` | Meaning | Constraint |
 |---|---|---|
@@ -41,8 +40,8 @@ symmetry:
 | `"c4"` | 90° rotation | square grid |
 | `"c4v"` | 90° rotation + mirrors | square grid |
 
-`Pixels.n_free` gives the number of independent bits (e.g. an 8×8 `c4v` grid → 10
-bits). `Pixels.expand(bits)` reconstructs the full `(nx, ny)` 0/1 grid.
+`Pixels.n_free` is the independent bit count (an 8×8 `c4v` grid → just 10
+bits); `Pixels.expand(bits)` rebuilds the full `(nx, ny)` 0/1 grid.
 
 ## `MetaAtom`
 
@@ -50,38 +49,40 @@ bits). `Pixels.expand(bits)` reconstructs the full `(nx, ny)` 0/1 grid.
 MetaAtom(period, cover, substrate, polarization="linear", pol_angle=0.0)
 ```
 
-A parameterized 3-region metaatom: **cover / patterned layer / substrate**. The
-`period` and the pattern `height` may be fixed floats or `free(...)` ranges; the
-topology may be a fixed integer array or a `pixels(...)` map.
+A parameterized 3-region metaatom: **cover / patterned layer / substrate**.
+`period` and the pattern `height` may be fixed floats or `free(...)` ranges;
+the topology may be a fixed integer array or a `pixels(...)` map.
 
 #### `add_pattern(topology, materials, height) -> MetaAtom`
 
-Add the single patterned layer. `materials` indexes as `0 -> materials[0]`, etc.
+Add the single patterned layer (`0 -> materials[0]`, etc.).
 
 #### `variables() -> dict`
 
-Return `{name: ('real', (lo, hi)) | ('binary',)}` describing every free DOF
-(`period`, `height`, `px0`, `px1`, …) for the optimizer.
+`{name: ('real', (lo, hi)) | ('binary',)}` for every free DOF (`period`,
+`height`, `px0`, `px1`, …) — also your search space when bringing your own
+optimizer.
 
 #### `n_dof -> int`
 
-The number of free degrees of freedom.
+Number of free degrees of freedom.
 
 #### `build(params, n_orders) -> RCWA`
 
-Construct the concrete [`RCWA`](rcwa.md) for a parameter assignment (no source set).
+The concrete [`RCWA`](rcwa.md) for one parameter assignment (no source set).
 
 ```python
 atom = MetaAtom(period=180e-9, cover="Air", substrate="SiO2")
 atom.add_pattern(topology=pixels(8, 8, symmetry="c4v"),
                  materials=["Air", "Si3N4"],
                  height=free(40e-9, 200e-9))
-print(atom.variables())   # {'height': ('real', (4e-08, 2e-07)), 'px0': ('binary',), ...}
+print(atom.variables())
+# {'height': ('real', (4e-08, 2e-07)), 'px0': ('binary',), ...}
 ```
 
 ## `Target`
 
-A single figure of merit (lower is better internally). Build with a classmethod:
+One figure of merit. Build with a classmethod:
 
 ```python
 Target.maximize(metric, at=None, band=None, order=(0, 0), **kw)
@@ -98,31 +99,31 @@ Target.match(metric, value, at=None, band=None, order=(0, 0), **kw)
 | `"r_cross"`, `"t_cross"` | Cross-pol coefficient (0 for linear polarization). |
 | `"r_phase"`, `"t_phase"` | Phase (rad), matched modulo \(2\pi\). |
 
-**Wavelength specification** (one of):
+**Wavelengths** (pick one)
 
 | Argument | Meaning |
 |---|---|
-| `at=1550e-9` | a single wavelength |
+| `at=1550e-9` | one wavelength |
 | `at=[1064e-9, 1550e-9]` | a discrete set |
-| `band=(lo, hi)` or `band=(lo, hi, n)` | a sampled continuous range (`n` defaults to 8) |
+| `band=(lo, hi)` or `band=(lo, hi, n)` | a sampled range (`n` defaults to 8) |
 
-**Keyword options**
+**Options**
 
 | Keyword | Default | Meaning |
 |---|---|---|
 | `order` | `(0, 0)` | diffraction order; `None`/`"total"` for the sum |
 | `weight` | `1.0` | scales this target's contribution |
-| `worst_case` | `False` | aggregate multiple wavelengths by the worst point instead of the mean |
+| `worst_case` | `False` | aggregate wavelengths by the worst point, not the mean |
 | `name` | auto | label used in `report()` |
 
 ```python
-# AR coating: minimize reflection across a band, worst-case.
+# AR coating: minimize reflection across a band, robustly.
 ar = Target.minimize("R", band=(300e-9, 600e-9, 6), worst_case=True)
 
-# Beam steering: push power into the +1 reflected order at 1550 nm.
+# Beam steering: shove power into the +1 reflected order.
 steer = Target.maximize("R", order=(1, 0), at=1550e-9)
 
-# Phase target for a metalens pixel.
+# A metalens pixel: pin the transmission phase.
 phase = Target.match("t_phase", value=1.57, at=1550e-9)
 ```
 
@@ -136,20 +137,20 @@ optimize(atom, targets, n_orders=8, algorithm="auto",
 | Argument | Default | Description |
 |---|---|---|
 | `atom` | — | a `MetaAtom`. |
-| `targets` | — | a `Target` or list. Two or more → multi-objective (Pareto). |
+| `targets` | — | a `Target` or list (≥ 2 → multi-objective Pareto). |
 | `n_orders` | `8` | harmonic truncation for every forward solve. |
-| `algorithm` | `"auto"` | `"auto"` (GA if one objective, NSGA-III if several), or `"ga"`, `"nsga2"`, `"nsga3"`. |
+| `algorithm` | `"auto"` | GA if one objective, NSGA-III if several; or `"ga"`, `"nsga2"`, `"nsga3"`. |
 | `pop`, `n_gen` | `100`, `60` | population size and generations. |
-| `seed` | `0` | RNG seed (reproducible). |
-| `verbose` | `True` | print per-generation progress. |
+| `seed` | `0` | RNG seed — runs are reproducible. |
+| `verbose` | `True` | per-generation progress. |
 
 ### `OptimizeResult`
 
 | Member | Description |
 |---|---|
-| `params` | Best parameter dict (first Pareto point for multi-objective). |
+| `params` | Best parameter dict (first Pareto point if multi-objective). |
 | `metaatom` | The optimized structure as a ready-to-simulate `RCWA`. |
-| `report() -> str` | Human-readable summary (objective + non-pixel parameters, or the Pareto front). |
+| `report() -> str` | Human-readable summary (objective + parameters, or the Pareto front). |
 | `X`, `F` | Raw best parameters and objective value(s). |
 | `multi` | `True` for multi-objective runs. |
 
@@ -174,15 +175,14 @@ print("R @ 450 nm:", coating.simulate()[2].R_total)
 
 ### Best practices
 
-- **Pin BLAS to one thread** for these tight loops (see
-  [Performance](../performance.md)) — the per-solve matrices are small and
-  multithreading oversubscribes cores.
-- Keep the metaatom **subwavelength** when you want effective-medium behaviour
-  (no spurious diffraction orders during optimization).
-- Use `worst_case=True` for broadband robustness; use a discrete `at=[...]` list
-  when you only care about specific lines.
-- Start with a small `pop`/`n_gen` to gauge runtime, then scale up. Use the symmetry
-  argument of `pixels` to shrink the search space dramatically (an 8×8 `c4v` grid
-  is 10 bits, not 64).
-- For multiple competing goals (e.g. high `T` *and* a phase target), pass a list of
-  targets and read the Pareto front from `report()`.
+- **Pin BLAS to one thread** for these tight loops
+  ([why it's worth ~10×](../performance.md#blas-threading)).
+- Keep the metaatom **subwavelength** for effective-medium behavior — no
+  parasitic diffraction lanes during evolution.
+- `worst_case=True` for broadband robustness; a discrete `at=[...]` list when
+  only specific lines matter.
+- Exploit symmetry: 8×8 `c4v` is a 10-bit search, 8×8 free is 64 bits — a
+  difference of *eighteen orders of magnitude* in search-space size.
+- Start with small `pop`/`n_gen` to gauge runtime, then scale.
+- Competing goals (high `T` *and* a phase)? Pass a list of targets and read
+  the Pareto front from `report()`.

@@ -1,147 +1,136 @@
 # FAQ
 
-### 1. What problems is Ikarus for?
+*Two dozen questions, answered straight.* Click to expand.
 
-Frequency-domain electromagnetics of structures that are **periodic in two
-transverse directions** and **layered along the propagation axis**: gratings,
-metasurfaces, photonic-crystal slabs, thin-film stacks, distributed Bragg
-reflectors. It returns diffraction efficiencies, complex coefficients, phase, exit
-angles and real-space fields.
+## Scope & philosophy
 
-### 2. What is *not* a good fit?
+??? question "1 · What problems is Ikarus actually for?"
+    Frequency-domain electromagnetics of structures **periodic in two
+    transverse directions** and **layered along z**: gratings, metasurfaces,
+    photonic-crystal slabs, thin-film stacks, Bragg mirrors. You get
+    per-order efficiencies, complex amplitudes, phase, exit angles and
+    real-space fields.
 
-Isolated/finite scatterers (no periodicity), strongly 3-D topographies that vary
-continuously along \(z\) without a sensible layer slicing, time-domain/pulse
-problems, and anything needing full anisotropy — none of those are RCWA's domain
-(see [Theory → Limitations](theory.md#limitations-of-rcwa)).
+??? question "2 · And what is *not* a good fit?"
+    Isolated (non-periodic) scatterers, continuously-varying-in-z topographies
+    that resist layer slicing, time-domain/pulse physics, and full anisotropy.
+    Not Ikarus's fault — not RCWA's domain
+    ([Theory → Limitations](theory.md#limitations-of-rcwa)).
 
-### 3. What units does Ikarus use?
+??? question "3 · What units does Ikarus use?"
+    SI, uncompromisingly: **meters** for every length, **degrees** for every
+    angle. `200e-9`, not `200`.
 
-SI throughout: **meters** for all lengths (periods, heights, wavelengths,
-coordinates) and **degrees** for angles.
+??? question "4 · What's the time/sign convention?"
+    Physics \(\exp(-i\omega t)\): absorbers have \(k>0\),
+    \(\mathrm{Im}(\varepsilon) > 0\). Feed it gain-signed data and the energy
+    balance exceeds 1 — that's your smoke detector.
 
-### 4. What is the time/sign convention?
+## Numerics
 
-The physics convention \(\exp(-i\omega t)\). Absorbing media have \(k>0\) and
-\(\mathrm{Im}(\varepsilon) > 0\). If you import data with the opposite sign of
-\(k\), the energy balance will exceed 1.
+??? question "5 · How do I choose `n_orders`?"
+    Start 8–12 for dielectric metasurfaces, more for metals/TM, then run the
+    [convergence ritual](tutorials/parameter-sweeps.md#convergence-study) — or
+    let `simulate(auto_converge="once")` decide. Cost is \(\mathcal{O}(M^6)\)
+    in 2-D, so don't dial it up "to be safe".
 
-### 5. How do I choose `n_orders`?
+??? question "6 · `resolution` vs. `n_orders` — what's the difference?"
+    `resolution` *draws* the geometry (real-space pixels); `n_orders` *resolves*
+    the field (Fourier harmonics — the accuracy dial). `resolution` is
+    auto-raised to ≥ `4*n_orders+1`, so usually you only think about `n_orders`.
 
-Start at 8–12 for dielectric metasurfaces, more for metals/TM, and run a
-[convergence study](tutorials/parameter-sweeps.md#convergence-study) — or let
-`simulate(auto_converge="once")` pick it. `n_orders = M` keeps harmonics
-\(-M..+M\) per axis. Cost scales like \(M^6\) in 2-D, so do not over-resolve.
+??? question "7 · Why isn't R + T exactly 1?"
+    Three cases. **(a)** Absorbing material → `R+T < 1`, the rest is
+    absorptance — physics. **(b)** Slightly above 1 → unconverged; raise
+    `n_orders`. **(c)** Wildly above 1 → numerical breakdown; *lower*
+    `n_orders` or raise `resolution`. Ikarus warns on (b) and (c)
+    automatically.
 
-### 6. What is the difference between `resolution` and `n_orders`?
+??? question "8 · How do I get just the specular order?"
+    `result.T_orders[result.order_index(0, 0)]` (same for `R_orders`).
+    The totals sum over *all* propagating orders.
 
-`resolution` is the real-space grid used to build the Fourier matrices; `n_orders`
-is the number of retained harmonics (the accuracy/cost knob). `resolution` only
-needs to represent the geometry and is auto-raised to ≥ `4*n_orders+1`.
+??? question "9 · How do I set up a 1-D grating properly?"
+    `(Nx, 2)` topology + `n_orders=(M, 0)` —
+    [Lesson 2](tutorials/gratings.md). 1-D physics at a 1-D price; a 2-D
+    expansion of a 1-D grating is the classic accidental slowdown.
 
-### 7. Why is `R + T` not exactly 1?
+## Polarization & phase
 
-Three cases: (a) the structure **absorbs** (a material with \(k>0\)) — then `R+T<1`
-and the deficit is absorptance; (b) the result is **not converged** — `R+T`
-slightly exceeds 1, so raise `n_orders`; (c) **numerical breakdown** at very high
-`n_orders` — `R+T` blows up, so reduce `n_orders` or raise `resolution`. Ikarus
-warns automatically for (b) and (c).
+??? question "10 · What exactly does `linear_pol_angle` mean?"
+    Degrees from TE: `0` = TE/s, `90` = TM/p. At normal incidence it's the
+    literal E-field angle in the xy-plane (0 → +y, 90 → +x).
 
-### 8. How do I get the specular order only?
+??? question "11 · How is circular polarization reported?"
+    As `{"co", "cross"}` dicts of complex amplitudes (same/opposite
+    handedness), normalized so \(|co|^2 + |cross|^2\) is the zero-order
+    efficiency. Square magnitudes for power; `np.angle` for phase.
+    [Lesson 5](tutorials/polarization.md) has the guided tour.
 
-`result.T_orders[result.order_index(0, 0)]` (and `R_orders`). `T_total`/`R_total`
-sum over *all* propagating orders; for a thin film they coincide because only the
-specular order exists.
+??? question "12 · Can I get the transmitted/reflected phase?"
+    `result.T_phase` / `result.R_phase` (radians, zero order). Mind the
+    convention when comparing across tools — see the next question.
 
-### 9. How do I set up a 1-D grating?
+??? question "13 · My phase disagrees with another RCWA code by a constant!"
+    Working as intended. Time-sign and reference-plane conventions differ
+    between tools; expect a sign flip and/or constant offset. In our grcwa
+    cross-check the offset was a constant ≈ −π while the *dispersion* agreed to
+    ~21 mrad. Compare dispersions, not absolutes.
 
-Use an `(Nx, 2)` topology and `n_orders=(M, 0)` so only x-orders are expanded — see
-[Gratings](tutorials/gratings.md). This is far cheaper than a crossed (2-D)
-grating.
+## Materials
 
-### 10. What does `linear_pol_angle` mean exactly?
+??? question "14 · How do I add a custom material?"
+    Four ways, by commitment level: a bare number inline (constant index),
+    [`MaterialLibrary.add_from_file`](api/materials-layers.md#materiallibrary)
+    from CSV (`λ_nm n [k]`), a Lorentz-model JSON, or the
+    [`ikarus-add-material` CLI](api/tools.md#material-import-cli) for a
+    permanent entry.
 
-The angle (degrees) from TE: `0` = TE/s, `90` = TM/p. At normal incidence TE is
-along +y and TM along +x, so it is the physical E-field angle in the xy-plane.
+??? question "15 · What if my band extends past the tabulated data?"
+    Interpolation is cubic-spline inside the table; outside, values are
+    **clamped** to the nearest endpoint — no divergence, but also no accuracy.
+    Check the table's coverage before sweeping wide.
 
-### 11. How is circular polarization reported?
+??? question "16 · Which materials ship in the box?"
+    Air, Au, GaN, GaP, Si, Si₃N₄, SiO₂, TiO₂, aSi —
+    `default_library.available()` to confirm; `default_library.get("Si",
+    1.55e-6)` for the index.
 
-For `RCP`/`LCP`, `T` and `R` are dicts `{"co", "cross"}` — complex amplitudes of
-the same/opposite handedness, normalized so \(|co|^2 + |cross|^2\) equals the
-zero-order efficiency. Square the magnitude for power; use `np.angle` for phase.
+## Capabilities
 
-### 12. How do I add a custom material?
+??? question "17 · Does Ikarus run on the GPU?"
+    No — pure NumPy/SciPy CPU. Before mourning: pin BLAS to one thread and
+    parallelize across processes ([Need for Speed](performance.md)); for
+    typical metaatom sizes that's worth more than a GPU port.
 
-Inline as a number (constant index), via
-[`MaterialLibrary.add_from_file`](api/materials-layers.md#materiallibrary) from a
-CSV (`λ_nm n [k]`), via a Lorentz-model JSON, or with the
-[`ikarus-add-material`](api/tools.md#material-import-cli) CLI for a permanent entry.
+??? question "18 · Are there gradients for optimization?"
+    No analytic/AD gradients. The built-in [inverse design](api/inverse.md) is
+    gradient-free (GA / NSGA-III), and `MetaAtom` is a clean interface for any
+    other black-box optimizer.
 
-### 13. My material is only tabulated over part of my band — what happens?
+??? question "19 · Anisotropic materials?"
+    Not yet — isotropic only. Full 3×3 tensors are on the roadmap.
 
-Tabulated data is cubic-spline interpolated and **extrapolated by clamping** to the
-nearest endpoint. Out-of-range requests return the boundary value (no divergence),
-which may be inaccurate — check the material's `wavelength_nm` coverage.
+??? question "20 · How do I look at the near field?"
+    `rcwa.get_fields(plane="xz"|"yz"|"xy", ...)` →
+    [`FieldMap`](api/fields-viz.md#fieldmap)s → `plot_field(...)`, with the
+    structure outline overlaid automatically.
+    [Lesson 3](tutorials/metasurfaces.md#near-field-maps) demonstrates.
 
-### 14. Can Ikarus compute the phase of the transmitted/reflected field?
+## Workflow
 
-Yes: `result.T_phase` / `result.R_phase` give the zero-order phase (radians). Note
-it is in the \(\exp(-i\omega t)\) convention, so a comparison against an
-engineering-convention tool may differ by a sign and/or a constant offset (often
-\(-\pi\)); compare the *dispersion*, not the absolute value.
+??? question "21 · How do I save and reload results?"
+    `rcwa.save_results("run.h5", include=[...])` → self-describing HDF5;
+    `RCWA.load_results("run.h5")` → dict. Needs the `io` extra (h5py).
 
-### 15. Why does my phase differ from another RCWA code by a constant?
+??? question "22 · What's the fast way to sweep?"
+    One `RCWA`, many `set_source(...)` calls — it retains unspecified fields.
+    Only geometry changes force a new eigensolve.
+    [Lesson 4](tutorials/parameter-sweeps.md) is the masterclass.
 
-Convention differences (time sign, reference plane). In a validated cross-check
-against grcwa, the Ikarus phase matched after removing a constant \(\approx -\pi\)
-offset; the *shape* of the dispersion agreed to ~20 mrad.
+??? question "23 · Why is the PyPI name `ikarus-rcwa` but the import `ikarus`?"
+    A stranger got to the short name on PyPI first. `pip install ikarus-rcwa`,
+    then `import ikarus`. The myth survives the namespace collision.
 
-### 16. Does Ikarus run on the GPU?
-
-No — it is CPU-only (NumPy/SciPy). For speed, pin BLAS to one thread and
-parallelize sweeps across processes (see [Performance](performance.md)).
-
-### 17. Does Ikarus provide gradients for optimization?
-
-No analytic/automatic-differentiation gradients. The built-in
-[inverse design](api/inverse.md) is **gradient-free** (genetic algorithms); for
-gradient-based topology optimization you would need a differentiable RCWA.
-
-### 18. Does it support anisotropic materials?
-
-Not yet — isotropic permittivity only. Full \(3\times 3\) tensors are a roadmap
-item.
-
-### 19. How do I reconstruct and plot the near field?
-
-`rcwa.get_fields(plane="xz"|"yz"|"xy", ...)` returns
-[`FieldMap`](api/fields-viz.md#fieldmap)s; plot with
-`ikarus.visualization.plot_field`. The maps carry the structure outline for
-overlays. See [Metasurfaces](tutorials/metasurfaces.md#near-field-maps).
-
-### 20. How do I save and reload results?
-
-`rcwa.save_results("run.h5", include=[...])` writes self-describing HDF5;
-`RCWA.load_results("run.h5")` reads it back into a dict. Needs h5py
-(`pip install "ikarus-rcwa[io]"`).
-
-### 21. Can I sweep efficiently without rebuilding everything?
-
-Yes — reuse one `RCWA` and call `set_source(...)`, which retains unspecified
-fields. Only changing geometry forces a new eigensolve. See
-[Parameter sweeps](tutorials/parameter-sweeps.md).
-
-### 22. Why is the PyPI name `ikarus-rcwa` but the import `ikarus`?
-
-The distribution name on PyPI is `ikarus-rcwa` (the name `ikarus` was taken); the
-Python import name is `import ikarus`.
-
-### 23. Which optional dependencies do I actually need?
-
-None for the core solver. Add `matplotlib` (`[viz]`) for plotting, `h5py`
-(`[io]`) for HDF5, `pymoo` (`[inverse]`) for inverse design, or `[all]` for
-everything.
-
-### 24. How do I cite Ikarus?
-
-See [Citation](citation.md).
+??? question "24 · How do I cite Ikarus?"
+    BibTeX and guidance on the [Citation page](citation.md).

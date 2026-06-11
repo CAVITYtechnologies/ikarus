@@ -1,12 +1,13 @@
-# Metasurface simulation
+# Lesson 3 · Sculpting Wavefronts
 
-**Goal.** Build a 2-D patterned metasurface from shape primitives, simulate it,
-extract the transmission phase, and visualize the near field.
+**Mission:** build a 2-D meta-atom from shape primitives, harvest the
+transmission *phase* (the metasurface designer's currency), and look at the
+near field with your own eyes.
 
-## A dielectric nanopillar metasurface
+## A dielectric nanopillar
 
-A square lattice of TiO₂ cylinders on glass — a canonical building block for
-phase-gradient metasurfaces.
+A square lattice of TiO₂ cylinders on glass — the canonical building block of
+visible-light metalenses:
 
 ```python
 import numpy as np
@@ -18,7 +19,7 @@ pillar = shapes.circle(center=(0.5, 0.5), radius=0.32, grid_shape=(N, N))
 
 rcwa = RCWA(period_x=period, period_y=period, resolution=(N, N), n_orders=(10, 10))
 rcwa.add_uniform_layer(np.inf, "Air")
-rcwa.add_layer(600e-9, pillar, ["Air", "TiO2"])   # 0 -> Air, 1 -> TiO2 cylinder
+rcwa.add_layer(600e-9, pillar, ["Air", "TiO2"])   # 0 -> Air, 1 -> TiO2
 rcwa.add_uniform_layer(np.inf, "SiO2")
 rcwa.set_source(wavelength=532e-9, theta=0, polarization="linear")
 
@@ -26,19 +27,18 @@ _, _, res = rcwa.simulate()
 print(f"T={res.T_total:.3f}  R={res.R_total:.3f}  R+T={res.energy_balance:.5f}")
 ```
 
-## Visualizing the structure
+See what you built:
 
 ```python
-# The layer stack (xz) and the unit-cell topology (xy):
-rcwa.visualize_structure(plane="xz", savefig="stack.png")
+rcwa.visualize_structure(plane="xz", savefig="stack.png")          # the stack
 rcwa.visualize_structure(plane="xy", layer_index=1, savefig="topology.png")
 ```
 
-## Transmission phase — the metasurface design variable
+## Phase: the designer's currency
 
-A metalens or beam-deflector is designed by mapping a geometric parameter (here the
-pillar radius) to the **transmission phase** of the specular order while keeping
-transmittance high. Sweep the radius:
+A metalens is a map from position to phase delay. You build it from a
+**library** of pillars whose radius tunes the transmission phase of the
+specular order — ideally covering a full \(2\pi\) while staying transparent:
 
 ```python
 radii = np.linspace(0.15, 0.45, 25)
@@ -52,19 +52,20 @@ for r in radii:
     rcwa.set_source(wavelength=532e-9, theta=0, polarization="linear")
     _, _, res = rcwa.simulate()
     T.append(res.T_total)
-    phase.append(res.T_phase)             # radians, zero-order
+    phase.append(res.T_phase)             # zero-order phase, radians
 
 phase = np.unwrap(phase)
 print(f"phase coverage: {np.degrees(phase.ptp()):.0f} deg "
-      f"(need >= 360 for a full library)")
+      f"(a full library wants >= 360)")
 ```
 
-A good meta-atom library spans a full \(2\pi\) of phase with near-unity
-transmittance.
+Each pillar is a tiny truncated waveguide; fatter pillar → higher effective
+index → more phase delay. When the sweep covers \(2\pi\) with \(T \gtrsim 0.9\),
+you have a complete set of "phase pixels" to tile any wavefront you like.
 
-## Near-field maps
+## Near-field maps { #near-field-maps }
 
-Reconstruct the field to see the resonance inside the pillar:
+Numbers are good; *seeing* the Mie resonance inside the pillar is better:
 
 ```python
 from ikarus.visualization import plot_field
@@ -74,7 +75,7 @@ rcwa.simulate()
 
 # xz cross-section through the pillar center:
 xz = rcwa.get_fields(plane="xz", nx=160, y_position=period / 2)["xz"]
-ax = plot_field(xz, component="intensity")          # |E|^2 with outline overlay
+ax = plot_field(xz, component="intensity")          # |E|² + structure outline
 ax.figure.savefig("pillar_field_xz.png", dpi=150, bbox_inches="tight")
 
 # xy slice at mid-height:
@@ -83,24 +84,33 @@ ax = plot_field(list(xy.values())[0], component="intensity")
 ax.figure.savefig("pillar_field_xy.png", dpi=150, bbox_inches="tight")
 ```
 
-## Inverse design
+The plots come with the material outline overlaid automatically, so you can
+check the field actually lives where you think it does.
 
-Rather than scanning a parameter by hand, you can let Ikarus design the meta-atom
-for a target response — see [Inverse Design](../api/inverse.md) and the
-[broadband AR-coating example](../examples-gallery.md#inverse-design-ar-coating).
+## Too lazy to sweep radii? Good.
+
+Declaring the goal and letting a genetic algorithm sculpt the meta-atom is a
+one-liner away — see [Inverse Design](../api/inverse.md) and the
+[broadband AR coating](../examples-gallery.md#inverse-design-ar-coating) in
+The Hangar.
 
 ## Expected results
 
-- High transmittance (`T ≳ 0.9`) away from resonances, dropping at the Mie
-  resonances of the pillar.
-- A monotonic-ish phase ramp vs. radius spanning ≥ 360° for a suitable pillar
-  height — the basis of phase-gradient design.
+- High transmittance (`T ≳ 0.9`) away from resonances, with dips at the
+  pillar's Mie resonances.
+- A phase ramp vs. radius spanning ≥ 360° for a well-chosen height — your
+  metalens alphabet.
 
-## Best practices
+## Pilot habits
 
-- Choose `period` **subwavelength** in the substrate (`period < λ/n_sub`) to keep
-  the device 0-order (no stray diffraction).
-- Use `n_orders` of 8–12 for dielectric pillars; verify with a
-  [convergence study](parameter-sweeps.md#convergence-study).
-- Reconstruct fields on a finer grid (`nx`, `ny`) than the solver `resolution` for
-  crisp figures.
+- Keep the period **subwavelength in the substrate** (`period < λ/n_sub`) so
+  no stray diffraction lanes open — all the power stays in the specular order
+  you're phase-engineering.
+- `n_orders` 8–12 is the dielectric-pillar sweet spot; confirm with
+  [Lesson 4's convergence ritual](parameter-sweeps.md#convergence-study).
+- Reconstruct fields on a finer `nx`/`ny` than the solver `resolution` — the
+  reconstruction grid is free to choose.
+
+---
+
+*Next:* [Lesson 4 · Sweeping Gracefully →](parameter-sweeps.md)
