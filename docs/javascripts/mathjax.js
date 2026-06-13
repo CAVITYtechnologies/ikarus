@@ -3,7 +3,13 @@ window.MathJax = {
     inlineMath: [["\\(", "\\)"]],
     displayMath: [["\\[", "\\]"]],
     processEscapes: true,
-    processEnvironments: true
+    processEnvironments: true,
+    macros: {
+      // Double brackets (stmaryrd) are not in base MathJax — define them so the
+      // convolution-matrix notation in the Theory chapter renders.
+      llbracket: "{[\\![}",
+      rrbracket: "{]\\!]}"
+    }
   },
   options: {
     ignoreHtmlClass: ".*|",

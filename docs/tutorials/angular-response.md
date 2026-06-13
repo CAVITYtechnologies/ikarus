@@ -64,6 +64,11 @@ plt.xlabel("wavelength (nm)"); plt.ylabel("incidence angle (deg)")
 plt.colorbar(label="Reflectance"); plt.savefig("dispersion.png", dpi=150)
 ```
 
+<figure markdown="span">
+  ![Angle-wavelength dispersion map](../assets/dispersion_map.png){ width="640" }
+  <figcaption>Angle–wavelength reflectance map of a TiO₂ metasurface; the bright streaks are Rayleigh–Wood anomalies, where diffraction orders cut on.</figcaption>
+</figure>
+
 ## Spotting Rayleigh–Wood anomalies
 
 A diffraction lane opens (or closes) when its in-plane wavevector touches the
@@ -106,6 +111,6 @@ for th in (0, 20, 40):
 
 ---
 
-🎓 **Flight School complete.** Onward:
+**Flight School complete.** Onward:
 [Aerobatics](../advanced.md) · [The Hangar](../examples-gallery.md) ·
 [Need for Speed](../performance.md)

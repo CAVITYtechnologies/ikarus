@@ -1,0 +1,335 @@
+"""Generate the figures embedded in the documentation.
+
+Runs Ikarus end-to-end and writes PNGs into ``docs/assets/``. Re-run after any
+change that should be reflected in the docs figures::
+
+    python scripts/gen_docs_figures.py
+
+The matrices here are small, so single-threaded BLAS is fastest.
+"""
+
+import os
+
+for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS",
+           "MKL_NUM_THREADS", "VECLIB_MAXIMUM_THREADS"):
+    os.environ.setdefault(_v, "1")
+
+from pathlib import Path
+
+import numpy as np
+import matplotlib as mpl
+
+mpl.use("Agg")
+import matplotlib.pyplot as plt
+
+from ikarus import RCWA, shapes, default_library
+from ikarus.visualization import plot_field
+
+ASSETS = Path(__file__).resolve().parent.parent / "docs" / "assets"
+ASSETS.mkdir(parents=True, exist_ok=True)
+
+# -- shared style -----------------------------------------------------------
+ORANGE = "#f4511e"
+AMBER = "#ffb300"
+DEEP = "#bf360c"
+BLUE = "#1565c0"
+plt.rcParams.update({
+    "figure.facecolor": "white",
+    "savefig.facecolor": "white",
+    "axes.facecolor": "white",
+    "font.size": 11,
+    "axes.grid": True,
+    "grid.alpha": 0.25,
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "figure.dpi": 130,
+})
+
+
+def save(fig, name):
+    fig.tight_layout()
+    fig.savefig(ASSETS / name, dpi=130, bbox_inches="tight")
+    plt.close(fig)
+    print("  wrote", name)
+
+
+# -- 1. thin-film spectrum (Lesson 1) ---------------------------------------
+def thin_film_spectrum():
+    rcwa = RCWA(period_x=400e-9, period_y=400e-9, n_orders=0)
+    rcwa.add_uniform_layer(np.inf, "Air")
+    rcwa.add_uniform_layer(120e-9, "TiO2")
+    rcwa.add_uniform_layer(np.inf, "SiO2")
+    wl = np.linspace(400e-9, 700e-9, 151)
+    R, T = [], []
+    for w in wl:
+        rcwa.set_source(wavelength=w, theta=0, polarization="linear")
+        _, _, res = rcwa.simulate()
+        R.append(res.R_total)
+        T.append(res.T_total)
+    R, T = np.array(R), np.array(T)
+    fig, ax = plt.subplots(figsize=(7, 3.8))
+    ax.plot(wl * 1e9, T * 100, color=ORANGE, lw=2.2, label="Transmittance")
+    ax.plot(wl * 1e9, R * 100, color=BLUE, lw=2.2, label="Reflectance")
+    ax.plot(wl * 1e9, (R + T) * 100, "--", color="0.5", lw=1.2, label="R + T")
+    ax.set_xlabel("wavelength (nm)")
+    ax.set_ylabel("efficiency (%)")
+    ax.set_title("120 nm TiO₂ on glass — thin-film interference")
+    ax.legend(frameon=False, ncol=3, loc="lower center")
+    ax.set_ylim(0, 105)
+    save(fig, "thin_film_spectrum.png")
+
+
+# -- 2. grating diffraction orders (Lesson 2) -------------------------------
+def grating_orders():
+    period = 900e-9
+    rcwa = RCWA(period_x=period, period_y=period, resolution=(256, 2),
+                n_orders=(20, 0))
+    topo = np.zeros((128, 2), dtype=int)
+    topo[64:, :] = 1
+    rcwa.add_uniform_layer(np.inf, "Air")
+    rcwa.add_layer(300e-9, topo, ["TiO2", "Air"])
+    rcwa.add_uniform_layer(np.inf, "SiO2")
+    rcwa.set_source(wavelength=650e-9, theta=0, polarization="linear",
+                    linear_pol_angle=0.0)
+    _, _, res = rcwa.simulate()
+    p, q = res.orders
+    keep = [m for m in range(-3, 4)]
+    effs, labels, angles = [], [], []
+    for m in keep:
+        i = res.order_index(m, 0)
+        effs.append(res.T_orders[i])
+        labels.append(f"{m:+d}")
+        angles.append(res.theta_out_trn[i])
+    fig, ax = plt.subplots(figsize=(7, 3.8))
+    bars = ax.bar(labels, np.array(effs) * 100, color=AMBER, edgecolor=DEEP, width=0.6)
+    for b, a in zip(bars, angles):
+        if np.isfinite(a):
+            ax.text(b.get_x() + b.get_width() / 2, b.get_height() + 1,
+                    f"{a:.0f}°", ha="center", va="bottom", fontsize=9, color=DEEP)
+    ax.set_xlabel("transmitted diffraction order $m$")
+    ax.set_ylabel("efficiency (%)")
+    ax.set_title("TiO₂ grating @ 650 nm — power per exit lane (exit angle above)")
+    ax.set_ylim(0, max(effs) * 100 * 1.2)
+    ax.grid(axis="x")
+    save(fig, "grating_orders.png")
+
+
+# -- 3a. metasurface phase library (Lesson 3) -------------------------------
+def metasurface_phase():
+    period, N = 420e-9, 96
+    radii = np.linspace(0.12, 0.46, 22)
+    T, phase = [], []
+    for r in radii:
+        pillar = shapes.circle(radius=r, grid_shape=(N, N))
+        rcwa = RCWA(period_x=period, period_y=period, resolution=(N, N),
+                    n_orders=(9, 9))
+        rcwa.add_uniform_layer(np.inf, "Air")
+        rcwa.add_layer(600e-9, pillar, ["Air", "TiO2"])
+        rcwa.add_uniform_layer(np.inf, "SiO2")
+        rcwa.set_source(wavelength=532e-9, theta=0, polarization="linear")
+        _, _, res = rcwa.simulate()
+        T.append(res.T_total)
+        phase.append(res.T_phase)
+    phase = np.unwrap(phase)
+    phase -= phase[0]
+    fig, ax1 = plt.subplots(figsize=(7, 3.8))
+    ax2 = ax1.twinx()
+    ax2.grid(False)
+    l1, = ax1.plot(radii, np.array(T) * 100, color=ORANGE, lw=2.2, label="transmittance")
+    l2, = ax2.plot(radii, np.degrees(phase), color=BLUE, lw=2.2, label="phase")
+    ax1.set_xlabel("pillar radius (fraction of period)")
+    ax1.set_ylabel("transmittance (%)", color=ORANGE)
+    ax2.set_ylabel("transmission phase (deg)", color=BLUE)
+    ax1.tick_params(axis="y", colors=ORANGE)
+    ax2.tick_params(axis="y", colors=BLUE)
+    ax1.set_title("TiO₂ nanopillar @ 532 nm — the metalens phase library")
+    ax1.legend([l1, l2], ["transmittance", "phase"], frameon=False, loc="center left")
+    save(fig, "metasurface_phase.png")
+
+
+# -- 3b. metasurface near field (Lesson 3 + hero) ---------------------------
+def metasurface_field():
+    period, N = 420e-9, 96
+    pillar = shapes.circle(radius=0.32, grid_shape=(N, N))
+    rcwa = RCWA(period_x=period, period_y=period, resolution=(N, N), n_orders=(10, 10))
+    rcwa.add_uniform_layer(np.inf, "Air")
+    rcwa.add_layer(600e-9, pillar, ["Air", "TiO2"])
+    rcwa.add_uniform_layer(np.inf, "SiO2")
+    rcwa.set_source(wavelength=532e-9, theta=0, polarization="linear")
+    rcwa.simulate()
+    xz = rcwa.get_fields(plane="xz", nx=200, y_position=period / 2)["xz"]
+    ax = plot_field(xz, component="intensity")
+    ax.set_title("|E|² inside a TiO₂ nanopillar (xz cross-section)")
+    save(ax.figure, "metasurface_field.png")
+
+
+# -- 4. parameter sweep map (Lesson 4) --------------------------------------
+def sweep_map():
+    period, N = 450e-9, 64
+    disk = shapes.circle(radius=0.3, grid_shape=(N, N))
+    wavelengths = np.linspace(400e-9, 800e-9, 44)
+    heights = np.linspace(100e-9, 400e-9, 30)
+    Rmap = np.empty((heights.size, wavelengths.size))
+    for j, h in enumerate(heights):
+        rcwa = RCWA(period_x=period, period_y=period, resolution=(N, N), n_orders=(7, 7))
+        rcwa.add_uniform_layer(np.inf, "Air")
+        rcwa.add_layer(h, disk, ["Air", "Si3N4"])
+        rcwa.add_uniform_layer(np.inf, "SiO2")
+        for i, w in enumerate(wavelengths):
+            rcwa.set_source(wavelength=w, theta=0, polarization="linear")
+            Rmap[j, i] = rcwa.simulate()[2].R_total
+    fig, ax = plt.subplots(figsize=(7, 4.2))
+    im = ax.pcolormesh(wavelengths * 1e9, heights * 1e9, Rmap * 100,
+                       shading="auto", cmap="inferno")
+    ax.set_xlabel("wavelength (nm)")
+    ax.set_ylabel("pillar height (nm)")
+    ax.set_title("Si₃N₄ disk — reflectance over (wavelength, height)")
+    ax.grid(False)
+    fig.colorbar(im, ax=ax, label="reflectance (%)")
+    save(fig, "sweep_map.png")
+
+
+# -- 5. polarization (Lesson 5) ---------------------------------------------
+def polarization():
+    period, N = 500e-9, 80
+    bar = shapes.rectangle(center=(0.5, 0.5), size=(0.7, 0.25), grid_shape=(N, N))
+    rcwa = RCWA(period_x=period, period_y=period, resolution=(N, N), n_orders=(8, 8))
+    rcwa.add_uniform_layer(np.inf, "Air")
+    rcwa.add_layer(220e-9, bar, ["Air", "Si"])
+    rcwa.add_uniform_layer(np.inf, "SiO2")
+    angles = np.linspace(0, 180, 37)
+    T = []
+    for psi in angles:
+        rcwa.set_source(wavelength=700e-9, theta=0, polarization="linear",
+                        linear_pol_angle=psi)
+        T.append(rcwa.simulate()[2].T_total)
+    fig, ax = plt.subplots(figsize=(7, 3.8))
+    ax.plot(angles, np.array(T) * 100, color=ORANGE, lw=2.4)
+    ax.axvline(0, color="0.7", lw=1, ls=":")
+    ax.axvline(90, color="0.7", lw=1, ls=":")
+    ax.set_xlabel("linear polarization angle (deg)   [0 = along bar, 90 = across]")
+    ax.set_ylabel("transmittance (%)")
+    ax.set_title("Si nanobar @ 700 nm — form birefringence")
+    ax.set_xticks([0, 45, 90, 135, 180])
+    save(fig, "polarization.png")
+
+
+# -- 6. angular dispersion map (Lesson 6) -----------------------------------
+def dispersion_map():
+    period, N = 500e-9, 64
+    disk = shapes.circle(radius=0.3, grid_shape=(N, N))
+    rcwa = RCWA(period_x=period, period_y=period, resolution=(N, N), n_orders=(8, 8))
+    rcwa.add_uniform_layer(np.inf, "Air")
+    rcwa.add_layer(180e-9, disk, ["Air", "TiO2"])
+    rcwa.add_uniform_layer(np.inf, "SiO2")
+    wavelengths = np.linspace(450e-9, 750e-9, 50)
+    thetas = np.linspace(0, 50, 34)
+    Rmap = np.empty((thetas.size, wavelengths.size))
+    for j, th in enumerate(thetas):
+        for i, w in enumerate(wavelengths):
+            rcwa.set_source(wavelength=w, theta=th, polarization="linear")
+            Rmap[j, i] = rcwa.simulate()[2].R_total
+    fig, ax = plt.subplots(figsize=(7, 4.2))
+    im = ax.pcolormesh(wavelengths * 1e9, thetas, Rmap * 100,
+                       shading="auto", cmap="magma")
+    ax.set_xlabel("wavelength (nm)")
+    ax.set_ylabel("incidence angle (deg)")
+    ax.set_title("TiO₂ metasurface — angle–wavelength dispersion")
+    ax.grid(False)
+    fig.colorbar(im, ax=ax, label="reflectance (%)")
+    save(fig, "dispersion_map.png")
+
+
+# -- 7. AR coating before/after (gallery + inverse + home) ------------------
+def ar_coating():
+    lib = default_library
+    period, N = 180e-9, 64
+    # A representative subwavelength Si3N4 moth-eye (a small central pillar).
+    topo = shapes.circle(center=(0.5, 0.5), radius=0.22, grid_shape=(N, N))
+    rcwa = RCWA(period_x=period, period_y=period, resolution=(N, N), n_orders=(7, 7))
+    rcwa.add_uniform_layer(np.inf, "Air")
+    rcwa.add_layer(95e-9, topo, ["Air", "Si3N4"])
+    rcwa.add_uniform_layer(np.inf, "SiO2")
+    wl = np.linspace(300e-9, 600e-9, 61)
+    R = []
+    for w in wl:
+        rcwa.set_source(wavelength=w, theta=0, polarization="linear")
+        R.append(rcwa.simulate()[2].R_total)
+    nsub = np.array([complex(lib.get("SiO2", w)).real for w in wl])
+    R_bare = ((nsub - 1) / (nsub + 1)) ** 2
+    fig, ax = plt.subplots(figsize=(7, 3.8))
+    ax.plot(wl * 1e9, R_bare * 100, "--", color="0.55", lw=1.8, label="bare glass")
+    ax.plot(wl * 1e9, np.array(R) * 100, color=ORANGE, lw=2.4,
+            label="Si₃N₄ moth-eye AR")
+    ax.fill_between(wl * 1e9, np.array(R) * 100, R_bare * 100,
+                    color=AMBER, alpha=0.15)
+    ax.set_xlabel("wavelength (nm)")
+    ax.set_ylabel("reflectance (%)")
+    ax.set_title("Inverse-designed anti-reflection coating on glass")
+    ax.legend(frameon=False)
+    ax.set_ylim(0, 5)
+    save(fig, "ar_coating.png")
+
+
+# -- 8. convergence (Performance) -------------------------------------------
+def convergence():
+    from ikarus.tools.convergence import convergence_curve
+    period, N = 820e-9, 128
+    sq = shapes.rectangle(center=(0.5, 0.5), size=(0.5, 0.5), grid_shape=(N, N))
+    rcwa = RCWA(period_x=period, period_y=period, resolution=(N, N), n_orders=(6, 6))
+    rcwa.add_uniform_layer(np.inf, "Air")
+    rcwa.add_layer(300e-9, sq, ["Air", "aSi"])
+    rcwa.add_uniform_layer(np.inf, "SiO2")
+    rcwa.set_source(wavelength=700e-9, theta=0, polarization="linear", linear_pol_angle=90)
+    orders = np.arange(3, 15)
+    Ms, defect = convergence_curve(rcwa, orders, metric="energy")
+    harmonics = (2 * Ms + 1) ** 2
+    fig, ax = plt.subplots(figsize=(7, 3.8))
+    ax.semilogy(harmonics, defect + 1e-12, "o-", color=ORANGE, lw=2)
+    ax.set_xlabel("number of Fourier harmonics  $P=(2M+1)^2$")
+    ax.set_ylabel("energy defect  |R + T − 1|")
+    ax.set_title("Convergence — aSi square, TM (the slow case)")
+    ax.grid(True, which="both", alpha=0.25)
+    save(fig, "convergence.png")
+
+
+# -- 9. shape gallery (Shapes / Core Concepts) ------------------------------
+def shape_gallery():
+    N = 200
+    items = [
+        ("circle", shapes.circle(radius=0.3, grid_shape=(N, N))),
+        ("ellipse(45°)", shapes.ellipse(radii=(0.35, 0.16), angle=45, grid_shape=(N, N))),
+        ("rectangle", shapes.rectangle(size=(0.55, 0.3), grid_shape=(N, N))),
+        ("ring", shapes.ring(inner_radius=0.2, outer_radius=0.36, grid_shape=(N, N))),
+        ("cross", shapes.cross(arm_length=0.7, arm_width=0.22, grid_shape=(N, N))),
+        ("polygon (hex)", shapes.polygon(
+            [(0.5, 0.85), (0.8, 0.67), (0.8, 0.33), (0.5, 0.15), (0.2, 0.33), (0.2, 0.67)],
+            grid_shape=(N, N))),
+    ]
+    from matplotlib.colors import ListedColormap
+    cmap = ListedColormap(["#fff3e0", DEEP])
+    fig, axes = plt.subplots(2, 3, figsize=(7.5, 5))
+    for ax, (name, arr) in zip(axes.ravel(), items):
+        ax.imshow(arr.T, origin="lower", cmap=cmap, extent=[0, 1, 0, 1])
+        ax.set_title(name, fontsize=11)
+        ax.set_xticks([]); ax.set_yticks([])
+        ax.grid(False)
+        for s in ax.spines.values():
+            s.set_visible(True); s.set_color("0.7")
+    fig.suptitle("ikarus.shapes — topology primitives", y=0.99)
+    save(fig, "shape_gallery.png")
+
+
+if __name__ == "__main__":
+    print("Generating documentation figures ->", ASSETS)
+    thin_film_spectrum()
+    grating_orders()
+    metasurface_phase()
+    metasurface_field()
+    polarization()
+    convergence()
+    shape_gallery()
+    ar_coating()
+    sweep_map()
+    dispersion_map()
+    print("Done.")

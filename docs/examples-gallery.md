@@ -8,11 +8,11 @@ everywhere, as always.
 
 | Script | Run | What it flies |
 |---|---|---|
-| 🎪 Feature tour | `python -m ikarus.examples.feature_tour` | The full airshow: TiO₂ cross metasurface — materials, structure plots, order-resolved efficiencies, field maps, spectrum, circular polarization, HDF5. Output lands in `ikarus_tour_output/`. |
-| 🌈 Grating diffraction | `python -m ikarus.examples.grating_diffraction` | 1-D TiO₂ binary grating; propagating orders + exit angles vs. wavelength. |
-| 🔮 Metasurface spectrum | `python -m ikarus.examples.metasurface_spectrum` | R/T spectrum of a 2-D meta-atom. |
-| 🧬 Inverse metamirror | `python -m ikarus.examples.inverse_metamirror` | A GA evolves a reflective meta-atom. |
-| ✅ Fresnel validation | `python -m ikarus.examples.validation_fresnel` | The machine-precision sanity anchor. |
+| Feature tour | `python -m ikarus.examples.feature_tour` | The full airshow: TiO₂ cross metasurface — materials, structure plots, order-resolved efficiencies, field maps, spectrum, circular polarization, HDF5. Output lands in `ikarus_tour_output/`. |
+| Grating diffraction | `python -m ikarus.examples.grating_diffraction` | 1-D TiO₂ binary grating; propagating orders + exit angles vs. wavelength. |
+| Metasurface spectrum | `python -m ikarus.examples.metasurface_spectrum` | R/T spectrum of a 2-D meta-atom. |
+| Inverse metamirror | `python -m ikarus.examples.inverse_metamirror` | A GA evolves a reflective meta-atom. |
+| Fresnel validation | `python -m ikarus.examples.validation_fresnel` | The machine-precision sanity anchor. |
 
 ## Fresnel validation — the trust anchor
 
@@ -33,7 +33,7 @@ _, _, res = rcwa.simulate()
 R_fresnel = ((1.0 - 1.5) / (1.0 + 1.5)) ** 2
 print(f"Ikarus  R = {res.R_total:.12f}")
 print(f"Fresnel R = {R_fresnel:.12f}")
-print(f"|diff| = {abs(res.R_total - R_fresnel):.2e}")   # ~1e-15 ✨
+print(f"|diff| = {abs(res.R_total - R_fresnel):.2e}")   # ~1e-15 
 ```
 
 ## Anti-reflection thin film — the classic
@@ -113,6 +113,11 @@ for w in wl:
     R.append(coating.simulate()[2].R_total)
 print("worst-case R:", f"{max(R)*100:.2f}%")     # ~1.5% vs ~3.8% bare glass
 ```
+
+<figure markdown="span">
+  ![AR coating before/after](assets/ar_coating.png){ width="640" }
+  <figcaption>An inverse-designed subwavelength Si₃N₄ moth-eye cuts glass reflection from ~3.5–4% (bare) to ~1% across the visible.</figcaption>
+</figure>
 
 ## Beam deflector — power steering
 

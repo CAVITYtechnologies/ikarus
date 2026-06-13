@@ -47,6 +47,11 @@ ray-casting rule).
 Merge several topology maps. `"overlay"` (default): later non-zero pixels win.
 `"max"`: elementwise maximum index — handy for **three or more** materials.
 
+<figure markdown="span">
+  ![Gallery of shape primitives](../assets/shape_gallery.png){ width="600" }
+  <figcaption>The built-in <code>ikarus.shapes</code> primitives, each rendered on a unit cell.</figcaption>
+</figure>
+
 ## Examples
 
 ```python

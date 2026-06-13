@@ -63,6 +63,11 @@ Each pillar is a tiny truncated waveguide; fatter pillar → higher effective
 index → more phase delay. When the sweep covers \(2\pi\) with \(T \gtrsim 0.9\),
 you have a complete set of "phase pixels" to tile any wavefront you like.
 
+<figure markdown="span">
+  ![Transmission phase vs pillar radius](../assets/metasurface_phase.png){ width="640" }
+  <figcaption>Sweeping the pillar radius scans the transmission phase across a full 2π while transmittance stays high — the meta-atom phase library.</figcaption>
+</figure>
+
 ## Near-field maps { #near-field-maps }
 
 Numbers are good; *seeing* the Mie resonance inside the pillar is better:
@@ -86,6 +91,11 @@ ax.figure.savefig("pillar_field_xy.png", dpi=150, bbox_inches="tight")
 
 The plots come with the material outline overlaid automatically, so you can
 check the field actually lives where you think it does.
+
+<figure markdown="span">
+  ![Near-field intensity in a nanopillar](../assets/metasurface_field.png){ width="640" }
+  <figcaption>Reconstructed |E|² through the TiO₂ nanopillar (xz cross-section), with the material outline overlaid automatically.</figcaption>
+</figure>
 
 ## Too lazy to sweep radii? Good.
 

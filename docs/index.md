@@ -5,7 +5,7 @@ hide:
 
 <div class="ikarus-hero" markdown>
 
-# Fly closer to the sun ☀️
+# Fly closer to the sun 
 
 **Ikarus** is a high-precision RCWA engine for periodic photonics —
 metasurfaces, gratings and photonic crystals — with machine-precision
@@ -41,6 +41,11 @@ print(f"R = {result.R_total:.4f}  T = {result.T_total:.4f}  "
 </div>
 
 ---
+
+<figure class="hero-figure" markdown="span">
+  ![Metasurface dispersion fingerprint](assets/dispersion_map.png){ width="720" }
+  <figcaption>A TiO₂ metasurface's angle–wavelength reflectance fingerprint — Rayleigh–Wood anomalies and all — computed in seconds. (See [Flight School, Lesson 6](tutorials/angular-response.md).)</figcaption>
+</figure>
 
 ## Pick your runway
 
@@ -103,7 +108,7 @@ the setup costs a weekend). Ikarus aims for the missing third thing:
 - **Inverse design in the box.** The same metaatom you simulate forward can be
   optimized backward, gradient-free, with one function call.
 
-!!! example "🪶 Myth break — why \"Ikarus\"?"
+!!! example "Myth break — why \"Ikarus\"?"
 
     In the myth, Ikaros strapped on wings of wax and feathers, ignored the
     flight envelope, and performed an unscheduled rapid disassembly over the
@@ -116,22 +121,22 @@ the setup costs a weekend). Ikarus aims for the missing third thing:
 
 | Capability | Status |
 |---|---|
-| 2-D periodic structures (crossed gratings, metasurfaces) | ✅ |
-| Pixel-map topologies + shape primitives (circle, ring, polygon, …) | ✅ |
-| Linear polarization (any angle), oblique incidence | ✅ |
-| Circular polarization with co/cross-pol decomposition | ✅ |
-| All diffraction orders with exit angles | ✅ |
-| Dispersive material database (Si, SiO₂, TiO₂, GaN, GaP, aSi, Au, Si₃N₄, Air) | ✅ |
-| Custom materials from CSV (`n, k`) or a Lorentz model | ✅ |
-| Real-space field reconstruction (xy / xz / yz planes) | ✅ |
-| Structure & field visualization (matplotlib) | ✅ |
-| Automatic convergence testing (`never` / `once` / `always`) | ✅ |
-| HDF5 export / import of results | ✅ |
-| Numerically stable S-matrix cascade (no transfer-matrix overflow) | ✅ |
-| Gradient-free inverse design (pixels + parameters, GA / NSGA-III via pymoo) | ✅ |
-| Anisotropic (3×3 tensor) materials | ⛔ on the roadmap |
-| Li inverse-rule factorization (faster TM convergence) | ⛔ Laurent rule only |
-| GPU acceleration | ⛔ CPU (NumPy/SciPy) only |
+| 2-D periodic structures (crossed gratings, metasurfaces) | :material-check:{ .feat-yes } |
+| Pixel-map topologies + shape primitives (circle, ring, polygon, …) | :material-check:{ .feat-yes } |
+| Linear polarization (any angle), oblique incidence | :material-check:{ .feat-yes } |
+| Circular polarization with co/cross-pol decomposition | :material-check:{ .feat-yes } |
+| All diffraction orders with exit angles | :material-check:{ .feat-yes } |
+| Dispersive material database (Si, SiO₂, TiO₂, GaN, GaP, aSi, Au, Si₃N₄, Air) | :material-check:{ .feat-yes } |
+| Custom materials from CSV (`n, k`) or a Lorentz model | :material-check:{ .feat-yes } |
+| Real-space field reconstruction (xy / xz / yz planes) | :material-check:{ .feat-yes } |
+| Structure & field visualization (matplotlib) | :material-check:{ .feat-yes } |
+| Automatic convergence testing (`never` / `once` / `always`) | :material-check:{ .feat-yes } |
+| HDF5 export / import of results | :material-check:{ .feat-yes } |
+| Numerically stable S-matrix cascade (no transfer-matrix overflow) | :material-check:{ .feat-yes } |
+| Gradient-free inverse design (pixels + parameters, GA / NSGA-III via pymoo) | :material-check:{ .feat-yes } |
+| Anisotropic (3×3 tensor) materials | :material-close:{ .feat-no } on the roadmap |
+| Li inverse-rule factorization (faster TM convergence) | :material-close:{ .feat-no } Laurent rule only |
+| GPU acceleration | :material-close:{ .feat-no } CPU (NumPy/SciPy) only |
 
 ## Sixty seconds of metasurface
 

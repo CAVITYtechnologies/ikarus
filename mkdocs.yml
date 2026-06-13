@@ -88,13 +88,13 @@ plugins:
 
 nav:
   - Home: index.md
-  - 🚀 Getting Started:
+  - Getting Started:
       - Installation: installation.md
       - Quick Start: quickstart.md
-  - 🌊 The Physics:
+  - The Physics:
       - How RCWA Works: theory.md
       - Core Concepts: core-concepts.md
-  - 🛫 Flight School:
+  - Flight School:
       - tutorials/index.md
       - "Lesson 1 · Spectra 101": tutorials/reflection-transmission.md
       - "Lesson 2 · Splitting Light": tutorials/gratings.md
@@ -105,7 +105,7 @@ nav:
       - Aerobatics (Advanced): advanced.md
       - The Hangar (Examples): examples-gallery.md
       - Need for Speed (Performance): performance.md
-  - 📚 Reference:
+  - Reference:
       - API:
           - api/index.md
           - RCWA & Results: api/rcwa.md
@@ -118,7 +118,7 @@ nav:
           - Low-level: api/low-level.md
       - FAQ: faq.md
       - Troubleshooting: troubleshooting.md
-  - 🤝 Project:
+  - Project:
       - Developer Guide: developer-guide.md
       - Citation: citation.md
       - License: license.md

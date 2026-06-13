@@ -90,6 +90,11 @@ plt.colorbar(label="Reflectance"); plt.savefig("Rmap.png", dpi=150)
 
 Resonance bands glow; anti-reflection valleys go dark. Design by sightseeing.
 
+<figure markdown="span">
+  ![Reflectance map over wavelength and height](../assets/sweep_map.png){ width="640" }
+  <figcaption>Reflectance of a Si₃N₄ disk over wavelength and pillar height — a 2-D design map built from nested sweeps.</figcaption>
+</figure>
+
 ## Need it faster?
 
 - **Pin BLAS to one thread** before importing NumPy — for these small matrices,

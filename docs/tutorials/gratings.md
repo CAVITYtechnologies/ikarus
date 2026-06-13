@@ -47,6 +47,11 @@ for i in np.argsort(-res.T_orders):
 
 Propagating lanes get real angles; evanescent ghosts get `NaN`.
 
+<figure markdown="span">
+  ![Grating diffraction-order efficiencies](../assets/grating_orders.png){ width="640" }
+  <figcaption>Power per transmitted diffraction order for the TiO₂ grating at 650&nbsp;nm; the label above each bar is that lane's exit angle.</figcaption>
+</figure>
+
 ## Checking against the chalkboard
 
 At normal incidence, transmitted order \(m\) exits the substrate (index

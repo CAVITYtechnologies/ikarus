@@ -9,14 +9,14 @@ their full [API pages](api/index.md).
 ```mermaid
 flowchart LR
     subgraph You compose
-      M["🎨 Materials"] --> L["🥞 Layers"]
-      G["📐 Geometry<br/>periods · resolution · n_orders"] --> R["🎬 RCWA"]
+      M["Materials"] --> L["Layers"]
+      G["Geometry<br/>periods · resolution · n_orders"] --> R["RCWA"]
       L --> R
-      S["💡 Source"] --> R
+      S["Source"] --> R
     end
-    R -->|simulate| Res["📊 SimulationResult"]
-    Res --> F["🗺️ Field maps"]
-    Res --> IO["💾 HDF5"]
+    R -->|simulate| Res["SimulationResult"]
+    Res --> F["Field maps"]
+    Res --> IO["HDF5"]
 ```
 
 ## The stage — geometry

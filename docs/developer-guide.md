@@ -8,7 +8,7 @@ codebase — plus the architectural decisions that keep it honest.
 ```text
 ikarus/
 ├── __init__.py            # public API surface (re-exports)
-├── core/                  # ⚙️ the engine
+├── core/                  # the engine
 │   ├── rcwa.py            #   RCWA façade + SimulationResult
 │   ├── solver.py          #   stateless heart: modes, S-matrices, cascade
 │   ├── source.py          #   Source (plane-wave illumination)
@@ -17,22 +17,22 @@ ikarus/
 │   ├── fourier.py         #   HarmonicGrid, convolution_matrix
 │   ├── fields.py          #   FieldMap, real-space reconstruction
 │   └── polarization.py    #   circular co/cross decomposition
-├── inverse/               # 🧬 gradient-free inverse design (opt: pymoo)
+├── inverse/               # gradient-free inverse design (opt: pymoo)
 │   ├── dof.py             #   MetaAtom, free, pixels
 │   ├── targets.py         #   Target (figures of merit)
 │   └── optimize.py        #   optimize(), OptimizeResult
-├── shapes/                # 🔵 topology primitives
-├── tools/                 # 🔧 convergence, HDF5 I/O, material CLI
-├── visualization/         # 🎨 matplotlib helpers (opt: matplotlib)
-├── examples/              # 🎪 runnable demo scripts
-├── materials/             # 📚 shipped material database (*.json)
-└── tests/                 # ✅ pytest suite
+├── shapes/                # topology primitives
+├── tools/                 # convergence, HDF5 I/O, material CLI
+├── visualization/         # matplotlib helpers (opt: matplotlib)
+├── examples/              # runnable demo scripts
+├── materials/             # shipped material database (*.json)
+└── tests/                 # pytest suite
     └── validation/        #   analytic Fresnel + 1-D grating references
 ```
 
 ```mermaid
 flowchart TD
-    U["👤 User"] --> F["core.rcwa.RCWA — the façade"]
+    U["User"] --> F["core.rcwa.RCWA — the façade"]
     F --> L[core.layer.Layer]
     F --> M[core.materials.MaterialLibrary]
     F --> S[core.source.Source]
@@ -118,8 +118,13 @@ mkdocs build      # static site -> ./site
 
 - Content in `docs/`, configuration in `mkdocs.yml`, theme tweaks in
   `docs/stylesheets/extra.css`, announcement bar in `overrides/main.html`.
-- Math: `pymdownx.arithmatex` + MathJax. Diagrams: Mermaid via
-  `pymdownx.superfences`. Icons/emoji: `pymdownx.emoji`.
+- Math: `pymdownx.arithmatex` + MathJax (with `\llbracket`/`\rrbracket` macros
+  defined in `docs/javascripts/mathjax.js`). Diagrams: Mermaid via
+  `pymdownx.superfences`. Icons: `pymdownx.emoji` (Material/Octicons SVGs).
+- **Figures** are real Ikarus output, not mock-ups. Regenerate them with
+  `python scripts/gen_docs_figures.py` — it runs the solver and writes the PNGs
+  into `docs/assets/`. Re-run after any change that should be reflected in the
+  embedded plots.
 - CI: `.github/workflows/docs.yml` builds with `--strict` and deploys to
   GitHub Pages on every push to `main`.
 

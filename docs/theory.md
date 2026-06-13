@@ -92,7 +92,7 @@ Ikarus uses scattering matrices exclusively. Thick layers, deeply evanescent
 modes, lossy metals — the cascade is unconditionally stable. The wax stays
 cool at any altitude.
 
-!!! example "🪶 Myth break"
+!!! example "Myth break"
     Ikaros fell because his propagation scheme carried a growing exponential
     (altitude) past its stability limit (wax melting point). A scattering
     formulation — gliding, bounded, never amplifying — would have gotten him
@@ -102,14 +102,14 @@ cool at any altitude.
 
 ```mermaid
 flowchart TD
-    A["🏗️ Your structure + source<br/>(RCWA façade)"] --> B["🧮 Harmonic grid<br/>Kx, Ky wavevector matrices"]
-    B --> C["🎨 Per-layer FFT<br/>permittivity → convolution matrix"]
-    C --> D["🚶 Eigenmodes per layer<br/>Ω² = PQ → W, λ, V"]
-    D --> E["📦 One S-matrix per layer<br/>(only decaying exponentials)"]
-    E --> F["⭐ Redheffer cascade<br/>S_ref ⋆ S₁ ⋆ … ⋆ S_N ⋆ S_trn"]
-    F --> G["💡 c_ref = S₁₁ c_src<br/>c_trn = S₂₁ c_src"]
-    G --> H["📊 Efficiencies, phases,<br/>exit angles per order"]
-    G --> I["🗺️ Optional: real-space<br/>field reconstruction"]
+    A["Your structure + source<br/>(RCWA façade)"] --> B["Harmonic grid<br/>Kx, Ky wavevector matrices"]
+    B --> C["Per-layer FFT<br/>permittivity → convolution matrix"]
+    C --> D["Eigenmodes per layer<br/>Ω² = PQ → W, λ, V"]
+    D --> E["One S-matrix per layer<br/>(only decaying exponentials)"]
+    E --> F["Redheffer cascade<br/>S_ref ⋆ S₁ ⋆ … ⋆ S_N ⋆ S_trn"]
+    F --> G["c_ref = S₁₁ c_src<br/>c_trn = S₂₁ c_src"]
+    G --> H["Efficiencies, phases,<br/>exit angles per order"]
+    G --> I["Optional: real-space<br/>field reconstruction"]
 ```
 
 ---

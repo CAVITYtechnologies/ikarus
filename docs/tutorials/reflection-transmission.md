@@ -51,6 +51,11 @@ ax.legend(); ax.grid(alpha=0.3)
 fig.savefig("thin_film_spectrum.png", dpi=150, bbox_inches="tight")
 ```
 
+<figure markdown="span">
+  ![TiO2 thin-film R/T spectrum](../assets/thin_film_spectrum.png){ width="640" }
+  <figcaption>Reflectance, transmittance and their sum for a 120&nbsp;nm TiO₂ film on glass. R&nbsp;+&nbsp;T pins at 100% — TiO₂ is lossless across the visible.</figcaption>
+</figure>
+
 ## Totals vs. the specular lane
 
 `R_total`/`T_total` sum over **all** propagating orders. For patterned

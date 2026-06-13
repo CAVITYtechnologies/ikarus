@@ -174,3 +174,52 @@ mjx-container {
 [data-md-color-scheme="slate"] .md-typeset table:not([class]) tbody tr:hover {
   background-color: rgba(255, 179, 0, 0.06);
 }
+
+/* ---------- Feature-table check / cross icons ---------- */
+.md-typeset .feat-yes {
+  color: #2e7d32;
+  vertical-align: middle;
+}
+
+.md-typeset .feat-no {
+  color: #b0541e;
+  opacity: 0.85;
+  vertical-align: middle;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .feat-yes { color: #66bb6a; }
+[data-md-color-scheme="slate"] .md-typeset .feat-no { color: #ff8a65; }
+
+/* ---------- Documentation figures ---------- */
+.md-typeset figure {
+  margin: 1.4rem auto;
+  max-width: 100%;
+}
+
+.md-typeset figure img,
+.md-typeset p > img {
+  border-radius: 0.6rem;
+  border: 1px solid rgba(255, 112, 67, 0.18);
+  box-shadow: 0 6px 22px -12px rgba(191, 54, 12, 0.45);
+  max-width: 100%;
+  height: auto;
+}
+
+.md-typeset figure img:hover {
+  box-shadow: 0 10px 30px -10px rgba(244, 81, 30, 0.5);
+}
+
+.md-typeset figcaption {
+  font-size: 0.72rem;
+  opacity: 0.75;
+  margin-top: 0.4rem;
+  max-width: 42rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* The landing-page hero figure: full-width, no border fuss. */
+.hero-figure img {
+  border-radius: 0.8rem;
+  width: 100%;
+}

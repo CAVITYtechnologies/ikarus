@@ -54,6 +54,11 @@ From \(M=9\) to \(M=13\): \(P\) doubles, time ×8. The cube never sleeps.
     (\(W_0 = I\)), diagonal algebra in homogeneous regions, and
     `scipy.linalg.solve` right-division instead of explicit inverses.
 
+<figure markdown="span">
+  ![Convergence of the energy defect](assets/convergence.png){ width="640" }
+  <figcaption>Energy-conservation defect |R+T−1| vs. harmonic count for a high-contrast aSi square in TM — the slow-converging regime.</figcaption>
+</figure>
+
 ## Memory scaling { #memory-scaling }
 
 The heavyweights are \(2P \times 2P\) complex128 matrices — several live per

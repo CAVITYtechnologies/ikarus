@@ -35,6 +35,11 @@ print(f"T swings from {T.min():.3f} (across the bar) to {T.max():.3f} (along it)
 Expect a 180°-periodic oscillation with extrema at 0°/90° — the bar acting as
 a tiny waveplate. This is exactly how geometric-phase metasurfaces are born.
 
+<figure markdown="span">
+  ![Transmittance vs polarization angle](../assets/polarization.png){ width="640" }
+  <figcaption>Transmittance of a Si nanobar vs. linear polarization angle: 180°-periodic form birefringence, with extrema along (0°) and across (90°) the bar.</figcaption>
+</figure>
+
 ## Circular light: the co/cross dialect
 
 Under `RCP`/`LCP` illumination, `T` and `R` come back as dicts

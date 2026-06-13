@@ -14,9 +14,9 @@ mixed-variable GA (one objective) or NSGA-III (several).
 
 ```mermaid
 flowchart LR
-    A["🧬 MetaAtom<br/>free + pixels DOF"] --> O["⚙️ optimize"]
-    T["🎯 Target(s)<br/>minimize / maximize / match"] --> O
-    O --> Rres["🏆 OptimizeResult"]
+    A["MetaAtom<br/>free + pixels DOF"] --> O["optimize"]
+    T["Target(s)<br/>minimize / maximize / match"] --> O
+    O --> Rres["OptimizeResult"]
     Rres --> RC[".metaatom → ready RCWA"]
 ```
 
