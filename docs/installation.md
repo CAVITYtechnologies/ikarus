@@ -27,6 +27,7 @@ pip install "ikarus-rcwa[all]"     # + plotting, HDF5, inverse design
     pip install "ikarus-rcwa[viz]"      # + matplotlib  (plots)
     pip install "ikarus-rcwa[io]"       # + h5py        (HDF5 export/import)
     pip install "ikarus-rcwa[inverse]"  # + pymoo       (inverse design)
+    pip install "ikarus-rcwa[progress]" # + tqdm        (rich progress bars)
     pip install "ikarus-rcwa[all]"      # everything above
     ```
 
@@ -46,7 +47,8 @@ pip install "ikarus-rcwa[all]"     # + plotting, HDF5, inverse design
 | `viz` | matplotlib ≥ 3.4 | structure & field plots, `ikarus.visualization` |
 | `io` | h5py ≥ 3.0 | [`save_results` / `load_results`](api/tools.md) |
 | `inverse` | pymoo ≥ 0.6 | [`ikarus.inverse`](api/inverse.md) — `optimize()` |
-| `all` | all three | everything |
+| `progress` | tqdm ≥ 4 | rich [`Sweep` / `progress`](api/sweeps.md) bars (a fallback works without it) |
+| `all` | all four | everything |
 | `dev` | + pytest ≥ 7.0 | running the test suite |
 
 ## Requirements

@@ -1,17 +1,18 @@
 # Lesson 4 · Sweeping Gracefully
 
-**Mission:** sweep parameters without wasting a single eigensolve, perform the
-convergence ritual every trustworthy result rests on, and paint a 2-D design
-map.
+**Mission:** sweep parameters without wasting a single eigensolve (or writing a
+single for-loop you don't have to), perform the convergence ritual every
+trustworthy result rests on, and paint a 2-D design map.
 
-## The golden sweep pattern
+## The easy way: `Sweep`
 
-Reuse one `RCWA`; mutate only what changes. `set_source` remembers everything
-you don't pass, so a wavelength sweep touches nothing else:
+For **source** sweeps — wavelength, angle, polarization — skip the loop entirely.
+[`Sweep`](../api/sweeps.md) varies the source over a grid and hands back arrays,
+with **one progress bar** for the whole run (so you can see the ETA):
 
 ```python
 import numpy as np
-from ikarus import RCWA, shapes
+from ikarus import RCWA, shapes, Sweep
 
 period, N = 450e-9, 96
 disk = shapes.circle(radius=0.3, grid_shape=(N, N))
@@ -19,11 +20,34 @@ rcwa = RCWA(period_x=period, period_y=period, resolution=(N, N), n_orders=(9, 9)
 rcwa.add_uniform_layer(np.inf, "Air")
 rcwa.add_layer(200e-9, disk, ["Air", "Si3N4"])
 rcwa.add_uniform_layer(np.inf, "SiO2")
+rcwa.set_source(wavelength=600e-9, theta=0, polarization="linear")
+
+res = Sweep(rcwa).over(wavelength=np.linspace(400e-9, 800e-9, 81)).run()
+R = res.R_total                       # array aligned to the sweep axis
+```
+
+A 2-D grid is the same call with two axes — and still one bar:
+
+```python
+res = Sweep(rcwa).over(theta=np.linspace(0, 60, 31),
+                       wavelength=np.linspace(400e-9, 800e-9, 81)).run()
+res.R_total.shape                     # (31, 81)
+res.order(1, 0, which="R")            # +1 reflected order across the grid
+```
+
+## The manual pattern (and your toggle)
+
+When you need full control — or you're sweeping **geometry** (which rebuilds the
+structure) — write the loop, and wrap it in [`progress`](../api/sweeps.md#progress)
+for one bar with an on/off switch:
+
+```python
+from ikarus import progress
 
 wavelengths = np.linspace(400e-9, 800e-9, 81)
 R = np.empty_like(wavelengths)
-for i, wl in enumerate(wavelengths):
-    rcwa.set_source(wavelength=wl, theta=0, polarization="linear")
+for i, wl in enumerate(progress(wavelengths, desc="λ", enable=True)):
+    rcwa.set_source(wavelength=wl)    # set_source remembers theta & polarization
     R[i] = rcwa.simulate()[2].R_total
 ```
 
@@ -60,12 +84,14 @@ print("using n_orders =", rcwa.n_orders)
 
 ## A 2-D design map
 
-Two nested sweeps make a map — here reflectance vs. wavelength *and* pillar
-height, the kind of plot that finds designs for you:
+Reflectance vs. wavelength *and* pillar height — the kind of plot that finds
+designs for you. Height is **structural** (it rebuilds the layer), so it's the
+outer loop with a [`progress`](../api/sweeps.md#progress) bar; wavelength is a
+source axis, so the inner sweep is a [`Sweep`](../api/sweeps.md):
 
 ```python
 import numpy as np
-from ikarus import RCWA, shapes
+from ikarus import RCWA, shapes, Sweep, progress
 
 period, N = 450e-9, 96
 disk = shapes.circle(radius=0.3, grid_shape=(N, N))
@@ -73,14 +99,13 @@ wavelengths = np.linspace(400e-9, 800e-9, 60)
 heights = np.linspace(100e-9, 400e-9, 40)
 
 Rmap = np.empty((heights.size, wavelengths.size))
-for j, h in enumerate(heights):
+for j, h in enumerate(progress(heights, desc="height")):
     rcwa = RCWA(period_x=period, period_y=period, resolution=(N, N), n_orders=(9, 9))
     rcwa.add_uniform_layer(np.inf, "Air")
     rcwa.add_layer(h, disk, ["Air", "Si3N4"])
     rcwa.add_uniform_layer(np.inf, "SiO2")
-    for i, wl in enumerate(wavelengths):
-        rcwa.set_source(wavelength=wl, theta=0, polarization="linear")
-        Rmap[j, i] = rcwa.simulate()[2].R_total
+    rcwa.set_source(wavelength=600e-9, theta=0, polarization="linear")
+    Rmap[j] = Sweep(rcwa).over(wavelength=wavelengths).run(progress=False).R_total
 
 import matplotlib.pyplot as plt
 plt.pcolormesh(wavelengths * 1e9, heights * 1e9, Rmap, shading="auto", cmap="inferno")

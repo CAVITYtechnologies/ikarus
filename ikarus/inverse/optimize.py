@@ -115,7 +115,7 @@ class OptimizeResult:
 
 def optimize(atom, targets, n_orders: int = 8, algorithm: str = "auto",
              pop: int = 100, n_gen: int = 60, seed: int = 0,
-             verbose: bool = True) -> OptimizeResult:
+             verbose: bool = True, progress: bool = False) -> OptimizeResult:
     """Optimize ``atom`` against one or more ``targets``.
 
     Parameters
@@ -126,6 +126,9 @@ def optimize(atom, targets, n_orders: int = 8, algorithm: str = "auto",
     algorithm: ``'auto'`` (GA if one objective, NSGA-III if several), or one of
         ``'ga'``, ``'nsga2'``, ``'nsga3'``.
     pop, n_gen, seed: optimizer settings.
+    verbose: print the per-generation pymoo table.
+    progress: show a single progress bar over the generations (sets
+        ``verbose=False``; needs ``tqdm`` for a rich bar, else a plain fallback).
     """
     _require_pymoo()
     from pymoo.optimize import minimize as pymoo_minimize
@@ -137,6 +140,22 @@ def optimize(atom, targets, n_orders: int = 8, algorithm: str = "auto",
         algorithm = "ga" if len(targets) == 1 else "nsga3"
     algo = _make_algorithm(algorithm, pop, len(targets))
 
+    callback, bar = None, None
+    if progress:
+        from .._progress import counter
+        from pymoo.core.callback import Callback
+
+        bar = counter(n_gen, desc="optimize")
+
+        class _ProgressCallback(Callback):
+            def notify(self, algorithm):  # called once per generation
+                bar.update(1)
+
+        callback = _ProgressCallback()
+        verbose = False
+
     res = pymoo_minimize(problem, algo, ("n_gen", n_gen), seed=seed,
-                         verbose=verbose, save_history=False)
+                         verbose=verbose, save_history=False, callback=callback)
+    if bar is not None:
+        bar.close()
     return OptimizeResult(atom, targets, n_orders, res.X, res.F, None)

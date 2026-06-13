@@ -160,7 +160,8 @@ optimize(atom, targets, n_orders=8, algorithm="auto",
 | `algorithm` | `"auto"` | GA if one objective, NSGA-III if several; or `"ga"`, `"nsga2"`, `"nsga3"`. |
 | `pop`, `n_gen` | `100`, `60` | population size and generations. |
 | `seed` | `0` | RNG seed — runs are reproducible. |
-| `verbose` | `True` | per-generation progress. |
+| `verbose` | `True` | print the per-generation pymoo table. |
+| `progress` | `False` | show one [progress bar](sweeps.md#optimization-progress) over the generations (sets `verbose=False`). |
 
 ### `OptimizeResult`
 

@@ -30,6 +30,8 @@ from .core import (
     HarmonicGrid,
 )
 from . import shapes
+from .sweep import Sweep, SweepResult
+from ._progress import progress
 
 __version__ = "0.2.0"
 
@@ -43,5 +45,8 @@ __all__ = [
     "default_library",
     "HarmonicGrid",
     "shapes",
+    "Sweep",
+    "SweepResult",
+    "progress",
     "__version__",
 ]

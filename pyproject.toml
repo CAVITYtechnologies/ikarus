@@ -32,8 +32,9 @@ dependencies = [
 viz = ["matplotlib>=3.4"]
 io = ["h5py>=3.0"]
 inverse = ["pymoo>=0.6"]
-all = ["matplotlib>=3.4", "h5py>=3.0", "pymoo>=0.6"]
-dev = ["pytest>=7.0", "matplotlib>=3.4", "h5py>=3.0", "pymoo>=0.6"]
+progress = ["tqdm>=4"]
+all = ["matplotlib>=3.4", "h5py>=3.0", "pymoo>=0.6", "tqdm>=4"]
+dev = ["pytest>=7.0", "matplotlib>=3.4", "h5py>=3.0", "pymoo>=0.6", "tqdm>=4"]
 
 [project.urls]
 Homepage = "https://github.com/CAVITYtechnologies/ikarus"

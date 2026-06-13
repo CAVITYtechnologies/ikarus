@@ -115,6 +115,7 @@ nav:
           - Shapes: api/shapes.md
           - Inverse Design: api/inverse.md
           - Fields & Visualization: api/fields-viz.md
+          - Sweeps & Progress: api/sweeps.md
           - Tools: api/tools.md
           - Low-level: api/low-level.md
       - FAQ: faq.md

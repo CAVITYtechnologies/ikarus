@@ -133,7 +133,8 @@ the setup costs a weekend). Ikarus aims for the missing third thing:
 | Automatic convergence testing (`never` / `once` / `always`) | :material-check:{ .feat-yes } |
 | HDF5 export / import of results | :material-check:{ .feat-yes } |
 | Numerically stable S-matrix cascade (no transfer-matrix overflow) | :material-check:{ .feat-yes } |
-| Gradient-free inverse design (pixels + parameters, GA / NSGA-III via pymoo) | :material-check:{ .feat-yes } |
+| Gradient-free inverse design (pixels, parametric shapes, GA / NSGA-III via pymoo) | :material-check:{ .feat-yes } |
+| Declarative parameter sweeps + progress bars (`Sweep`, `progress`) | :material-check:{ .feat-yes } |
 | Anisotropic (3×3 tensor) materials | :material-close:{ .feat-no } on the roadmap |
 | Li inverse-rule factorization (faster TM convergence) | :material-close:{ .feat-no } Laurent rule only |
 | GPU acceleration | :material-close:{ .feat-no } CPU (NumPy/SciPy) only |
