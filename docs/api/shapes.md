@@ -47,10 +47,77 @@ ray-casting rule).
 Merge several topology maps. `"overlay"` (default): later non-zero pixels win.
 `"max"`: elementwise maximum index — handy for **three or more** materials.
 
+#### `rotate(topology, angle, order=0)`
+
+Rotate an integer topology map by `angle` degrees (CCW) about its center, with
+**periodic wrapping** so the result still tiles the unit cell. `order=0`
+(nearest-neighbour) keeps it integer-valued; raise it for smoother edges on
+coarse grids. For the parametric classes below, prefer their native `angle`
+argument — it rotates the geometry analytically, with no resampling.
+
 <figure markdown="span">
   ![Gallery of shape primitives](../assets/shape_gallery.png){ width="600" }
   <figcaption>The built-in <code>ikarus.shapes</code> primitives, each rendered on a unit cell.</figcaption>
 </figure>
+
+## Parametric shapes { #parametric-shapes }
+
+Where the functions above return a *fixed* array, a **`Shape`** class carries
+*named parameters* and a rotation `angle` — and any parameter may be a
+[`free(lo, hi)`](inverse.md#degrees-of-freedom) range. That makes a `Shape`
+usable two ways: as an ordinary topology, or as an inverse-design degree of
+freedom whose parameters the optimizer chooses (see
+[Lesson 7](../tutorials/inverse-design.md)).
+
+```python
+from ikarus.shapes import Cross
+
+# as a plain topology:
+topo = Cross(arm_length=0.7, arm_width=0.2, angle=30).to_grid((128, 128))
+
+# or hand it straight to add_layer (it rasterizes at the solver resolution):
+rcwa.add_layer(200e-9, Cross(arm_length=0.7, arm_width=0.2, angle=30), ["Air", "Si"])
+```
+
+### Shipped classes
+
+| Class | Parameters (besides `center`, `angle`) |
+|---|---|
+| `Circle` | `radius` |
+| `Ellipse` | `rx`, `ry` |
+| `Rectangle` | `width`, `height` |
+| `Ring` | `inner_radius`, `outer_radius` |
+| `Cross` | `arm_length`, `arm_width` |
+| `SplitRing` | `inner_radius`, `outer_radius`, `gap_angle` (the gap opens along the local +x axis, so `angle` rotates it) |
+
+Every class also accepts `center=(0.5, 0.5)`, `angle=0.0`,
+`grid_shape=(128, 128)`, `value=1`, `background=0`.
+
+### `Shape` interface
+
+| Member | Description |
+|---|---|
+| `to_grid(grid_shape=None, overrides=None) -> ndarray` | Rasterize to an integer array. Free parameters must be supplied via `overrides` (`{name: value}`). |
+| `img` *(property)* | The rendered grid — a Topology-Species-compatible attribute, so external objects exposing `.img` also work in `add_layer`. |
+| `free_parameters() -> dict` | `{name: (low, high)}` for every parameter left free (including `angle`). |
+| `resolved(overrides=None) -> Shape` | A concrete copy with all free parameters replaced. |
+
+### Defining your own
+
+Subclass `Shape`: declare parameters in `_PARAMS` (a tuple of `(name, default)`)
+and implement `_mask(self, u, v, p)`, returning a boolean mask. `u, v` are
+coordinates already centered and rotated, and `p` is the resolved parameter dict.
+Rotation, free-parameter handling and the inverse-design plumbing come for free.
+
+```python
+import numpy as np
+from ikarus.shapes import Shape
+
+class Diamond(Shape):
+    _PARAMS = (("half_width", 0.3),)
+    def _mask(self, u, v, p):
+        return np.abs(u) + np.abs(v) <= p["half_width"]
+```
 
 ## Examples
 

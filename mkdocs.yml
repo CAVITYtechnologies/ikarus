@@ -102,6 +102,7 @@ nav:
       - "Lesson 4 · Sweeping Gracefully": tutorials/parameter-sweeps.md
       - "Lesson 5 · Twisting Light": tutorials/polarization.md
       - "Lesson 6 · Coming in at an Angle": tutorials/angular-response.md
+      - "Lesson 7 · Designing the Shape Itself": tutorials/inverse-design.md
       - Aerobatics (Advanced): advanced.md
       - The Hangar (Examples): examples-gallery.md
       - Need for Speed (Performance): performance.md

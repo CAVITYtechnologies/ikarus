@@ -1,6 +1,6 @@
 # Flight School
 
-*Six lessons from first taxi to confident aerobatics.* Each one is
+*Seven lessons from first taxi to confident aerobatics.* Each one is
 self-contained, copy-paste runnable, states what you should expect to see, and
 ends with the habits that separate good pilots from lucky ones. Prerequisite:
 the [Quick Start](../quickstart.md).
@@ -58,6 +58,15 @@ the [Quick Start](../quickstart.md).
     anomalies in the wild.
 
     [:octicons-arrow-right-24: Start](angular-response.md)
+
+-   :material-dna:{ .lg .middle } **Lesson 7 · Designing the Shape Itself**
+
+    ---
+
+    Inverse design: state a goal and evolve a meta-atom's own shape
+    parameters — arm lengths, rotation, height — with a genetic algorithm.
+
+    [:octicons-arrow-right-24: Start](inverse-design.md)
 
 </div>
 

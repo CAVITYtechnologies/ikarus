@@ -320,6 +320,52 @@ def shape_gallery():
     save(fig, "shape_gallery.png")
 
 
+# -- 10. parametric-shape inverse design (Lesson 7) -------------------------
+def lesson7_parametric():
+    from ikarus.inverse import MetaAtom, free, optimize, Target
+    from ikarus.shapes import Cross
+    from matplotlib.colors import ListedColormap
+
+    atom = MetaAtom(period=700e-9, cover="Air", substrate="SiO2")
+    atom.add_pattern(topology=Cross(arm_length=free(0.3, 0.95),
+                                    arm_width=free(0.1, 0.45),
+                                    angle=free(0, 90), grid_shape=(96, 96)),
+                     materials=["Air", "Si"], height=free(0.3e-6, 0.9e-6))
+    best = optimize(atom, Target.maximize("T", at=1300e-9),
+                    n_orders=6, pop=16, n_gen=10, seed=0, verbose=False)
+    p = best.params
+    rcwa = best.metaatom
+
+    wl = np.linspace(1.0e-6, 1.6e-6, 61)
+    T, R = [], []
+    for w in wl:
+        rcwa.set_source(wavelength=w, theta=0, polarization="linear")
+        _, _, res = rcwa.simulate()
+        T.append(res.T_total)
+        R.append(res.R_total)
+
+    fig, (axL, axR) = plt.subplots(1, 2, figsize=(9, 3.8),
+                                   gridspec_kw={"width_ratios": [1, 1.5]})
+    # optimized topology
+    topo = rcwa.layers[1].topology
+    axL.imshow(topo.T, origin="lower", extent=[0, 1, 0, 1],
+               cmap=ListedColormap(["#fff3e0", DEEP]))
+    axL.set_xticks([]); axL.set_yticks([]); axL.grid(False)
+    axL.set_title("optimized Si cross", fontsize=11)
+    axL.set_xlabel(f"arms {p['shape__arm_length']:.2f}×{p['shape__arm_width']:.2f}, "
+                   f"{p['shape__angle']:.0f}°, h={p['height']*1e9:.0f} nm", fontsize=8.5)
+    # spectrum
+    axR.plot(wl * 1e9, np.array(T) * 100, color=ORANGE, lw=2.2, label="Transmittance")
+    axR.plot(wl * 1e9, np.array(R) * 100, color=BLUE, lw=2.0, label="Reflectance")
+    axR.axvline(1300, color="0.6", ls=":", lw=1.2)
+    axR.set_xlabel("wavelength (nm)"); axR.set_ylabel("efficiency (%)")
+    axR.set_title("response of the evolved meta-atom")
+    axR.legend(frameon=False, loc="center left")
+    axR.set_ylim(0, 105)
+    fig.suptitle("Lesson 7 — inverse design over a shape class's own parameters", y=1.02)
+    save(fig, "lesson7_inverse_shape.png")
+
+
 if __name__ == "__main__":
     print("Generating documentation figures ->", ASSETS)
     thin_film_spectrum()
@@ -330,6 +376,7 @@ if __name__ == "__main__":
     convergence()
     shape_gallery()
     ar_coating()
+    lesson7_parametric()
     sweep_map()
     dispersion_map()
     print("Done.")

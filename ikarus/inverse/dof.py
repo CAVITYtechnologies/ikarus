@@ -15,6 +15,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from ..core.rcwa import RCWA
+from ..shapes.parametric import Shape
 
 
 @dataclass
@@ -139,6 +140,9 @@ class MetaAtom:
         if isinstance(topo, Pixels):
             for k in range(topo.n_free):
                 v[f"px{k}"] = ("binary",)
+        elif isinstance(topo, Shape):
+            for name, (lo, hi) in topo.free_parameters().items():
+                v[f"shape__{name}"] = ("real", (lo, hi))
         return v
 
     @property
@@ -150,6 +154,8 @@ class MetaAtom:
         topo = self.pattern["topology"]
         if isinstance(topo, Pixels):
             return (topo.nx, topo.ny)
+        if isinstance(topo, Shape):
+            return topo.grid_shape
         return np.asarray(topo).shape
 
     def build(self, params: dict, n_orders: int) -> RCWA:
@@ -163,6 +169,10 @@ class MetaAtom:
         if isinstance(topo, Pixels):
             bits = np.array([params[f"px{k}"] for k in range(topo.n_free)])
             grid = topo.expand(bits)
+        elif isinstance(topo, Shape):
+            overrides = {name: params[f"shape__{name}"]
+                         for name in topo.free_parameters()}
+            grid = topo.to_grid(self._resolution(), overrides)
         else:
             grid = np.asarray(topo).astype(int)
 

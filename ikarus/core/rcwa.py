@@ -138,13 +138,27 @@ class RCWA:
 
     def add_layer(self, height: float, topology, materials, resolution=None,
                   name: str = "") -> Layer:
-        """Append a patterned layer defined by an integer ``topology`` map."""
+        """Append a patterned layer.
+
+        ``topology`` may be an integer array, a parametric
+        :class:`~ikarus.shapes.parametric.Shape`, or any object exposing an
+        ``img`` array attribute (e.g. an external topology class).
+        """
         res = self._as_pair(resolution) if resolution is not None else None
+        topology = self._coerce_topology(topology, res)
         layer = Layer(height=height, topology=topology, materials=list(materials),
                       resolution=res, name=name)
         self.layers.append(layer)
         self._converged = False
         return layer
+
+    def _coerce_topology(self, topology, res):
+        """Render a parametric/external topology object to an integer array."""
+        if hasattr(topology, "to_grid"):            # ikarus parametric Shape
+            return np.asarray(topology.to_grid(res or self.resolution)).astype(int)
+        if hasattr(topology, "img"):                # external class (e.g. Topology-Species)
+            return np.asarray(topology.img).astype(int)
+        return np.asarray(topology)
 
     def set_source(self, **kwargs) -> Source:
         """Create or update the illumination.  Unspecified fields are retained

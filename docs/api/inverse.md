@@ -43,6 +43,23 @@ shrinks the search space *and* enforces the physical symmetry:
 `Pixels.n_free` is the independent bit count (an 8×8 `c4v` grid → just 10
 bits); `Pixels.expand(bits)` rebuilds the full `(nx, ny)` 0/1 grid.
 
+#### Parametric shapes
+
+A [`Shape`](shapes.md#parametric-shapes) (`Cross`, `SplitRing`, `Ellipse`, …)
+used as a topology turns each of its `free(...)` parameters into a real DOF named
+`shape__<param>` (e.g. `shape__arm_length`, `shape__angle`). This optimizes a
+*physically interpretable* meta-atom — arm widths, radii, rotation — instead of a
+pixel grid, over far fewer variables. See
+[Lesson 7](../tutorials/inverse-design.md).
+
+```python
+from ikarus.shapes import Cross
+from ikarus.inverse import free
+
+topology = Cross(arm_length=free(0.3, 0.95), arm_width=free(0.1, 0.45),
+                 angle=free(0, 90))   # 3 free DOF + a clean, manufacturable shape
+```
+
 ## `MetaAtom`
 
 ```python
@@ -51,7 +68,8 @@ MetaAtom(period, cover, substrate, polarization="linear", pol_angle=0.0)
 
 A parameterized 3-region metaatom: **cover / patterned layer / substrate**.
 `period` and the pattern `height` may be fixed floats or `free(...)` ranges;
-the topology may be a fixed integer array or a `pixels(...)` map.
+the topology may be a fixed array, a `pixels(...)` map, or a parametric
+[`Shape`](shapes.md#parametric-shapes) with free parameters.
 
 #### `add_pattern(topology, materials, height) -> MetaAtom`
 

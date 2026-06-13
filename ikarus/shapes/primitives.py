@@ -98,6 +98,21 @@ def polygon(vertices, grid_shape=(32, 32), value=1, background=0) -> np.ndarray:
     return out.reshape(grid_shape)
 
 
+def rotate(topology, angle, order=0) -> np.ndarray:
+    """Rotate an integer topology map by ``angle`` degrees (CCW) about its center.
+
+    Uses periodic wrapping, so the rotated map still tiles the unit cell.
+    ``order=0`` (nearest-neighbour) keeps the result integer-valued; raise it for
+    smoother boundaries on coarse grids.  For parametric shapes prefer the native
+    ``angle`` argument of :mod:`ikarus.shapes.parametric` (no resampling).
+    """
+    from scipy.ndimage import rotate as _ndrotate
+    arr = np.asarray(topology)
+    out = _ndrotate(arr.astype(float), angle, reshape=False, order=order,
+                    mode="grid-wrap")
+    return np.rint(out).astype(int)
+
+
 def combine(*maps, mode="overlay") -> np.ndarray:
     """Combine several topology maps.
 

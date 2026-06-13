@@ -111,6 +111,4 @@ for th in (0, 20, 40):
 
 ---
 
-**Flight School complete.** Onward:
-[Aerobatics](../advanced.md) · [The Hangar](../examples-gallery.md) ·
-[Need for Speed](../performance.md)
+*Next — the finale:* [Lesson 7 · Designing the Shape Itself →](inverse-design.md)
