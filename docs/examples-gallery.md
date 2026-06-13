@@ -13,6 +13,7 @@ everywhere, as always.
 | Metasurface spectrum | `python -m ikarus.examples.metasurface_spectrum` | R/T spectrum of a 2-D meta-atom. |
 | Inverse metamirror | `python -m ikarus.examples.inverse_metamirror` | A GA evolves a reflective meta-atom. |
 | Fresnel validation | `python -m ikarus.examples.validation_fresnel` | The machine-precision sanity anchor. |
+| Save & load | `python -m ikarus.examples.save_load` | Write a result to HDF5 (totals, orders, metadata, fields) and load it back. |
 
 ## Fresnel validation — the trust anchor
 
@@ -136,6 +137,94 @@ best = optimize(atom, Target.maximize("R", order=(1, 0), at=1550e-9),
                 n_orders=(12, 4), pop=40, n_gen=30)
 print(best.report())
 ```
+
+## Save & load results { #save-and-load }
+
+A simulation is expensive; its result shouldn't evaporate when the script ends.
+Ikarus writes results to a **self-describing HDF5 file** — totals, per-order
+efficiencies, exit angles, the full geometry/source metadata, and (optionally)
+reconstructed fields — that any HDF5 tool (`h5py`, `h5ls`, HDFView) can read, and
+that loads back into a plain dict with **no `RCWA` object required**.
+
+!!! note "Needs the io extra"
+    `pip install "ikarus-rcwa[io]"` (h5py).
+
+**Save** the most recent (or a supplied) result. `include` picks what goes in —
+add `"fields"` to store a reconstructed cross-section too:
+
+```python
+import numpy as np
+from ikarus import RCWA, shapes
+
+period, N = 500e-9, 96
+rcwa = RCWA(period_x=period, period_y=period, resolution=(N, N), n_orders=(8, 8))
+rcwa.add_uniform_layer(np.inf, "Air")
+rcwa.add_layer(220e-9, shapes.circle(radius=0.3, grid_shape=(N, N)), ["Air", "TiO2"])
+rcwa.add_uniform_layer(np.inf, "SiO2")
+rcwa.set_source(wavelength=600e-9, theta=10, polarization="linear")
+_, _, result = rcwa.simulate()
+
+rcwa.save_results("metasurface.h5",
+                  include=["T", "R", "metadata", "fields"], result=result)
+```
+
+**Load** it back later — anywhere, no solver state needed:
+
+```python
+from ikarus import RCWA
+
+data = RCWA.load_results("metasurface.h5")        # a nested dict
+
+print(f"R = {data['R_total']:.4f}   T = {data['T_total']:.4f}")
+meta = data["metadata"]
+print("period:", meta["period_x"], "  source:", meta["source"]["wavelength"])
+
+# per-order data round-trips too:
+p, q, t = data["order_p"], data["order_q"], data["T_orders"]
+for i in np.argsort(-t)[:3]:
+    print(f"order ({p[i]:+d},{q[i]:+d}): T = {t[i]:.4f}")
+```
+
+Running the shipped `python -m ikarus.examples.save_load` prints:
+
+```text
+computed:  R = 0.1114   T = 0.8886
+saved   -> ikarus_save_load_output/metasurface.h5  (418 KB)
+
+file contents: R, R_orders, R_total, T, T_orders, T_total, energy_balance,
+fields/xz/E, fields/xz/H, fields/xz/coord_x, fields/xz/coord_z, metadata,
+order_p, order_q, phi_out_ref, phi_out_trn, theta_out_ref, theta_out_trn
+
+loaded:    R_total = 0.1114   T_total = 0.8886
+geometry:  period = 500 nm, n_orders = (8, 8)
+source:    lambda = 600 nm, theta = 10 deg, pol = linear
+brightest transmitted orders:
+   (+0,+0): T = 0.2751
+   (-1,+0): T = 0.1946
+   (+1,+0): T = 0.1726
+
+round-trip verified: loaded values match the originals exactly.
+```
+
+### What's in the file
+
+| Group / dataset | Contents |
+|---|---|
+| `R_total`, `T_total`, `energy_balance` | scalar totals |
+| `R`, `T` | complex zero-order coefficients (or a `co`/`cross` group for circular polarization) |
+| `R_orders`, `T_orders` | per-order efficiencies |
+| `order_p`, `order_q` | the `(p, q)` order labels |
+| `theta_out_*`, `phi_out_*` | per-order exit angles (deg) |
+| `metadata` | JSON: periods, `n_orders`, `resolution`, the layer stack, and the source |
+| `fields/...` | reconstructed `E`/`H` + coordinates (only if `"fields"` was included) |
+
+!!! tip "Sweeps and archives"
+    To archive a whole [`Sweep`](api/sweeps.md), save each point in a loop
+    (`save_results(f"run_{i}.h5", result=res)`), or stack the arrays you care
+    about (`res.R_total`, `res.axes`) with `numpy.savez`. For a single design,
+    one HDF5 file with `include=["T","R","metadata","fields"]` captures everything
+    needed to reproduce and re-plot it later. Full API:
+    [Tools → HDF5 I/O](api/tools.md#hdf5-io).
 
 <hr class="wing">
 

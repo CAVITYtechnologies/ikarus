@@ -90,6 +90,10 @@ Stored datasets: `R_total`, `T_total`, `R_orders`, `T_orders`, `order_p`,
 `order_q`, the four exit-angle arrays, `energy_balance`, plus the JSON
 `metadata` attribute (periods, `n_orders`, `resolution`, layers, source).
 
+See a full worked round-trip — save, load, inspect, verify — in
+[The Hangar → Save & load results](../examples-gallery.md#save-and-load), or run
+`python -m ikarus.examples.save_load`.
+
 ## Material import CLI { #material-import-cli }
 
 A console script for importing tabulated `n, k` data into the material
