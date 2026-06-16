@@ -1,6 +1,6 @@
 # Flight School
 
-*Seven lessons from first taxi to confident aerobatics.* Each one is
+*Eight lessons from first taxi to confident aerobatics.* Each one is
 self-contained, copy-paste runnable, states what you should expect to see, and
 ends with the habits that separate good pilots from lucky ones. Prerequisite:
 the [Quick Start](../quickstart.md).
@@ -67,6 +67,15 @@ the [Quick Start](../quickstart.md).
     parameters — arm lengths, rotation, height — with a genetic algorithm.
 
     [:octicons-arrow-right-24: Start](inverse-design.md)
+
+-   :material-layers-triple:{ .lg .middle } **Lesson 8 · Stacking the Deck**
+
+    ---
+
+    Multi-layer inverse design: optimize a whole stack at once with
+    `Structure` — including a moth-eye driven by shared parameters.
+
+    [:octicons-arrow-right-24: Start](structures.md)
 
 </div>
 

@@ -366,6 +366,54 @@ def lesson7_parametric():
     save(fig, "lesson7_inverse_shape.png")
 
 
+# -- 11. multi-layer Structure moth-eye (Lesson 8) --------------------------
+def structure_motheye():
+    from ikarus.inverse import Structure, free, optimize, Target
+    from ikarus.shapes import Circle
+    from matplotlib.colors import ListedColormap
+
+    class MothEye(Structure):
+        cover, substrate, resolution = "Air", "Si", 72
+        N = 8
+        period = free(150e-9, 240e-9)
+        height = free(200e-9, 1000e-9)
+        r_base = free(0.15, 0.5)
+        gamma = free(0.5, 3.0)
+
+        def define(self, p):
+            for i in range(self.N):
+                r = p.r_base * ((i + 0.5) / self.N) ** p.gamma
+                self.add_layer(p.height / self.N, Circle(radius=r), ["Air", "Si"])
+
+    best = optimize(MothEye(), Target.minimize("R", band=(300e-9, 600e-9, 4), worst_case=True),
+                    n_orders=6, pop=8, n_gen=5, seed=0, verbose=False)
+    rcwa = best.rcwa
+    rcwa.set_source(wavelength=400e-9, theta=0, polarization="linear"); rcwa.simulate()
+    eps = rcwa.get_fields(plane="xz", nx=140, y_position=best.params["period"] / 2)["xz"].eps
+
+    wl = np.linspace(300e-9, 600e-9, 25)
+    R = []
+    for w in wl:
+        rcwa.set_source(wavelength=w, theta=0, polarization="linear")
+        R.append(rcwa.simulate()[2].R_total)
+    nsub = np.array([complex(default_library.get("Si", w)).real for w in wl])
+    R_bare = ((nsub - 1) / (nsub + 1)) ** 2
+
+    fig, (axL, axR) = plt.subplots(1, 2, figsize=(9, 3.8),
+                                   gridspec_kw={"width_ratios": [1, 1.6]})
+    axL.imshow(eps.real.T, origin="upper", aspect="auto", cmap=ListedColormap(["#fff3e0", DEEP]))
+    axL.set_xticks([]); axL.set_yticks([]); axL.grid(False)
+    axL.set_title("optimized cone (xz)", fontsize=11)
+    axR.plot(wl * 1e9, R_bare * 100, "--", color="0.5", lw=1.8, label="bare silicon")
+    axR.plot(wl * 1e9, np.array(R) * 100, "-", color=ORANGE, lw=2.4, label="moth-eye Structure")
+    axR.set_xlabel("wavelength (nm)"); axR.set_ylabel("reflectance (%)")
+    axR.set_ylim(bottom=0); axR.legend(frameon=False); axR.grid(alpha=0.3)
+    axR.set_title("optimized as one Structure via optimize()")
+    fig.suptitle("Lesson 8 — a moth-eye optimized as one Structure (8 slices, 4 shared parameters)",
+                 y=1.02)
+    save(fig, "structure_motheye.png")
+
+
 if __name__ == "__main__":
     print("Generating documentation figures ->", ASSETS)
     thin_film_spectrum()
@@ -377,6 +425,7 @@ if __name__ == "__main__":
     shape_gallery()
     ar_coating()
     lesson7_parametric()
+    structure_motheye()
     sweep_map()
     dispersion_map()
     print("Done.")

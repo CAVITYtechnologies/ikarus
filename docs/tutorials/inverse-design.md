@@ -144,6 +144,5 @@ rotation and the inverse-design plumbing for free.
 
 ---
 
-🎓 **Flight School complete — for real this time.** Where to fly next:
-[Aerobatics](../advanced.md) · [The Hangar](../examples-gallery.md) ·
-[Need for Speed](../performance.md) · [API Reference](../api/index.md)
+*Next:* [Lesson 8 · Stacking the Deck →](structures.md) — optimize a whole
+multi-layer stack at once.

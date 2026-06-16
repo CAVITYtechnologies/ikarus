@@ -1,24 +1,49 @@
 # Inverse Design
 
 ```python
-from ikarus.inverse import MetaAtom, free, pixels, Target, optimize
+from ikarus.inverse import MetaAtom, Structure, free, pixels, Target, optimize
 ```
 
-*Declare what you want; let evolution do the drafting.* Three steps: define a
-parameterized **metaatom**, state one or more **targets**, call **optimize**.
-Binary pixels evolve by bit-flip, continuous parameters by SBX/PM, under a
-mixed-variable GA (one objective) or NSGA-III (several).
+*Declare what you want; let evolution do the drafting.* Three steps: describe a
+parameterized **design**, state one or more **targets**, call **optimize** — a
+gradient-free mixed-variable GA (one objective) or NSGA-III (several).
 
 !!! note "Optional dependency"
     Needs **pymoo**: `pip install "ikarus-rcwa[inverse]"`.
 
+## Which construct should I use? { #which-construct }
+
+There are a few ways to describe an inverse-design problem in Ikarus. Pick by how
+your geometry is parameterized — this is the whole decision:
+
+| Your design is… | Use | degrees of freedom |
+|---|---|---|
+| **one** patterned layer with a few meaningful knobs (radius, cross arms, rotation) | [`MetaAtom`](#metaatom) + a parametric [`Shape`](shapes.md#parametric-shapes) | a handful of reals |
+| **one** patterned layer, freeform topology (no shape prior) | [`MetaAtom`](#metaatom) + [`pixels`](#degrees-of-freedom) | a binary grid |
+| **several** layers, and/or **shared / derived** geometry, free heights & period | [`Structure`](#structure) | reals + binaries across the stack |
+| something none of the above can express, or you want your own optimizer/objective | Ikarus as a **forward model** + any optimizer | whatever you write |
+
+The first three feed the built-in [`optimize`](#optimize); the last is the
+"bring-your-own-optimizer" pattern in
+[Aerobatics → Optimization workflows](../advanced.md#optimization-workflows).
+
 ```mermaid
-flowchart LR
-    A["MetaAtom<br/>free + pixels DOF"] --> O["optimize"]
-    T["Target(s)<br/>minimize / maximize / match"] --> O
-    O --> Rres["OptimizeResult"]
-    Rres --> RC[".metaatom → ready RCWA"]
+flowchart TD
+    Q{How many<br/>patterned layers?} -->|one| S{Shape prior?}
+    Q -->|"several / shared params"| ST["Structure"]
+    S -->|"yes: radius, arms, …"| MA["MetaAtom + Shape"]
+    S -->|"no: freeform"| PX["MetaAtom + pixels"]
+    MA --> OPT["optimize(design, targets)"]
+    PX --> OPT
+    ST --> OPT
+    OPT --> RES["OptimizeResult → .rcwa"]
 ```
+
+!!! tip "It's one small contract"
+    `optimize` only ever calls two methods on the design you hand it —
+    `variables()` and `build(params, n_orders)`. `MetaAtom` and `Structure` are
+    just two implementations of that contract, so even a fully custom design class
+    works as long as it implements those two methods.
 
 ## Degrees of freedom
 
@@ -98,6 +123,93 @@ print(atom.variables())
 # {'height': ('real', (4e-08, 2e-07)), 'px0': ('binary',), ...}
 ```
 
+## `Structure` { #structure }
+
+```python
+from ikarus.inverse import Structure
+```
+
+Where `MetaAtom` optimizes a **single** patterned layer, a `Structure` optimizes
+an **entire stack** — several patterned layers, free heights, a free period, and
+(the key capability) **shared / derived geometry**, where many layers are computed
+from a few parameters.
+
+You **subclass** it, **declare** each parameter as a class attribute —
+`free(lo, hi)` for a degree of freedom, a plain value for a fixed parameter — and
+implement **`define(self, p)`** to lay out the stack. `p` is a namespace whose
+attributes are the *resolved* values of every declared parameter; the optimizer
+picks the free ones, fixed ones pass through. The cover, substrate and period are
+wrapped on for you.
+
+| Reserved attribute | Meaning | Default |
+|---|---|---|
+| `cover`, `substrate` | semi-infinite end materials | `"Air"`, `"SiO2"` |
+| `resolution` | real-space grid (int or `(nx, ny)`) | `96` |
+| `polarization`, `pol_angle` | illumination for the build | `"linear"`, `0.0` |
+
+A `period` parameter is **required** (free or fixed). Everything else you declare
+becomes a parameter available in `p`; the `free(...)` ones become optimization DOF.
+
+### Two patterned layers, optimized together
+
+An air hole in a silicon layer *and* a cross in another — radii, arm length,
+both heights and the period all free, all optimized at once:
+
+```python
+from ikarus.inverse import Structure, free, optimize, Target
+from ikarus.shapes import Circle, Cross
+
+class TwoLayer(Structure):
+    cover, substrate, resolution = "Air", "SiO2", 96
+    period  = free(0.3e-6, 0.9e-6)     # free
+    h1      = free(0.1e-6, 0.4e-6)     # free
+    h2      = 0.20e-6                  # fixed
+    radius  = free(0.10, 0.45)         # free
+    arm_len = free(0.30, 0.90)         # free
+
+    def define(self, p):
+        self.add_layer(p.h1, Circle(radius=p.radius), ["Si", "Air"])       # air hole in Si
+        self.add_layer(p.h2, Cross(arm_length=p.arm_len, arm_width=0.2), ["Air", "Si"])
+
+best = optimize(TwoLayer(), Target.minimize("R", at=1550e-9))
+best.rcwa            # the optimized stack as a ready-to-simulate RCWA
+```
+
+### Shared / derived parameters (a moth-eye)
+
+The thing a `MetaAtom` cannot do: drive **many** layers from a **few** parameters.
+A graded moth-eye cone is a stack of slices whose radii are all functions of
+`r_base` and `gamma` — so four DOF describe the whole cone:
+
+```python
+from ikarus.inverse import Structure, free
+from ikarus.shapes import Circle
+
+class MothEye(Structure):
+    cover, substrate, resolution = "Air", "Si", 96
+    N = 12                                 # fixed (available as p.N)
+    period = free(150e-9, 240e-9)
+    height = free(200e-9, 1000e-9)
+    r_base = free(0.15, 0.5)
+    gamma  = free(0.5, 3.0)
+
+    def define(self, p):
+        for i in range(p.N):
+            r = p.r_base * ((i + 0.5) / p.N) ** p.gamma     # derived from shared DOF
+            self.add_layer(p.height / p.N, Circle(radius=r), ["Air", "Si"])
+```
+
+[Lesson 8](../tutorials/structures.md) builds and optimizes this end-to-end.
+
+### Methods
+
+| Member | Description |
+|---|---|
+| `define(self, p)` | **you implement this** — add interior layers via `self.add_layer(...)` using the resolved parameters `p`. |
+| `add_layer(height, topology, materials)` | add one interior layer (call from `define`). `topology` may be an array, a [`Shape`](shapes.md#parametric-shapes), or an `.img` object; a single-material list makes a uniform layer. |
+| `variables() -> dict` | the free DOF (auto-discovered from the declared `free(...)` attributes). |
+| `build(params, n_orders) -> RCWA` | resolve `params` and assemble the full stack (this is what `optimize` calls). |
+
 ## `Target`
 
 One figure of merit. Build with a classmethod:
@@ -168,7 +280,8 @@ optimize(atom, targets, n_orders=8, algorithm="auto",
 | Member | Description |
 |---|---|
 | `params` | Best parameter dict (first Pareto point if multi-objective). |
-| `metaatom` | The optimized structure as a ready-to-simulate `RCWA`. |
+| `rcwa` | The optimized design as a ready-to-simulate `RCWA`. |
+| `metaatom` | Alias of `rcwa` (kept for back-compat). |
 | `report() -> str` | Human-readable summary (objective + parameters, or the Pareto front). |
 | `X`, `F` | Raw best parameters and objective value(s). |
 | `multi` | `True` for multi-objective runs. |

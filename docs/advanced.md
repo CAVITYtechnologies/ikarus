@@ -45,13 +45,18 @@ if __name__ == "__main__":
 
 ## Optimization workflows
 
-The built-in [inverse module](api/inverse.md) covers the common cases:
+The built-in [inverse module](api/inverse.md) covers the common cases (see the
+[which-construct decision guide](api/inverse.md#which-construct) for choosing
+between `MetaAtom`, pixels and `Structure`):
 
 - **Single objective** — one `Target`, the mixed-variable GA runs automatically.
 - **Multi-objective** — a list of `Target`s switches to NSGA-III;
   `OptimizeResult.report()` summarizes the Pareto front.
-- **Bring-your-own optimizer** — `MetaAtom` is also a clean parameterization
-  layer for *any* black-box optimizer (scipy, Optuna, CMA-ES…):
+- **Multi-layer / shared-parameter designs** — subclass
+  [`Structure`](api/inverse.md#structure) to optimize a whole stack (e.g. a graded
+  moth-eye driven by a few shared parameters), still through `optimize()`.
+- **Bring-your-own optimizer** — `MetaAtom` (or `Structure`) is also a clean
+  parameterization layer for *any* black-box optimizer (scipy, Optuna, CMA-ES…):
 
 ```python
 from ikarus.inverse import MetaAtom, free, pixels

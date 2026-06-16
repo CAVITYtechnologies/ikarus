@@ -13,8 +13,9 @@ Define a metaatom with free degrees of freedom, declare what you want, optimize:
 """
 
 from .dof import MetaAtom, free, pixels, Free, Pixels
+from .structure import Structure
 from .targets import Target
 from .optimize import optimize, OptimizeResult
 
-__all__ = ["MetaAtom", "free", "pixels", "Free", "Pixels",
+__all__ = ["MetaAtom", "Structure", "free", "pixels", "Free", "Pixels",
            "Target", "optimize", "OptimizeResult"]

@@ -98,6 +98,12 @@ class OptimizeResult:
         """The optimized structure as a ready-to-simulate :class:`~ikarus.RCWA`."""
         return self.atom.build(self.params, self.n_orders)
 
+    @property
+    def rcwa(self):
+        """Alias of :attr:`metaatom` -- the optimized design as a ready
+        :class:`~ikarus.RCWA` (clearer when the design is a ``Structure``)."""
+        return self.atom.build(self.params, self.n_orders)
+
     def report(self) -> str:
         lines = ["Inverse-design result:"]
         if self.multi:
@@ -108,7 +114,7 @@ class OptimizeResult:
             lines.append(f"  objective = {float(np.ravel(self.F)[0]):.5f}  "
                          f"({self.targets[0].name})")
             for k, v in self.params.items():
-                if not k.startswith("px"):
+                if not (k.startswith("px") or "__px" in k):   # hide binary pixel bits
                     lines.append(f"    {k} = {v:.4g}")
         return "\n".join(lines)
 
@@ -140,7 +146,9 @@ def optimize(atom, targets, n_orders: int = 8, algorithm: str = "auto",
         algorithm = "ga" if len(targets) == 1 else "nsga3"
     algo = _make_algorithm(algorithm, pop, len(targets))
 
-    callback, bar = None, None
+    # Only pass a callback when one exists -- pymoo's default is a no-op Callback,
+    # and explicitly handing it ``callback=None`` makes it crash.
+    extra, bar = {}, None
     if progress:
         from .._progress import counter
         from pymoo.core.callback import Callback
@@ -151,11 +159,11 @@ def optimize(atom, targets, n_orders: int = 8, algorithm: str = "auto",
             def notify(self, algorithm):  # called once per generation
                 bar.update(1)
 
-        callback = _ProgressCallback()
+        extra["callback"] = _ProgressCallback()
         verbose = False
 
     res = pymoo_minimize(problem, algo, ("n_gen", n_gen), seed=seed,
-                         verbose=verbose, save_history=False, callback=callback)
+                         verbose=verbose, save_history=False, **extra)
     if bar is not None:
         bar.close()
     return OptimizeResult(atom, targets, n_orders, res.X, res.F, None)
