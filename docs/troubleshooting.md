@@ -83,6 +83,15 @@ exact message (or symptom), explains the cause, and gives the fix.
 
 ## Results & fields
 
+??? failure "Every point in a sweep gives the (nearly) same result"
+    Your **patterned** layer is running at `n_orders=0`. Zero harmonics keeps only
+    the *average* permittivity, so the pattern collapses to an effective-medium
+    slab and a geometry sweep barely moves. `n_orders=0` is correct **only** for
+    *uniform* (thin-film) stacks; for a meta-atom or grating use `n_orders` ≈ 8–12
+    and confirm with a
+    [convergence study](tutorials/parameter-sweeps.md#convergence-study). See
+    [Sweeps & Progress](api/sweeps.md).
+
 ??? failure "`KeyError: order (p, q) not in truncated set`"
     `order_index(p, q)` asked for a harmonic outside \(-M..+M\). Increase
     `n_orders` or request an order inside the kept set.

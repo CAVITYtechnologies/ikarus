@@ -46,7 +46,7 @@ Execute the sweep, with one progress bar for the whole thing.
 import numpy as np
 from ikarus import RCWA, Sweep
 
-rcwa = RCWA(period_x=400e-9, period_y=400e-9, n_orders=0)
+rcwa = RCWA(period_x=400e-9, period_y=400e-9, n_orders=0)   # 0 = specular only; fine here — every layer is uniform
 rcwa.add_uniform_layer(np.inf, "Air")
 rcwa.add_uniform_layer(120e-9, "TiO2")
 rcwa.add_uniform_layer(np.inf, "SiO2")
@@ -60,6 +60,16 @@ res = Sweep(rcwa).over(theta=np.linspace(0, 60, 31),
                        wavelength=np.linspace(400e-9, 700e-9, 100)).run()
 res.R_total.shape   # (31, 100)
 ```
+
+!!! warning "`n_orders=0` only works for *uniform* (thin-film) stacks"
+    This example uses `n_orders=0` because **every layer is uniform** — a thin
+    film has no diffraction, so the single specular order is exact (and instant).
+    A **patterned** layer (a meta-atom, grating, photonic crystal…) needs
+    `n_orders > 0`: with zero harmonics Ikarus keeps only the *average*
+    permittivity, collapsing your pattern into an effective-medium slab — so every
+    point of the sweep comes out **nearly identical**. Use `n_orders` ≈ 8–12 for
+    patterned layers and confirm with a
+    [convergence study](../tutorials/parameter-sweeps.md#convergence-study).
 
 ## `SweepResult`
 
