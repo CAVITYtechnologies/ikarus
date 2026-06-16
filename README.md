@@ -1,13 +1,19 @@
-# Ikarus
+<p align="center">
+  <img src="docs/assets/ikarus_logo.png" alt="Ikarus logo" width="170">
+</p>
 
-[![Documentation](https://img.shields.io/badge/docs-online-blue)](https://cavitytechnologies.github.io/ikarus/)
-[![PyPI version](https://img.shields.io/pypi/v/ikarus-rcwa)](https://pypi.org/project/ikarus-rcwa/)
-[![Python versions](https://img.shields.io/pypi/pyversions/ikarus-rcwa)](https://pypi.org/project/ikarus-rcwa/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+<h1 align="center">Ikarus</h1>
 
-**High-precision 2-D RCWA simulation for periodic photonic structures.**
+<p align="center"><strong>High-precision 2-D RCWA simulation for periodic photonic structures.</strong></p>
 
-📖 **[Read the documentation →](https://cavitytechnologies.github.io/ikarus/)**
+<p align="center">
+  <a href="https://cavitytechnologies.github.io/ikarus/"><img src="https://img.shields.io/badge/docs-online-blue" alt="Documentation"></a>
+  <a href="https://pypi.org/project/ikarus-rcwa/"><img src="https://img.shields.io/pypi/v/ikarus-rcwa" alt="PyPI version"></a>
+  <a href="https://pypi.org/project/ikarus-rcwa/"><img src="https://img.shields.io/pypi/pyversions/ikarus-rcwa" alt="Python versions"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"></a>
+</p>
+
+<p align="center">📖 <strong><a href="https://cavitytechnologies.github.io/ikarus/">Read the documentation →</a></strong></p>
 
 Ikarus is a rigorous coupled-wave analysis (RCWA / Fourier modal method) solver
 for 2-D periodic photonic structures — metasurfaces, gratings and photonic

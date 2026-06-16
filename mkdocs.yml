@@ -45,8 +45,9 @@ theme:
       toggle:
         icon: material/weather-sunny
         name: Fly by day
+  logo: assets/ikarus_logo.png
+  favicon: assets/ikarus_logo.png
   icon:
-    logo: material/feather
     repo: fontawesome/brands/github
 
 markdown_extensions:
