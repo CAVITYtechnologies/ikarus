@@ -5,6 +5,8 @@ hide:
 
 <div class="ikarus-hero" markdown>
 
+<img class="hero-logo" src="assets/ikarus_logo.png" alt="Ikarus logo">
+
 # Fly closer to the sun 
 
 **Ikarus** is a high-precision RCWA engine for periodic photonics —

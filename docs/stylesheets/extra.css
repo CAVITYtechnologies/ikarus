@@ -28,6 +28,14 @@
   box-shadow: 0 10px 40px -12px rgba(230, 81, 0, 0.5);
 }
 
+.ikarus-hero .hero-logo {
+  display: block;
+  width: 112px;
+  height: auto;
+  margin: 0 auto 0.7rem auto;
+  filter: drop-shadow(0 5px 16px rgba(0, 0, 0, 0.5));
+}
+
 .ikarus-hero h1 {
   color: #fff !important;
   font-size: 2.4rem;
