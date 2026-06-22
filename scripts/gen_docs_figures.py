@@ -366,7 +366,56 @@ def lesson7_parametric():
     save(fig, "lesson7_inverse_shape.png")
 
 
-# -- 11. multi-layer Structure moth-eye (Lesson 8) --------------------------
+# -- 11b. two-layer dielectric AR stack (Lesson 8 hero) ---------------------
+def structure_arstack():
+    from ikarus.inverse import Structure, free, optimize, Target
+    from ikarus.shapes import Circle
+
+    class ARStack(Structure):
+        cover, substrate, resolution = "Air", "SiO2", 64
+        period = free(0.20e-6, 0.40e-6)
+        h1 = free(0.05e-6, 0.30e-6)
+        h2 = free(0.05e-6, 0.30e-6)
+        r1 = free(0.10, 0.48)
+        r2 = free(0.10, 0.48)
+
+        def define(self, p):
+            self.add_layer(p.h1, Circle(radius=p.r1), ["Air", "Si3N4"])
+            self.add_layer(p.h2, Circle(radius=p.r2), ["Air", "TiO2"])
+
+    best = optimize(ARStack(), Target.minimize("R", at=600e-9),
+                    n_orders=6, pop=10, n_gen=6, seed=0, verbose=False)
+    rcwa = best.rcwa
+    wl = np.linspace(450e-9, 750e-9, 31)
+    R, T = [], []
+    for w in wl:
+        rcwa.set_source(wavelength=w, theta=0, polarization="linear")
+        res = rcwa.simulate()[2]
+        R.append(res.R_total); T.append(res.T_total)
+    R, T = np.array(R), np.array(T)
+    nsub = np.array([complex(default_library.get("SiO2", w)).real for w in wl])
+    R_bare = ((nsub - 1) / (nsub + 1)) ** 2
+
+    rcwa.set_source(wavelength=600e-9, theta=0, polarization="linear"); rcwa.simulate()
+    eps = rcwa.get_fields(plane="xz", nx=150, y_position=best.params["period"] / 2)["xz"].eps
+
+    fig, (axL, axR) = plt.subplots(1, 2, figsize=(10, 3.8),
+                                   gridspec_kw={"width_ratios": [1, 1.5]})
+    axL.imshow(eps.real.T, origin="upper", aspect="auto", cmap="viridis")
+    axL.set_xticks([]); axL.set_yticks([]); axL.grid(False)
+    axL.set_title("optimized 2-layer stack (xz)", fontsize=11)
+    axR.plot(wl * 1e9, R_bare * 100, ":", color="0.55", lw=1.6, label="bare glass R")
+    axR.plot(wl * 1e9, R * 100, "-", color="#f4511e", lw=2.4, label="R (AR stack)")
+    axR.plot(wl * 1e9, T * 100, "-", color="#1565c0", lw=2.0, label="T")
+    axR.plot(wl * 1e9, (R + T) * 100, "--", color="0.4", lw=1.2, label="R + T")
+    axR.set_xlabel("wavelength (nm)"); axR.set_ylabel("efficiency (%)")
+    axR.set_ylim(0, 105); axR.legend(frameon=False, fontsize=8.5, loc="center right")
+    axR.grid(alpha=0.3); axR.set_title("lossless dielectrics → R + T = 100%")
+    fig.suptitle("Lesson 8 — two-layer AR stack optimized as one Structure", y=1.02)
+    save(fig, "structure_arstack.png")
+
+
+# -- 11. multi-layer Structure moth-eye (Lesson 8 advanced) -----------------
 def structure_motheye():
     from ikarus.inverse import Structure, free, optimize, Target
     from ikarus.shapes import Circle
@@ -425,6 +474,7 @@ if __name__ == "__main__":
     shape_gallery()
     ar_coating()
     lesson7_parametric()
+    structure_arstack()
     structure_motheye()
     sweep_map()
     dispersion_map()

@@ -43,6 +43,17 @@ for i in np.argsort(-res.T_orders):
     if res.T_orders[i] > 1e-4:
         print(f"  ({p[i]:+d},{q[i]:+d}): T={res.T_orders[i]:.4f} "
               f"@ theta={res.theta_out_trn[i]:5.1f} deg")
+
+# plot the power in each transmitted order as a bar chart
+import matplotlib.pyplot as plt
+orders = range(-3, 4)
+effs = [res.T_orders[res.order_index(m, 0)] * 100 for m in orders]
+plt.figure(figsize=(7, 4))
+plt.bar([f"{m:+d}" for m in orders], effs, color="C1", edgecolor="k")
+plt.xlabel("transmitted diffraction order $m$"); plt.ylabel("efficiency (%)")
+plt.title("Power per exit lane"); plt.grid(axis="y", alpha=0.3)
+plt.tight_layout(); plt.savefig("grating_orders.png", dpi=150, bbox_inches="tight")
+plt.show()
 ```
 
 Propagating lanes get real angles; evanescent ghosts get `NaN`.

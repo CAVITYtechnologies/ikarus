@@ -95,6 +95,35 @@ Inverse-design result:
   <figcaption>The genetic algorithm chose the arm dimensions, rotation and height of a Si cross to maximize transmission at 1300&nbsp;nm (dotted line). Left: the evolved topology. Right: its full spectrum, computed by Ikarus.</figcaption>
 </figure>
 
+## Plot the result
+
+Visualize the evolved meta-atom and sweep its spectrum:
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+design = best.metaatom            # the optimized RCWA (also best.rcwa)
+
+# the evolved topology (the patterned layer is layer 1)
+design.visualize_structure(plane="xy", layer_index=1, savefig="evolved_atom.png")
+
+# its transmission spectrum
+wl = np.linspace(1.0e-6, 1.6e-6, 31)
+T = []
+for w in wl:
+    design.set_source(wavelength=w, theta=0, polarization="linear")
+    T.append(design.simulate()[2].T_total)
+
+plt.figure(figsize=(7, 4))
+plt.plot(wl * 1e9, np.array(T) * 100, lw=2)
+plt.axvline(1300, color="0.6", ls=":")        # the optimization target
+plt.xlabel("wavelength (nm)"); plt.ylabel("transmittance (%)")
+plt.title("Spectrum of the evolved meta-atom"); plt.grid(alpha=0.3)
+plt.tight_layout(); plt.savefig("evolved_spectrum.png", dpi=150, bbox_inches="tight")
+plt.show()
+```
+
 ## Why parametric beats pixels (sometimes)
 
 - **Fewer variables.** A `Cross` has 4 knobs; a 16×16 pixel map has 256. The GA

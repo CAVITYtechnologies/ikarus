@@ -113,6 +113,19 @@ for w in wl:
     coating.set_source(wavelength=w, theta=0, polarization="linear")
     R.append(coating.simulate()[2].R_total)
 print("worst-case R:", f"{max(R)*100:.2f}%")     # ~1.5% vs ~3.8% bare glass
+
+# plot the AR coating vs. bare glass
+import matplotlib.pyplot as plt
+from ikarus import default_library
+n_sub = np.array([complex(default_library.get("SiO2", w)).real for w in wl])
+R_bare = ((n_sub - 1) / (n_sub + 1)) ** 2
+plt.figure(figsize=(7, 4))
+plt.plot(wl * 1e9, R_bare * 100, "--", color="0.6", label="bare glass")
+plt.plot(wl * 1e9, np.array(R) * 100, lw=2, color="C1", label="moth-eye AR")
+plt.xlabel("wavelength (nm)"); plt.ylabel("reflectance (%)"); plt.ylim(bottom=0)
+plt.legend(); plt.grid(alpha=0.3)
+plt.tight_layout(); plt.savefig("ar_coating.png", dpi=150, bbox_inches="tight")
+plt.show()
 ```
 
 <figure markdown="span">

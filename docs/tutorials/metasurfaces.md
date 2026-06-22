@@ -57,6 +57,18 @@ for r in radii:
 phase = np.unwrap(phase)
 print(f"phase coverage: {np.degrees(phase.ptp()):.0f} deg "
       f"(a full library wants >= 360)")
+
+# plot the phase library: transmittance and phase vs. radius (twin axes)
+import matplotlib.pyplot as plt
+fig, ax1 = plt.subplots(figsize=(7, 4))
+ax2 = ax1.twinx()
+ax1.plot(radii, np.array(T) * 100, "C1", lw=2)
+ax2.plot(radii, np.degrees(phase), "C0", lw=2)
+ax1.set_xlabel("pillar radius (fraction of period)")
+ax1.set_ylabel("transmittance (%)", color="C1")
+ax2.set_ylabel("transmission phase (deg)", color="C0")
+fig.tight_layout(); fig.savefig("phase_library.png", dpi=150, bbox_inches="tight")
+plt.show()
 ```
 
 Each pillar is a tiny truncated waveguide; fatter pillar → higher effective

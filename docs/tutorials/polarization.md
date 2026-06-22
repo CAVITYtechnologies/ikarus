@@ -30,6 +30,17 @@ for psi in angles:
 
 T = np.array(T)
 print(f"T swings from {T.min():.3f} (across the bar) to {T.max():.3f} (along it)")
+
+# plot transmittance vs. polarization angle
+import matplotlib.pyplot as plt
+plt.figure(figsize=(7, 4))
+plt.plot(angles, T * 100, lw=2)
+plt.axvline(0, color="0.7", ls=":"); plt.axvline(90, color="0.7", ls=":")
+plt.xlabel("linear polarization angle (deg)  [0 = along bar, 90 = across]")
+plt.ylabel("transmittance (%)")
+plt.title("Form birefringence of a Si nanobar"); plt.grid(alpha=0.3)
+plt.tight_layout(); plt.savefig("polarization.png", dpi=150, bbox_inches="tight")
+plt.show()
 ```
 
 Expect a 180°-periodic oscillation with extrema at 0°/90° — the bar acting as
