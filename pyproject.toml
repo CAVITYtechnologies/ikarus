@@ -49,6 +49,7 @@ include = ["ikarus*"]
 
 [tool.setuptools.package-data]
 "ikarus.materials" = ["*.json"]
+"ikarus" = ["AI_GUIDE.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["ikarus/tests"]

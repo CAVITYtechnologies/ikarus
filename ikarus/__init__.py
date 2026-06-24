@@ -2,7 +2,7 @@
 
 Rigorous coupled-wave analysis (Fourier modal method) for 2-D periodic photonic
 structures -- metasurfaces, gratings and photonic crystals -- with full vectorial
-polarization, anisotropic materials, field reconstruction and HDF5 I/O.
+polarization, field reconstruction, inverse design and HDF5 I/O.
 
 Quick start::
 
@@ -35,6 +35,21 @@ from ._progress import progress
 
 __version__ = "0.4.0"
 
+
+def ai_guide() -> str:
+    """Return the condensed Ikarus reference written for AI assistants / LLMs.
+
+    The text ships inside the installed package, so any session can load full
+    expert context regardless of where it is running::
+
+        python -c "import ikarus; print(ikarus.ai_guide())"
+
+    It is the same content as the docs' *Ikarus for AI Assistants* page.
+    """
+    from pathlib import Path
+
+    return (Path(__file__).parent / "AI_GUIDE.md").read_text(encoding="utf-8")
+
 __all__ = [
     "RCWA",
     "SimulationResult",
@@ -48,5 +63,6 @@ __all__ = [
     "Sweep",
     "SweepResult",
     "progress",
+    "ai_guide",
     "__version__",
 ]

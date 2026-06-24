@@ -125,6 +125,7 @@ nav:
           - Low-level: api/low-level.md
       - FAQ: faq.md
       - Troubleshooting: troubleshooting.md
+      - For AI Assistants: llms.md
   - Project:
       - Developer Guide: developer-guide.md
       - Citation: citation.md
