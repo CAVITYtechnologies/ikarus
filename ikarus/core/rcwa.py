@@ -89,15 +89,20 @@ class RCWA:
         dtype=np.complex128,
         materials: Optional[MaterialLibrary] = None,
         convergence_tol: float = 1e-6,
+        factorization: str = "laurent",
     ):
         if period_x <= 0 or period_y <= 0:
             raise ValueError("periods must be positive (meters)")
+        if factorization not in ("laurent", "li"):
+            raise ValueError(
+                f"factorization must be 'laurent' or 'li', got {factorization!r}")
         self.period_x = float(period_x)
         self.period_y = float(period_y)
         self.resolution = self._as_pair(resolution)
         self._n_orders = self._as_pair(n_orders)
         self.dtype = dtype
         self.convergence_tol = convergence_tol
+        self.factorization = factorization
 
         self.materials = materials or default_library
         self.layers: list[Layer] = []
@@ -223,6 +228,7 @@ class RCWA:
             kx0=kx0, ky0=ky0,
             period_x=self.period_x, period_y=self.period_y, wavelength=wl,
             polarization_xy=(pol[0], pol[1]),
+            factorization=self.factorization,
         )
         self._last_solution = solution
         return solution

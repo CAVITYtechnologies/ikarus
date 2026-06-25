@@ -23,6 +23,7 @@ Time convention: ``exp(-i omega t)`` (absorbing media have ``Im(eps) > 0``).
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 
 import numpy as np
@@ -191,26 +192,42 @@ def _regularize_grazing(lam: np.ndarray, eps: float = 1e-7) -> np.ndarray:
     return lam
 
 
-def layer_modes(ERC: np.ndarray, Kx: np.ndarray, Ky: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Eigenmodes ``(W, V, lam)`` of a layer with permittivity conv. matrix ERC.
+def layer_modes(ERC: np.ndarray, Kx: np.ndarray, Ky: np.ndarray,
+                Exx: np.ndarray = None, Eyy: np.ndarray = None
+                ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    r"""Eigenmodes ``(W, V, lam)`` of a layer with permittivity conv. matrix ERC.
 
     ``ERC`` may be a full (patterned/anisotropic) matrix or ``eps * I`` for a
     uniform layer.  Returns the electric eigenvectors ``W``, magnetic
     eigenvectors ``V`` and the 1-D array of modal eigenvalues ``lam`` (with
     ``Re(lam) >= 0`` so ``exp(-lam k0 L)`` is bounded for forward modes).
+
+    ``Exx``/``Eyy`` are the in-plane permittivity operators that enter the ``Q``
+    matrix.  They default to ``ERC`` (Laurent's direct rule).  Li's inverse rule
+    passes ``inv(<<1/eps>>)`` for the component whose in-plane E-field is
+    *discontinuous* across the boundary (normal to it), restoring fast
+    convergence for high-contrast / TM problems.  ``ERC`` (hence ``Einv``) still
+    supplies the longitudinal ``eps_zz`` term in ``P``, which is correct as-is.
     """
     p = Kx.shape[0]
     I = np.eye(p, dtype=complex)
     Einv = _inv(ERC)
+    if Exx is None:
+        Exx = ERC
+    if Eyy is None:
+        Eyy = ERC
     kx, ky = np.diag(Kx)[:, None], np.diag(Ky)[None, :]
     kxc, kyr = np.diag(Kx), np.diag(Ky)  # 1-D, for the diagonal Q blocks
 
     # Kx/Ky are diagonal: their products with Einv are row/column scalings, and
     # the Q blocks are diagonal -- avoid the dense O(N^3) matmuls.
+    # NB: because Omega^2 = P @ Q cross-routes the blocks, the Ex (TM) mode is
+    # governed by the operator in Q's (1,0) slot and Ey by the (0,1) slot -- so
+    # eps_xx (=Exx) goes in (1,0) and eps_yy (=Eyy) in (0,1).
     P = _block(kx * Einv * ky, I - kx * Einv * kx.T,
                (ky.T * Einv * ky) - I, -ky.T * Einv * kx.T)
-    Q = _block(np.diag(kxc * kyr), ERC - np.diag(kxc * kxc),
-               np.diag(kyr * kyr) - ERC, -np.diag(kyr * kxc))
+    Q = _block(np.diag(kxc * kyr), Eyy - np.diag(kxc * kxc),
+               np.diag(kyr * kyr) - Exx, -np.diag(kyr * kxc))
 
     omega2 = P @ Q
     eigvals, W = _sla.eig(omega2, overwrite_a=True, check_finite=False)
@@ -225,14 +242,17 @@ def layer_smatrix(
     Ky: np.ndarray,
     k0L: float,
     V0: np.ndarray,
+    Exx: np.ndarray = None,
+    Eyy: np.ndarray = None,
 ) -> tuple[SMatrix, LayerModes]:
     """Scattering matrix of a single finite layer, referenced to the gap medium.
 
     The gap electric modes ``W0`` are the identity, so ``W^{-1} W0 = W^{-1}``.
     The phase matrix ``X = exp(-lam k0 L)`` is diagonal and applied as a
-    row-broadcast rather than a dense matmul.
+    row-broadcast rather than a dense matmul.  ``Exx``/``Eyy`` select the Fourier
+    factorization rule (see :func:`layer_modes`).
     """
-    W, V, lam = layer_modes(ERC, Kx, Ky)
+    W, V, lam = layer_modes(ERC, Kx, Ky, Exx, Eyy)
 
     Winv = _inv(W)
     VinvV0 = _inv(V) @ V0
@@ -337,6 +357,45 @@ class FieldSolution:
         return float(np.sum(self.T_orders))
 
 
+def _inplane_operators(eps_grid_eng: np.ndarray, ERC: np.ndarray,
+                       grid: HarmonicGrid, factorization: str):
+    r"""In-plane permittivity operators ``(Exx, Eyy)`` for the ``Q`` matrix.
+
+    ``laurent`` -> ``(None, None)`` (``layer_modes`` then uses ``ERC = <<eps>>``).
+
+    ``li`` -> Li's inverse rule: on the axis **normal** to a 1-D grating's
+    boundaries the in-plane E-field is discontinuous, so that component uses
+    ``inv(<<1/eps>>)`` while the tangential component keeps Laurent's ``<<eps>>``.
+    Uniform layers (no discontinuity) and the tangential axis return ``None``.
+
+    ``eps_grid_eng`` is the engineering-convention permittivity grid (already
+    conjugated and anomaly-regularized), so ``1/eps`` is taken consistently here.
+    Genuinely 2-D-patterned layers need the normal-vector method and currently
+    fall back to Laurent with a warning.
+    """
+    if factorization == "laurent":
+        return None, None
+    if factorization != "li":
+        raise ValueError(f"unknown factorization {factorization!r} "
+                         "(expected 'laurent' or 'li')")
+    ge = np.asarray(eps_grid_eng)
+    # Uniform layer: <<1/eps>>^{-1} == <<eps>>, so Li and Laurent coincide.
+    if np.ptp(ge.real) < 1e-12 and np.ptp(ge.imag) < 1e-12:
+        return None, None
+    varies_x = not np.allclose(ge, ge[:1, :])   # boundaries normal to x
+    varies_y = not np.allclose(ge, ge[:, :1])   # boundaries normal to y
+    if varies_x and not varies_y:
+        return _inv(convolution_matrix(1.0 / ge, grid)), None   # Exx inverse rule
+    if varies_y and not varies_x:
+        return None, _inv(convolution_matrix(1.0 / ge, grid))   # Eyy inverse rule
+    warnings.warn(
+        "factorization='li' currently applies the inverse rule only to "
+        "1-D-patterned layers; this 2-D layer uses the Laurent rule (the "
+        "normal-vector method for 2-D is not yet implemented).",
+        RuntimeWarning, stacklevel=2)
+    return None, None
+
+
 def solve_stack(
     eps_grids: list[np.ndarray],
     heights: list[float],
@@ -349,6 +408,7 @@ def solve_stack(
     period_y: float,
     wavelength: float,
     polarization_xy: tuple[complex, complex],
+    factorization: str = "laurent",
 ) -> FieldSolution:
     """Solve a layered stack and return outgoing fields + efficiencies.
 
@@ -386,15 +446,18 @@ def solve_stack(
     # A negligible loss (_ANOMALY_LOSS) regularizes exact Rayleigh anomalies.
     eps_ref_e = np.conj(eps_ref) - _ANOMALY_LOSS
     eps_trn_e = np.conj(eps_trn) - _ANOMALY_LOSS
-    erc_list = [convolution_matrix(np.conj(g) - _ANOMALY_LOSS, grid) for g in eps_grids]
+    eps_eng = [np.conj(np.asarray(g)) - _ANOMALY_LOSS for g in eps_grids]
+    erc_list = [convolution_matrix(ge, grid) for ge in eps_eng]
+    inplane_list = [_inplane_operators(ge, ERC, grid, factorization)
+                    for ge, ERC in zip(eps_eng, erc_list)]
 
     # Assemble the global scattering matrix: cover ⋆ layers ⋆ substrate.
     S_ref, Kz_ref = reflection_smatrix(eps_ref_e, Kx, Ky, V0inv)
     S = S_ref
     modes: list[LayerModes] = []
     layer_smats: list[SMatrix] = []
-    for ERC, h in zip(erc_list, heights):
-        S_layer, lm = layer_smatrix(ERC, Kx, Ky, k0 * h, V0)
+    for ERC, (Exx, Eyy), h in zip(erc_list, inplane_list, heights):
+        S_layer, lm = layer_smatrix(ERC, Kx, Ky, k0 * h, V0, Exx, Eyy)
         modes.append(lm)
         layer_smats.append(S_layer)
         S = redheffer_star(S, S_layer)
