@@ -374,24 +374,19 @@ def _mixed_convolution(eps_grid_eng: np.ndarray, grid: HarmonicGrid, axis: str):
     binv = 1.0 / ge
     p, q = grid.index_arrays()
     if axis == "x":
-        ox = grid.orders_x
-        cx, Mx = nx // 2, grid.n_orders_x
-        dmx = ox[:, None] - ox[None, :]
-        seq = np.empty((ny, ox.size, ox.size), dtype=complex)
-        for j in range(ny):                                  # inverse rule in x
-            cof = np.fft.fftshift(np.fft.fft(binv[:, j])) / nx
-            seq[j] = _inv(cof[cx + dmx])
+        ox, Mx, cx = grid.orders_x, grid.n_orders_x, nx // 2
+        idx = cx + (ox[:, None] - ox[None, :])               # (Px, Px) x-diff orders
+        cof = np.fft.fftshift(np.fft.fft(binv, axis=0), axes=0) / nx   # x-FFT per y line
+        toe = np.moveaxis(cof[idx], 2, 0)                    # (ny, Px, Px) x-Toeplitz stack
+        seq = np.linalg.inv(toe)                             # batched inverse rule in x
         seq_hat = np.fft.fft(seq, axis=0) / ny               # direct rule in y
         dy = (q[:, None] - q[None, :]) % ny
         return seq_hat[dy, p[:, None] + Mx, p[None, :] + Mx]
     if axis == "y":
-        oy = grid.orders_y
-        cy, My = ny // 2, grid.n_orders_y
-        dmy = oy[:, None] - oy[None, :]
-        seq = np.empty((nx, oy.size, oy.size), dtype=complex)
-        for i in range(nx):                                  # inverse rule in y
-            cof = np.fft.fftshift(np.fft.fft(binv[i, :])) / ny
-            seq[i] = _inv(cof[cy + dmy])
+        oy, My, cy = grid.orders_y, grid.n_orders_y, ny // 2
+        idy = cy + (oy[:, None] - oy[None, :])               # (Py, Py) y-diff orders
+        cof = np.fft.fftshift(np.fft.fft(binv, axis=1), axes=1) / ny   # y-FFT per x line
+        seq = np.linalg.inv(cof[:, idy])                     # (nx, Py, Py) inverse rule in y
         seq_hat = np.fft.fft(seq, axis=0) / nx               # direct rule in x
         dx = (p[:, None] - p[None, :]) % nx
         return seq_hat[dx, q[:, None] + My, q[None, :] + My]
