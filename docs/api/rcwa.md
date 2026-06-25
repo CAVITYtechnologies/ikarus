@@ -9,7 +9,8 @@ objects in Ikarus, learn these.
 
 ```python
 RCWA(period_x, period_y, resolution=32, n_orders=25,
-     dtype=np.complex128, materials=None, convergence_tol=1e-6)
+     dtype=np.complex128, materials=None, convergence_tol=1e-6,
+     factorization="li")
 ```
 
 **Purpose.** Create a solver bound to one unit cell.
@@ -24,8 +25,33 @@ RCWA(period_x, period_y, resolution=32, n_orders=25,
 | `dtype` | numpy dtype | `complex128` | Working precision. |
 | `materials` | `MaterialLibrary` | `None` | Custom library; defaults to the shared `default_library`. |
 | `convergence_tol` | `float` | `1e-6` | Default tolerance for `auto_converge`. |
+| `factorization` | `str` | `"li"` | Fourier factorization rule: `"li"` (Li's inverse rule — fast TM/high-contrast convergence) or `"laurent"` (the classic direct rule). See [Factorization](#factorization) below. |
 
-**Raises.** `ValueError` if a period is non-positive.
+**Raises.** `ValueError` if a period is non-positive, or if `factorization` is not `"li"`/`"laurent"`.
+
+### Factorization { #factorization }
+
+Patterned layers represent products like \(D = \varepsilon E\) of truncated Fourier
+series. The rule used to factorize them sets the convergence rate:
+
+- **`"li"` (default)** — Li's **inverse rule**, applied in its two-step (separable)
+  form for crossed gratings. The component of \(E\) that is *discontinuous* across a
+  boundary is factorized with \(⟦1/\varepsilon⟧^{-1}\) instead of \(⟦\varepsilon⟧\),
+  which restores fast convergence for **TM / high-index-contrast** structures
+  (these settle by \(n_\text{orders}\approx 10\text{–}15\) instead of drifting).
+  It is **fully automatic** for any topology and any number of materials — it acts
+  on the rendered \(\varepsilon(x,y)\) grid, so you never write anything per shape.
+- **`"laurent"`** — the classic **direct rule** (\(⟦\varepsilon⟧\) everywhere).
+  Kept for comparison and reproducibility.
+
+!!! warning "Energy balance is **not** a convergence test"
+    For high-contrast TM, the direct rule can give `energy_balance` ≈ 1 while `R`
+    and the phase are still far from converged. Always confirm they have stopped
+    moving with `n_orders` — the inverse rule is what makes that happen quickly.
+
+At the **same** `n_orders` the two rules cost the same (the eigensolve dominates;
+uniform layers short-circuit to identical work). For the **same accuracy** Li is far
+cheaper because it converges at much lower `n_orders`.
 
 ### Properties
 

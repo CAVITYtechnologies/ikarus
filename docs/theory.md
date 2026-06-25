@@ -219,6 +219,23 @@ eigenproblem is free: \(\mathbf{W} = \mathbf{I}\) and every block of
 the reference "gap" medium (`uniform_modes`). That's why thin films cost
 nothing and patterned layers cost one eigensolve each.
 
+!!! note "Li's inverse rule (the in-plane \(\llbracket\varepsilon\rrbracket\) in \(\mathbf{Q}\))"
+    Writing the \(\mathbf{Q}\) above with the plain \(\llbracket\varepsilon\rrbracket\)
+    is **Laurent's (direct) rule**, and it is the *wrong* factorization for the
+    E-component that jumps across a boundary: there \(\varepsilon\) and \(E_\perp\)
+    both jump while \(D_\perp=\varepsilon E_\perp\) stays continuous, so the product
+    must be factorized with the **inverse rule** \(\llbracket 1/\varepsilon
+    \rrbracket^{-1}\) (Li, *JOSA A* **13**, 1870 (1996)). Using the direct rule
+    instead leaves an \(\mathcal{O}(1/M)\) Gibbs error that cripples TM /
+    high-contrast convergence. By default (`factorization="li"`) Ikarus replaces
+    the in-plane \(\llbracket\varepsilon\rrbracket\) in \(\mathbf{Q}\) with the
+    two-step (separable) operator of Li, *JOSA A* **14**, 2758 (1997) —
+    \(\llbracket 1/\varepsilon\rrbracket^{-1}\) along the normal axis, direct rule
+    along the tangential one — built automatically from the rendered
+    \(\varepsilon(x,y)\) grid (`_mixed_convolution`). The longitudinal
+    \(\llbracket\varepsilon\rrbracket^{-1}\) in \(\mathbf{P}\) is already
+    inverse-rule-correct and is unchanged.
+
 ### Scattering matrices and the star product
 
 A scattering matrix relates *incoming* mode amplitudes on both sides of a block
@@ -337,10 +354,13 @@ eigensolve scales as \(\mathcal{O}(P^3)\). The convergence folklore, which
 Ikarus's own validation reproduces:
 
 - **TE and gentle structures**: fast convergence, \(M \sim 8\!-\!12\) often suffices.
-- **TM, high contrast, metals**: slow — the normal \(D\)-field is discontinuous
-  at material boundaries and its truncated Fourier series rings (Gibbs).
-  Budget \(M \sim 18\!-\!30+\) and verify.
-- Always watch \(|R+T-1|\) (lossless cases) and use the
+- **TM, high contrast, metals**: historically slow — the normal \(D\)-field is
+  discontinuous at boundaries and a directly-factorized series rings (Gibbs). The
+  default [Li inverse rule](#factorization) removes that error, so these now
+  converge at \(M \sim 10\!-\!15\) instead of \(30+\); pass
+  `factorization="laurent"` to see the old slow behaviour.
+- Always watch \(|R+T-1|\) (lossless cases) **and** that \(R\)/phase have stopped
+  moving — energy can balance while an unconverged result still drifts. Use the
   [convergence tools](api/tools.md) or `simulate(auto_converge="once")`.
 
 ### Branch selection and stability { #branch-selection-and-stability }
@@ -364,7 +384,7 @@ but the practical method — and this implementation — has edges:
 | Limitation | What it means for you |
 |---|---|
 | **Staircase approximation** | Curved/slanted sidewalls are pixelated; approximate slopes by slicing into several thin layers. |
-| **Laurent's rule only** | The Li inverse-rule factorization (faster TM convergence at sharp high-contrast edges) is not yet implemented — budget more harmonics for metallic TM problems. |
+| **Curved-boundary factorization** | Li's inverse rule (fast TM/high-contrast convergence) is implemented and on by default in its two-step form — exact for axis-aligned/pixelated masks. The full off-diagonal *normal-vector* method, for sub-pixel-accurate **curved** sidewalls, is the remaining refinement. |
 | **Isotropic media only** | Full 3×3 permittivity tensors are on the roadmap, not in the code. |
 | **Strict periodicity** | Isolated objects need a padded supercell. |
 | **One frequency per solve** | Broadband = sweep wavelengths. No time-domain output. |

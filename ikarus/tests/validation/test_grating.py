@@ -26,10 +26,11 @@ def _eps_line(n_pixels=2048, duty=0.5, eps_hi=6.25):
     return line
 
 
-def _ikarus_grating(n_orders, pol_angle, period=800e-9, thickness=300e-9, wl=633e-9):
+def _ikarus_grating(n_orders, pol_angle, period=800e-9, thickness=300e-9,
+                    wl=633e-9, factorization="li"):
     topo = _binary_topology()
     rcwa = RCWA(period_x=period, period_y=period, resolution=(1024, 2),
-                n_orders=(n_orders, 0))
+                n_orders=(n_orders, 0), factorization=factorization)
     rcwa.add_uniform_layer(np.inf, 1.0)
     rcwa.add_layer(thickness, topo, [1.0, 2.5])
     rcwa.add_uniform_layer(np.inf, 1.0)
@@ -40,8 +41,13 @@ def _ikarus_grating(n_orders, pol_angle, period=800e-9, thickness=300e-9, wl=633
 
 @pytest.mark.parametrize("pol_angle,pol", [(0.0, "TE"), (90.0, "TM")])
 def test_matches_mode_matching_reference(pol_angle, pol):
+    # The reference (te1d_reference.grating_1d) uses the Laurent/direct rule for
+    # the TM admittance (Einv = inv(<<eps>>)), so this cross-check pins Ikarus's
+    # *Laurent* path against it.  Under the default Li inverse rule the two
+    # intentionally differ for TM -- Li converges faster to the true value while
+    # the Laurent reference drifts (see test_factorization.py).
     M = 30
-    res = _ikarus_grating(M, pol_angle)
+    res = _ikarus_grating(M, pol_angle, factorization="laurent")
     R_ref, T_ref = grating_1d(_eps_line(), 1.0, 1.0, 800e-9, 300e-9, 633e-9,
                               0.0, M, pol)
     assert abs(res.R_total - R_ref) < 1e-3
