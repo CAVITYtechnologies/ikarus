@@ -89,7 +89,7 @@ class RCWA:
         dtype=np.complex128,
         materials: Optional[MaterialLibrary] = None,
         convergence_tol: float = 1e-6,
-        factorization: str = "laurent",
+        factorization: str = "li",
     ):
         if period_x <= 0 or period_y <= 0:
             raise ValueError("periods must be positive (meters)")

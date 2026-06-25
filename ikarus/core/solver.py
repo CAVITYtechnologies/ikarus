@@ -23,7 +23,6 @@ Time convention: ``exp(-i omega t)`` (absorbing media have ``Im(eps) > 0``).
 
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass
 
 import numpy as np
@@ -357,21 +356,62 @@ class FieldSolution:
         return float(np.sum(self.T_orders))
 
 
+def _mixed_convolution(eps_grid_eng: np.ndarray, grid: HarmonicGrid, axis: str):
+    r"""In-plane permittivity operator with Li's **inverse rule along ``axis``**
+    ('x' or 'y') and Laurent's direct rule along the other -- the two-step
+    (separable) Fourier factorization for crossed gratings (Li, *JOSA A* **14**,
+    2758 (1997)).
+
+    Algorithm for ``axis='x'`` (``eps_xx``, used where ``E_x`` is discontinuous):
+    invert the 1-D ``<<1/eps>>`` Toeplitz in ``x`` on each real-space ``y`` line,
+    then apply the direct rule in ``y`` (an FFT of that matrix sequence).  It
+    reduces to the plain 1-D inverse rule when the cell is invariant along the
+    Laurent axis, and to ``<<eps>>`` for a uniform cell -- so it subsumes the 1-D
+    case.  ``axis='y'`` is the transpose construction.
+    """
+    ge = np.asarray(eps_grid_eng)
+    nx, ny = ge.shape
+    binv = 1.0 / ge
+    p, q = grid.index_arrays()
+    if axis == "x":
+        ox = grid.orders_x
+        cx, Mx = nx // 2, grid.n_orders_x
+        dmx = ox[:, None] - ox[None, :]
+        seq = np.empty((ny, ox.size, ox.size), dtype=complex)
+        for j in range(ny):                                  # inverse rule in x
+            cof = np.fft.fftshift(np.fft.fft(binv[:, j])) / nx
+            seq[j] = _inv(cof[cx + dmx])
+        seq_hat = np.fft.fft(seq, axis=0) / ny               # direct rule in y
+        dy = (q[:, None] - q[None, :]) % ny
+        return seq_hat[dy, p[:, None] + Mx, p[None, :] + Mx]
+    if axis == "y":
+        oy = grid.orders_y
+        cy, My = ny // 2, grid.n_orders_y
+        dmy = oy[:, None] - oy[None, :]
+        seq = np.empty((nx, oy.size, oy.size), dtype=complex)
+        for i in range(nx):                                  # inverse rule in y
+            cof = np.fft.fftshift(np.fft.fft(binv[i, :])) / ny
+            seq[i] = _inv(cof[cy + dmy])
+        seq_hat = np.fft.fft(seq, axis=0) / nx               # direct rule in x
+        dx = (p[:, None] - p[None, :]) % nx
+        return seq_hat[dx, q[:, None] + My, q[None, :] + My]
+    raise ValueError(f"axis must be 'x' or 'y', got {axis!r}")
+
+
 def _inplane_operators(eps_grid_eng: np.ndarray, ERC: np.ndarray,
                        grid: HarmonicGrid, factorization: str):
     r"""In-plane permittivity operators ``(Exx, Eyy)`` for the ``Q`` matrix.
 
     ``laurent`` -> ``(None, None)`` (``layer_modes`` then uses ``ERC = <<eps>>``).
 
-    ``li`` -> Li's inverse rule: on the axis **normal** to a 1-D grating's
-    boundaries the in-plane E-field is discontinuous, so that component uses
-    ``inv(<<1/eps>>)`` while the tangential component keeps Laurent's ``<<eps>>``.
-    Uniform layers (no discontinuity) and the tangential axis return ``None``.
+    ``li`` -> Li's inverse rule via the two-step factorization
+    (:func:`_mixed_convolution`): ``Exx`` inverts ``<<1/eps>>`` across ``x``
+    (where ``E_x`` is discontinuous) and ``Eyy`` across ``y``.  This restores fast
+    convergence for high-contrast / TM problems and handles 1-D and axis-aligned
+    2-D gratings; a uniform layer (no discontinuity) returns ``(None, None)``.
 
     ``eps_grid_eng`` is the engineering-convention permittivity grid (already
     conjugated and anomaly-regularized), so ``1/eps`` is taken consistently here.
-    Genuinely 2-D-patterned layers need the normal-vector method and currently
-    fall back to Laurent with a warning.
     """
     if factorization == "laurent":
         return None, None
@@ -382,18 +422,7 @@ def _inplane_operators(eps_grid_eng: np.ndarray, ERC: np.ndarray,
     # Uniform layer: <<1/eps>>^{-1} == <<eps>>, so Li and Laurent coincide.
     if np.ptp(ge.real) < 1e-12 and np.ptp(ge.imag) < 1e-12:
         return None, None
-    varies_x = not np.allclose(ge, ge[:1, :])   # boundaries normal to x
-    varies_y = not np.allclose(ge, ge[:, :1])   # boundaries normal to y
-    if varies_x and not varies_y:
-        return _inv(convolution_matrix(1.0 / ge, grid)), None   # Exx inverse rule
-    if varies_y and not varies_x:
-        return None, _inv(convolution_matrix(1.0 / ge, grid))   # Eyy inverse rule
-    warnings.warn(
-        "factorization='li' currently applies the inverse rule only to "
-        "1-D-patterned layers; this 2-D layer uses the Laurent rule (the "
-        "normal-vector method for 2-D is not yet implemented).",
-        RuntimeWarning, stacklevel=2)
-    return None, None
+    return _mixed_convolution(ge, grid, "x"), _mixed_convolution(ge, grid, "y")
 
 
 def solve_stack(
@@ -408,7 +437,7 @@ def solve_stack(
     period_y: float,
     wavelength: float,
     polarization_xy: tuple[complex, complex],
-    factorization: str = "laurent",
+    factorization: str = "li",
 ) -> FieldSolution:
     """Solve a layered stack and return outgoing fields + efficiencies.
 

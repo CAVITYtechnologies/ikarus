@@ -364,7 +364,7 @@ but the practical method — and this implementation — has edges:
 | Limitation | What it means for you |
 |---|---|
 | **Staircase approximation** | Curved/slanted sidewalls are pixelated; approximate slopes by slicing into several thin layers. |
-| **Laurent's rule only** | The Li inverse-rule factorization (faster TM convergence at sharp high-contrast edges) is not yet implemented — budget more harmonics for metallic TM problems. |
+| **Curved-boundary factorization** | Li's inverse rule (fast TM/high-contrast convergence) is implemented and on by default in its two-step form — exact for axis-aligned/pixelated masks. The full off-diagonal *normal-vector* method, for sub-pixel-accurate **curved** sidewalls, is the remaining refinement. |
 | **Isotropic media only** | Full 3×3 permittivity tensors are on the roadmap, not in the code. |
 | **Strict periodicity** | Isolated objects need a padded supercell. |
 | **One frequency per solve** | Broadband = sweep wavelengths. No time-domain output. |

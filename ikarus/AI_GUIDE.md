@@ -193,14 +193,21 @@ to tune.
   For one big solve (`M ≳ 20`) do the opposite: let BLAS thread.
 - **Converge `n_orders` at the worst-case wavelength/polarization**, watching
   `|R+T−1|` for lossless structures, or let `simulate(auto_converge="once")` decide.
-- **TM convergence caveat:** Ikarus factors permittivity with the **Laurent rule
-  only** (no Li inverse rule yet), so high-contrast/metallic **TM** problems need
-  more harmonics here than in a Li-rule code. Budget extra `n_orders` and verify.
+- **Fourier factorization:** the default `factorization="li"` applies Li's
+  inverse rule (two-step for crossed gratings), giving fast TM / high-contrast
+  convergence — high-contrast TM gratings converge by `n_orders≈10–15` instead of
+  drifting. It works automatically for **any** topology and any number of
+  materials (it acts on the rendered `ε(x,y)` grid). Pass
+  `factorization="laurent"` to force the old direct rule for comparison. Caveat:
+  **R+T≈1 does not prove convergence** for high-contrast TM — always check that
+  R/phase have stopped moving with `n_orders`.
 
 ## Known gaps (do not promise these)
 
 - **Anisotropic (3×3 tensor) materials** — isotropic only.
-- **Li inverse-rule factorization** — Laurent rule only (slow but correct TM).
+- **Smooth-boundary (off-diagonal) normal-vector factorization** — the Li rule is
+  the two-step *diagonal* form (exact for axis-aligned/pixelated masks); the full
+  normal-vector method for sub-pixel-accurate *curved* boundaries is not yet in.
 - **No GPU** (pure NumPy/SciPy CPU) and **no analytic/AD gradients** (inverse design is gradient-free).
 
 ## Read more

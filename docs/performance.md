@@ -113,12 +113,17 @@ parallelize coarser. When in doubt, benchmark both; it takes two minutes.
 Always converge at your **worst-case** wavelength/polarization, watching
 \(|R+T-1|\) for lossless structures.
 
-!!! warning "The Laurent tax"
-    Ikarus factors the permittivity with **Laurent's rule**. The accelerated
-    **Li inverse rule** — which tames TM convergence at sharp
-    high-contrast/metallic edges — is not yet implemented, so those problems
-    need more harmonics here than in a Li-rule code. Known roadmap item
-    ([Theory → Limitations](theory.md#limitations-of-rcwa)).
+!!! tip "Li's inverse rule (default)"
+    Ikarus factors the permittivity with **Li's inverse rule** by default
+    (`factorization="li"`) — the two-step form for crossed gratings — which
+    restores fast convergence at sharp high-contrast/metallic edges: high-contrast
+    TM gratings settle by \(n_{\text{orders}}\approx 10\text{–}15\) instead of
+    drifting. It is automatic for any topology and any number of materials. Pass
+    `factorization="laurent"` to fall back to the classic direct rule for
+    comparison. **Watch out:** for high-contrast TM, \(|R+T-1|\approx 0\) does
+    *not* prove convergence — confirm \(R\) and phase have stopped moving with
+    `n_orders` (the direct rule can conserve energy while still far from the
+    converged value).
 
 ## Accuracy ledger
 

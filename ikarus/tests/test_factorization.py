@@ -49,13 +49,40 @@ def test_li_converges_fast_for_high_contrast_tm():
     assert abs(RL12 - R_target) > 0.05       # Laurent still ~0.16, far from 0.10
 
 
-def test_laurent_is_unchanged_default():
-    """Default factorization is Laurent, and it matches an explicit request."""
+def test_li_2d_path_reduces_to_1d_answer():
+    """A y-invariant grating solved as a *full 2-D* problem (n_orders=(M,M)) must
+    reproduce the validated 1-D answer through the two-step factorization path."""
+    n_hi, period, wl, h = 3.5, 400e-9, 700e-9, 300e-9
+    Nx, Ny = 512, 64
+    topo = np.zeros((Nx, Ny), dtype=int)
+    topo[: Nx // 2, :] = 1                       # varies in x, constant in y
+
+    def solve(fac, M):
+        rc = RCWA(period_x=period, period_y=period, resolution=(Nx, Ny),
+                  n_orders=(M, M), factorization=fac)
+        rc.add_uniform_layer(np.inf, "Air")
+        rc.add_layer(h, topo, ["Air", n_hi])
+        rc.add_uniform_layer(np.inf, "Air")
+        rc.set_source(wavelength=wl, theta=0, polarization="linear", linear_pol_angle=90)
+        _, _, r = rc.simulate()
+        return r.R_total, np.degrees(np.angle(r.R))
+
+    R, phase = solve("li", 12)
+    assert abs(R - 0.100) < 5e-3                  # the 1-D target, via the 2-D path
+    assert abs(phase - 80.5) < 1.5
+    RL, _ = solve("laurent", 12)
+    assert abs(RL - 0.100) > 0.05                 # Laurent still far off at M=12
+
+
+def test_default_factorization_is_li():
+    """Li's inverse rule is the default; Laurent stays available explicitly."""
     rc = RCWA(period_x=1e-6, period_y=1e-6, n_orders=(6, 0))
-    assert rc.factorization == "laurent"
-    a = _grating("laurent", 10)
-    b = _grating(None or "laurent", 10)
-    assert a == b
+    assert rc.factorization == "li"
+    # Both rules run; for high-contrast TM they differ (Li converged, Laurent not).
+    R_li, _, eb_li = _grating("li", 16)
+    R_laurent, _, _ = _grating("laurent", 16)
+    assert abs(eb_li - 1.0) < 1e-3
+    assert abs(R_li - R_laurent) > 0.01
 
 
 def test_li_equals_laurent_for_uniform_stack():
