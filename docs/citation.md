@@ -44,7 +44,10 @@ paper, these are the canonical citations:
   binary gratings," *J. Opt. Soc. Am. A* **12**, 1068 (1995).
 - L. Li, "Use of Fourier series in the analysis of discontinuous periodic
   structures," *J. Opt. Soc. Am. A* **13**, 1870 (1996) — the factorization
-  rules (including the inverse rule on Ikarus's roadmap).
+  rules; Ikarus applies the **inverse rule by default**.
+- L. Li, "New formulation of the Fourier modal method for crossed surface-relief
+  gratings," *J. Opt. Soc. Am. A* **14**, 2758 (1997) — the two-step factorization
+  Ikarus uses for 2-D patterned layers.
 - L. Li, "Formulation and comparison of two recursive matrix algorithms for
   modeling layered diffraction gratings," *J. Opt. Soc. Am. A* **13**, 1024
   (1996) — the S-matrix recursion.
