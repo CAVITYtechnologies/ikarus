@@ -30,9 +30,10 @@ print(f"R={res.R_total:.4f}  T={res.T_total:.4f}  R+T={res.energy_balance:.6f}")
 
 !!! info "TE is the easy runway"
     With grooves along \(y\), `linear_pol_angle=0` (TE — E-field along the
-    grooves) converges fast. `90` (TM — E-field across the grooves) is the slow
-    case in any Laurent-rule RCWA; budget more harmonics there
-    ([why](../theory.md#limitations-of-rcwa)).
+    grooves) converges fast. `90` (TM — E-field across the grooves) is the classic
+    slow case — but Ikarus's default **Li factorization** tames it, so TM converges
+    at modest `n_orders` here rather than crawling
+    ([details](../api/rcwa.md#factorization)). Still verify it has settled.
 
 ## Reading the exit lanes
 

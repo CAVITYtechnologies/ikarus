@@ -98,6 +98,23 @@ def test_li_equals_laurent_for_uniform_stack():
     assert fresnel("li") == pytest.approx(fresnel("laurent"), abs=1e-12)
 
 
+def test_li_handles_arbitrary_multimaterial_pixelmap():
+    """Li is topology- and material-agnostic: a hand-built 3-material pixel map
+    (no shape class) runs and conserves energy under the inverse rule."""
+    rng = np.random.default_rng(1)
+    N = 48
+    topo = rng.integers(0, 3, size=(N, N))            # three materials: 0,1,2
+    mats = [1.0, 3.5, 1.45]                            # lossless -> energy must conserve
+    rc = RCWA(period_x=600e-9, period_y=600e-9, resolution=(N, N),
+              n_orders=(8, 8), factorization="li")
+    rc.add_uniform_layer(np.inf, 1.0)
+    rc.add_layer(250e-9, topo, mats)
+    rc.add_uniform_layer(np.inf, 1.45)
+    rc.set_source(wavelength=700e-9, theta=0, polarization="linear", linear_pol_angle=35)
+    _, _, res = rc.simulate()
+    assert abs(res.energy_balance - 1.0) < 1e-6
+
+
 def test_invalid_factorization_rejected():
     with pytest.raises(ValueError, match="factorization"):
         RCWA(period_x=1e-6, period_y=1e-6, factorization="bogus")
