@@ -57,25 +57,37 @@ eigensolve — unavoidable, that's the physics changing.
 ## The convergence ritual { #convergence-study }
 
 Before you trust a sweep — let alone publish it — confirm the harmonic count is
-sufficient. The honest way is to watch a metric stop moving:
+sufficient. The honest way is to watch the quantity *you actually care about* stop
+moving. For most designs that's the zeroth-order **reflectance and its phase** —
+**not** the energy balance:
 
 ```python
 from ikarus.tools.convergence import convergence_curve
 
 rcwa.set_source(wavelength=600e-9)
-orders, defect = convergence_curve(rcwa, range(4, 21, 2), metric="energy")
-harmonics = (2 * orders + 1) ** 2
-for h, d in zip(harmonics, defect):
-    print(f"{h:5d} harmonics: |R+T-1| = {d:.2e}")
+orders, phase = convergence_curve(rcwa, range(4, 21, 2), metric="R_phase")
+for M, p in zip(orders, phase):
+    print(f"n_orders={M:3d}: reflected phase = {p:+.2f} deg")
 ```
 
-(`convergence_curve` politely restores your original `n_orders` afterward.)
-Or delegate the whole ritual:
+(`convergence_curve` politely restores your original `n_orders` afterward; pass
+`metric="R"` for reflectance, `"R_phase"`/`"T_phase"` for phase.) Or delegate the
+whole ritual — `auto_converge` raises the order count until the complex R/T
+coefficients (magnitude *and* phase) settle:
 
 ```python
 rcwa.simulate(auto_converge="once", verbose=True)   # finds & caches n_orders
 print("using n_orders =", rcwa.n_orders)
+
+# one-off solve? ask Ikarus to warn you if it's under-resolved:
+T, R, res = rcwa.simulate(check_convergence=True)
 ```
+
+!!! danger "`R + T ≈ 1` is **not** convergence"
+    A lossless structure conserves energy at *every* `n_orders`, even while its
+    reflectance and phase are still drifting. Converging on `|R+T−1|` will happily
+    declare victory on a wrong answer — this has cost real multi-hour optimization
+    runs. Converge on R and **phase**.
 
 !!! warning "Converge at your *worst* point, not your favorite one"
     TM polarization, the highest contrast, the shortest wavelength, the
@@ -131,8 +143,10 @@ Resonance bands glow; anti-reflection valleys go dark. Design by sightseeing.
 
 ## Expected results
 
-- The energy defect shrinks monotonically with `n_orders`; once below your
-  tolerance (say 10⁻⁴), extra harmonics buy nothing but heat.
+- The reflectance and its **phase** stop moving with `n_orders`; once the change
+  per step is below your tolerance (say a few × 10⁻³ in the coefficient, ~0.1° of
+  phase), extra harmonics buy nothing but heat. (Energy balances long before that,
+  so don't use it as the gauge.)
 - The 2-D map shows resonance bands (bright `R`) and broadband AR valleys
   (dark) — the design space at a glance.
 
