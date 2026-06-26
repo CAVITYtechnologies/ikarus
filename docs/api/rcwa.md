@@ -104,7 +104,7 @@ rcwa.set_source(theta=15)   # keeps wavelength + polarization
 
 ### Solving
 
-#### `simulate(auto_converge="never", converge_tol=None, max_orders=200, verbose=False) -> (T, R, result)`
+#### `simulate(auto_converge="never", converge_tol=None, max_orders=200, verbose=False, check_convergence=False) -> (T, R, result)`
 
 Run a simulation; return the zero-order coefficients plus the full
 [`SimulationResult`](#simulationresult).
@@ -115,10 +115,25 @@ Run a simulation; return the zero-order coefficients plus the full
 | `"once"` | Find and **cache** a converged `n_orders` (later calls reuse it). |
 | `"always"` | Re-converge on every call. |
 
+Convergence is judged on the **complex zero-order R/T coefficients (magnitude
+*and* phase)**, never the energy balance — see the box below.
+
+`check_convergence=True` re-solves once at a higher `n_orders` and **warns** if
+the zero-order R/T are still moving — a cheap safety net for a single solve.
+Leave it off inside tight sweep/optimization loops (it doubles that solve).
+
 ```python
 T, R, result = rcwa.simulate()
-T, R, result = rcwa.simulate(auto_converge="once", verbose=True)
+T, R, result = rcwa.simulate(auto_converge="once", verbose=True)   # reliable, automatic
+T, R, result = rcwa.simulate(check_convergence=True)               # warn me if under-resolved
 ```
+
+!!! warning "Energy balance is not a convergence test"
+    A lossless structure conserves energy (`R+T≈1`) at **every** `n_orders`, even
+    while `R` and the **phase** are still drifting — the trap high-contrast TM
+    sets, and it has cost real optimization runs. Always converge the *coefficients*
+    (`auto_converge`, `check_convergence`, or watch `R`/`R_phase` vs `n_orders`),
+    not the energy.
 
 **Returns.** `(T, R, result)` — `T`/`R` are the zero-order coefficients
 (complex scalar for linear polarization, `{"co", "cross"}` for circular);

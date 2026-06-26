@@ -191,8 +191,13 @@ to tune.
   `OMP_NUM_THREADS`/`OPENBLAS_NUM_THREADS`/`MKL_NUM_THREADS`/`VECLIB_MAXIMUM_THREADS`
   to `"1"` **before** importing numpy — often ~10× faster on many-core machines.
   For one big solve (`M ≳ 20`) do the opposite: let BLAS thread.
-- **Converge `n_orders` at the worst-case wavelength/polarization**, watching
-  `|R+T−1|` for lossless structures, or let `simulate(auto_converge="once")` decide.
+- **Converge `n_orders` at the worst-case wavelength/polarization.** Prefer
+  `simulate(auto_converge="once")` — it raises `n_orders` until the **complex
+  zero-order R/T (magnitude and phase)** stop changing, and caches the result.
+  For a one-off solve, `simulate(check_convergence=True)` re-solves once higher and
+  **warns** if it's still moving. **Do not trust `R+T≈1` as convergence** — a
+  lossless structure conserves energy at every `n_orders` while R/phase still
+  drift (the classic high-contrast-TM trap that has cost real optimization runs).
 - **Fourier factorization:** the default `factorization="li"` applies Li's
   inverse rule (two-step for crossed gratings), giving fast TM / high-contrast
   convergence — high-contrast TM gratings converge by `n_orders≈10–15` instead of

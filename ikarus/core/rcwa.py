@@ -88,7 +88,7 @@ class RCWA:
         n_orders: int | tuple[int, int] = 25,
         dtype=np.complex128,
         materials: Optional[MaterialLibrary] = None,
-        convergence_tol: float = 1e-6,
+        convergence_tol: float = 1e-4,
         factorization: str = "li",
     ):
         if period_x <= 0 or period_y <= 0:
@@ -234,13 +234,19 @@ class RCWA:
         return solution
 
     def simulate(self, auto_converge: str = "never", converge_tol: Optional[float] = None,
-                 max_orders: int = 200, verbose: bool = False) -> tuple:
+                 max_orders: int = 200, verbose: bool = False,
+                 check_convergence: bool = False) -> tuple:
         """Run a simulation and return ``(T, R, result)``.
 
         ``auto_converge`` selects harmonic-order convergence behaviour:
         ``'never'`` uses the current ``n_orders``; ``'once'`` finds and caches an
-        optimal value; ``'always'`` re-converges every call.  See
-        :mod:`ikarus.tools.convergence`.
+        optimal value; ``'always'`` re-converges every call.  Convergence is judged
+        on the **complex zeroth-order R/T coefficients** (magnitude *and* phase),
+        not the energy balance.  See :mod:`ikarus.tools.convergence`.
+
+        ``check_convergence=True`` re-solves once at a higher ``n_orders`` and warns
+        if the zeroth-order R/T (incl. phase) are still moving -- a cheap safety net
+        for a single solve (skip it inside tight sweep/optimization loops).
         """
         if auto_converge != "never":
             from ..tools.convergence import auto_converge_orders
@@ -251,6 +257,9 @@ class RCWA:
             )
 
         solution = self._solve()
+        if check_convergence and auto_converge == "never":
+            from ..tools.convergence import check_convergence as _check
+            _check(self, baseline=solution, tol=converge_tol or 1e-3)
         return self._package(solution)
 
     # -- result packaging --------------------------------------------------

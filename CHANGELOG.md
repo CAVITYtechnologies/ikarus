@@ -4,6 +4,31 @@ All notable changes to Ikarus are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
+## Unreleased
+
+### Added
+- **Phase/R-aware convergence checking.** `auto_converge` now decides convergence
+  from the **complex zeroth-order R/T coefficients (magnitude *and* phase)** rather
+  than the specular transmittance alone — so phase-sensitive designs (metalenses,
+  metamirrors) actually converge.
+- **`simulate(check_convergence=True)`** — a single-solve safety net: re-solves once
+  at a higher `n_orders` and warns if the zeroth-order R/T are still moving. Off by
+  default (skip it inside tight sweep/optimization loops).
+- `convergence_curve(..., metric="R_phase"|"T_phase")` for plotting phase vs. `n_orders`.
+
+### Fixed
+- `auto_converge` no longer fails to converge **absorbing** structures. The old
+  criterion required `|R+T−1| < tol`, which is never true when `R+T<1` legitimately
+  (absorptance); convergence is now judged on coefficient stability instead.
+
+### Changed
+- `RCWA(convergence_tol=...)` default `1e-6 → 1e-4` (an absolute tolerance on the
+  complex coefficient now; `1e-4` ≈ 0.006° of phase — `1e-6` was needlessly tight).
+
+### Docs
+- Reinforced throughout: **energy balance (`R+T≈1`) is not a convergence test** —
+  converge the coefficients/phase, not the energy.
+
 ## 0.6.0
 
 ### Added
