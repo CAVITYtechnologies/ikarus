@@ -4,7 +4,7 @@ All notable changes to Ikarus are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
-## Unreleased
+## 0.7.0
 
 ### Added
 - **Phase/R-aware convergence checking.** `auto_converge` now decides convergence
