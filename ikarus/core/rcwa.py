@@ -93,9 +93,10 @@ class RCWA:
     ):
         if period_x <= 0 or period_y <= 0:
             raise ValueError("periods must be positive (meters)")
-        if factorization not in ("laurent", "li"):
+        if factorization not in ("laurent", "li", "normal"):
             raise ValueError(
-                f"factorization must be 'laurent' or 'li', got {factorization!r}")
+                "factorization must be 'laurent', 'li' or 'normal', got "
+                f"{factorization!r}")
         self.period_x = float(period_x)
         self.period_y = float(period_y)
         self.resolution = self._as_pair(resolution)

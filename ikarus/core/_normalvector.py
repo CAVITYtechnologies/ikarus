@@ -25,6 +25,46 @@ import numpy as np
 from .fourier import HarmonicGrid, convolution_matrix
 
 
+def tangent_field(eps_grid_eng: np.ndarray, smoothing: float = 1.0):
+    r"""Tangent vector field ``(tx, ty)`` for the normal-vector method.
+
+    The local boundary **normal** is the gradient of a (periodically) smoothed copy
+    of the permittivity; the **tangent** is that normal rotated 90 deg.  Boundaries
+    of any orientation get a faithful normal, so the inverse rule is applied along
+    the true normal everywhere (not just along x/y as the separable rule does).
+
+    ``smoothing`` is the Gaussian blur width in pixels -- the length over which the
+    rule is blended across an edge.
+
+    .. note::
+        **WIP placeholder.** This smoothed-gradient field is *zero in the bulk*
+        (away from boundaries) and cancels at symmetry centres, so it does not yet
+        give a faithful unit-magnitude field everywhere -- ``factorization="normal"``
+        is therefore not yet validated.  The shipping version will use the
+        variational construction (a single Newton step on the field's Fourier
+        coefficients, after FMMax/Schuster) which yields a smooth unit field over
+        the whole cell.  The tensor assembly and Q-integration that consume this
+        field are already verified correct (they reduce to ``li`` exactly given a
+        proper field).
+    """
+    s = np.abs(np.asarray(eps_grid_eng)).astype(float)
+    if smoothing and smoothing > 0:
+        try:
+            from scipy.ndimage import gaussian_filter
+            s = gaussian_filter(s, smoothing, mode="wrap")
+        except Exception:                       # scipy optional -> fall back to raw gradient
+            pass
+    # periodic central-difference gradient = the (un-normalized) normal direction
+    gx = 0.5 * (np.roll(s, -1, axis=0) - np.roll(s, 1, axis=0))
+    gy = 0.5 * (np.roll(s, -1, axis=1) - np.roll(s, 1, axis=1))
+    tx, ty = gy, -gx                            # tangent = normal rotated 90 deg
+    norm = np.hypot(tx, ty)
+    safe = norm > 1e-12
+    tx = np.where(safe, tx / np.where(safe, norm, 1.0), 0.0)
+    ty = np.where(safe, ty / np.where(safe, norm, 1.0), 0.0)
+    return tx.astype(complex), ty.astype(complex)
+
+
 def tangent_terms(tx: np.ndarray, ty: np.ndarray):
     r"""Real-space projection terms ``(Pxx, Pxy, Pyx, Pyy)`` of Liu (2012) eq. 50.
 
