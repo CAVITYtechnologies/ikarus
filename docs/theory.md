@@ -227,14 +227,33 @@ nothing and patterned layers cost one eigensolve each.
     must be factorized with the **inverse rule** \(\llbracket 1/\varepsilon
     \rrbracket^{-1}\) (Li, *JOSA A* **13**, 1870 (1996)). Using the direct rule
     instead leaves an \(\mathcal{O}(1/M)\) Gibbs error that cripples TM /
-    high-contrast convergence. By default (`factorization="li"`) Ikarus replaces
-    the in-plane \(\llbracket\varepsilon\rrbracket\) in \(\mathbf{Q}\) with the
-    two-step (separable) operator of Li, *JOSA A* **14**, 2758 (1997) —
-    \(\llbracket 1/\varepsilon\rrbracket^{-1}\) along the normal axis, direct rule
-    along the tangential one — built automatically from the rendered
-    \(\varepsilon(x,y)\) grid (`_mixed_convolution`). The longitudinal
+    high-contrast convergence. Li's two-step (separable) operator (*JOSA A* **14**,
+    2758 (1997)) — \(\llbracket 1/\varepsilon\rrbracket^{-1}\) along the normal axis,
+    direct rule along the tangential one (`_mixed_convolution`) — fixes this
+    *exactly* for axis-aligned boundaries (`factorization="li"`). The longitudinal
     \(\llbracket\varepsilon\rrbracket^{-1}\) in \(\mathbf{P}\) is already
     inverse-rule-correct and is unchanged.
+
+!!! tip "The normal-vector method (the default, `factorization="auto"`)"
+    Li's two-step rule splits the inverse rule along the fixed *x* and *y* axes,
+    which is only correct when boundaries run along those axes. A **curved or
+    oblique** boundary has its discontinuity along the *local* normal, so the
+    separable rule mis-factorizes it — leaving a residual error that no amount of
+    \(n_\text{orders}\) removes (e.g. a high-index ring can sit ~2 % off the true
+    reflectance). The **normal-vector method** (Fast Fourier Factorization;
+    Schuster *et al.*, *JOSA A* **24**, 2880 (2007); Liu & Fan, *JOSA A* **29**,
+    2350 (2012)) builds a smooth unit vector field that follows the true boundary
+    normal everywhere and applies the inverse rule *along that direction*, giving
+    the full in-plane permittivity **tensor** (with off-diagonal terms) in
+    \(\mathbf{Q}\). Ikarus constructs the tangent field by double-angle orientation
+    diffusion and assembles the tensor in `_normalvector.py`; on axis-aligned
+    geometry the field is constant and it collapses **exactly** back to `"li"`.
+    This is the default, validated against FMMax's `Formulation.NORMAL` to
+    \(\le 2\times10^{-3}\) on cylinders, rings, ellipses and rotated shapes. One
+    caveat: the tensor formulation is not strictly energy-conserving at *finite*
+    order, so `energy_balance` shows a small deviation that shrinks to 0 with
+    convergence — a more honest signal than the separable rule, which can report
+    perfect energy balance while still biased on a curved boundary.
 
 ### Scattering matrices and the star product
 
@@ -356,9 +375,10 @@ Ikarus's own validation reproduces:
 - **TE and gentle structures**: fast convergence, \(M \sim 8\!-\!12\) often suffices.
 - **TM, high contrast, metals**: historically slow — the normal \(D\)-field is
   discontinuous at boundaries and a directly-factorized series rings (Gibbs). The
-  default [Li inverse rule](#factorization) removes that error, so these now
-  converge at \(M \sim 10\!-\!15\) instead of \(30+\); pass
-  `factorization="laurent"` to see the old slow behaviour.
+  default [normal-vector factorization](#factorization) removes that error along the
+  true local boundary normal, so these now converge at \(M \sim 8\!-\!15\) instead
+  of \(30+\) — including on **curved/oblique** boundaries where the older separable
+  rule stays biased. Pass `factorization="laurent"` to see the old slow behaviour.
 - Always watch \(|R+T-1|\) (lossless cases) **and** that \(R\)/phase have stopped
   moving — energy can balance while an unconverged result still drifts. Use the
   [convergence tools](api/tools.md) or `simulate(auto_converge="once")`.
@@ -384,7 +404,7 @@ but the practical method — and this implementation — has edges:
 | Limitation | What it means for you |
 |---|---|
 | **Staircase approximation** | Curved/slanted sidewalls are pixelated; approximate slopes by slicing into several thin layers. |
-| **Curved-boundary factorization** | Li's inverse rule (fast TM/high-contrast convergence) is implemented and on by default in its two-step form — exact for axis-aligned/pixelated masks. The full off-diagonal *normal-vector* method, for sub-pixel-accurate **curved** sidewalls, is the remaining refinement. |
+| **Curved-boundary factorization** | Handled: the default *normal-vector* method (Fast Fourier Factorization) applies the inverse rule along the true local boundary normal, so curved/oblique high-contrast in-plane boundaries converge correctly (validated against FMMax). It is not strictly energy-conserving at finite order — a small `energy_balance` deviation that vanishes with `n_orders`. |
 | **Isotropic media only** | Full 3×3 permittivity tensors are on the roadmap, not in the code. |
 | **Strict periodicity** | Isolated objects need a padded supercell. |
 | **One frequency per solve** | Broadband = sweep wavelengths. No time-domain output. |

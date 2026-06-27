@@ -66,10 +66,10 @@ wavelength sweep, while running **~1.5–1.7× faster per solve**.
 | Automatic convergence testing (`never` / `once` / `always`) | ✅ |
 | HDF5 export / import of results | ✅ |
 | Numerically stable S-matrix cascade (no transfer-matrix overflow) | ✅ |
-| Li inverse-rule factorization — fast TM / high-contrast convergence, on by default | ✅ |
+| Normal-vector factorization (Fast Fourier Factorization) — exact convergence on curved/oblique boundaries, on by default | ✅ |
+| Li inverse-rule + Laurent factorization — available explicitly | ✅ |
 | Gradient-free inverse design (pixels + parameters, GA / NSGA-III via pymoo) | ✅ |
 | Anisotropic (3×3 tensor) materials | ⛔ not yet (isotropic only) |
-| Off-diagonal normal-vector factorization (sub-pixel curved boundaries) | ⛔ two-step diagonal rule shipped |
 
 ## Installation
 

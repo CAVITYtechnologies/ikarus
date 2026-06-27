@@ -89,13 +89,19 @@ class RCWA:
         dtype=np.complex128,
         materials: Optional[MaterialLibrary] = None,
         convergence_tol: float = 1e-4,
-        factorization: str = "li",
+        factorization: str = "auto",
     ):
         if period_x <= 0 or period_y <= 0:
             raise ValueError("periods must be positive (meters)")
-        if factorization not in ("laurent", "li", "normal"):
+        # "auto" (default) applies the normal-vector method to every patterned
+        # layer: it follows the true boundary normal, so it gives Fast-Fourier-
+        # Factorization convergence on curved/oblique high-contrast structures and
+        # reduces *exactly* to the classic inverse rule ("li") on axis-aligned
+        # geometry.  Users never need to know any of this.  The explicit names
+        # ("laurent"/"li"/"normal") remain available for experts and benchmarking.
+        if factorization not in ("auto", "laurent", "li", "normal"):
             raise ValueError(
-                "factorization must be 'laurent', 'li' or 'normal', got "
+                "factorization must be 'auto', 'laurent', 'li' or 'normal', got "
                 f"{factorization!r}")
         self.period_x = float(period_x)
         self.period_y = float(period_y)

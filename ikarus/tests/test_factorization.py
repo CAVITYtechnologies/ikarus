@@ -74,11 +74,13 @@ def test_li_2d_path_reduces_to_1d_answer():
     assert abs(RL - 0.100) > 0.05                 # Laurent still far off at M=12
 
 
-def test_default_factorization_is_li():
-    """Li's inverse rule is the default; Laurent stays available explicitly."""
+def test_default_factorization_is_auto():
+    """The automatic normal-vector method is the default; the classic rules stay
+    available explicitly for experts and benchmarking."""
     rc = RCWA(period_x=1e-6, period_y=1e-6, n_orders=(6, 0))
-    assert rc.factorization == "li"
-    # Both rules run; for high-contrast TM they differ (Li converged, Laurent not).
+    assert rc.factorization == "auto"
+    # The classic rules still run; for high-contrast TM they differ (Li converged,
+    # Laurent not).
     R_li, _, eb_li = _grating("li", 16)
     R_laurent, _, _ = _grating("laurent", 16)
     assert abs(eb_li - 1.0) < 1e-3

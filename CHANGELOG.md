@@ -4,6 +4,34 @@ All notable changes to Ikarus are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
+## 0.8.0
+
+### Added
+- **Normal-vector factorization (Fast Fourier Factorization), on by default.** A new
+  `factorization="auto"` (the new default) applies the inverse rule along the *true
+  local boundary normal* of every patterned layer, instead of the fixed x/y axes.
+  This restores correct, fast convergence on **curved and oblique** high-contrast
+  boundaries (cylinders, rings, ellipses, rotated shapes) — geometries where the
+  separable inverse rule is not just slow but *biased* (e.g. a high-index ring sat
+  ~2 % off the true reflectance no matter how high `n_orders` went). Validated
+  against FMMax's `Formulation.NORMAL` to ≤2×10⁻³ across the geometry zoo. It is
+  fully automatic — **users never choose a factorization** — and reduces *exactly*
+  to `"li"` on axis-aligned geometry.
+- `factorization="normal"` exposes the method explicitly (what `"auto"` resolves to
+  for patterned layers); `"li"` and `"laurent"` remain for benchmarking.
+
+### Changed
+- **Default `factorization` `"li"` → `"auto"`** (the normal-vector method). On
+  axis-aligned/1-D structures results are unchanged (it reduces exactly to `"li"`);
+  on curved/oblique structures they are now correct rather than biased.
+
+### Notes
+- The normal-vector tensor formulation is not strictly energy-conserving at *finite*
+  `n_orders`: `energy_balance` can deviate slightly from 1 on curved/oblique layers
+  and shrinks toward 0 as it converges. This is expected, and a more honest
+  convergence signal than the separable rule — which can report `R+T==1` exactly
+  while still biased on a curved boundary. As always, converge `R`/phase, not energy.
+
 ## 0.7.0
 
 ### Added

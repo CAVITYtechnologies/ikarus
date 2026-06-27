@@ -10,7 +10,7 @@ objects in Ikarus, learn these.
 ```python
 RCWA(period_x, period_y, resolution=32, n_orders=25,
      dtype=np.complex128, materials=None, convergence_tol=1e-6,
-     factorization="li")
+     factorization="auto")
 ```
 
 **Purpose.** Create a solver bound to one unit cell.
@@ -25,33 +25,44 @@ RCWA(period_x, period_y, resolution=32, n_orders=25,
 | `dtype` | numpy dtype | `complex128` | Working precision. |
 | `materials` | `MaterialLibrary` | `None` | Custom library; defaults to the shared `default_library`. |
 | `convergence_tol` | `float` | `1e-6` | Default tolerance for `auto_converge`. |
-| `factorization` | `str` | `"li"` | Fourier factorization rule: `"li"` (Li's inverse rule — fast TM/high-contrast convergence) or `"laurent"` (the classic direct rule). See [Factorization](#factorization) below. |
+| `factorization` | `str` | `"auto"` | Fourier factorization rule. Leave it at `"auto"` — it picks the best rule per layer. See [Factorization](#factorization) below. |
 
-**Raises.** `ValueError` if a period is non-positive, or if `factorization` is not `"li"`/`"laurent"`.
+**Raises.** `ValueError` if a period is non-positive, or if `factorization` is not one of `"auto"`/`"li"`/`"laurent"`/`"normal"`.
 
 ### Factorization { #factorization }
 
 Patterned layers represent products like \(D = \varepsilon E\) of truncated Fourier
-series. The rule used to factorize them sets the convergence rate:
+series. The rule used to factorize them sets the convergence rate and the accuracy
+at curved boundaries. **You do not need to choose — the default `"auto"` is the
+best rule for every geometry.** The explicit names are for benchmarking:
 
-- **`"li"` (default)** — Li's **inverse rule**, applied in its two-step (separable)
-  form for crossed gratings. The component of \(E\) that is *discontinuous* across a
-  boundary is factorized with \(⟦1/\varepsilon⟧^{-1}\) instead of \(⟦\varepsilon⟧\),
-  which restores fast convergence for **TM / high-index-contrast** structures
-  (these settle by \(n_\text{orders}\approx 10\text{–}15\) instead of drifting).
-  It is **fully automatic** for any topology and any number of materials — it acts
-  on the rendered \(\varepsilon(x,y)\) grid, so you never write anything per shape.
+- **`"auto"` (default)** — the **normal-vector method** (Fast Fourier Factorization).
+  It applies the inverse rule along the *true local boundary normal* everywhere, so
+  it converges fast **and to the correct answer** on curved/oblique high-contrast
+  structures (cylinders, rings, ellipses, rotated shapes), where the separable rule
+  is both slow *and* biased. On axis-aligned geometry it reduces **exactly** to
+  `"li"`. Fully automatic for any topology and material count.
+- **`"li"`** — Li's **inverse rule** in its two-step (separable) form: the
+  discontinuous component of \(E\) is factorized with \(⟦1/\varepsilon⟧^{-1}\)
+  instead of \(⟦\varepsilon⟧\). Exact for axis-aligned/1-D boundaries, only
+  approximate for curved ones. This was the default through v0.7.
+- **`"normal"`** — the normal-vector method explicitly (what `"auto"` resolves to
+  for patterned layers).
 - **`"laurent"`** — the classic **direct rule** (\(⟦\varepsilon⟧\) everywhere).
   Kept for comparison and reproducibility.
 
 !!! warning "Energy balance is **not** a convergence test"
-    For high-contrast TM, the direct rule can give `energy_balance` ≈ 1 while `R`
-    and the phase are still far from converged. Always confirm they have stopped
-    moving with `n_orders` — the inverse rule is what makes that happen quickly.
+    For high-contrast TM the direct rule can give `energy_balance` ≈ 1 while `R` and
+    the phase are still far from converged; the separable inverse rule can likewise
+    report `energy_balance` exactly 1 while sitting a percent off the true answer on
+    a *curved* boundary. The default normal-vector method instead shows a small
+    `energy_balance` deviation that shrinks toward 0 as it converges — a more honest
+    signal. Always confirm `R`/phase have stopped moving with `n_orders`.
 
-At the **same** `n_orders` the two rules cost the same (the eigensolve dominates;
-uniform layers short-circuit to identical work). For the **same accuracy** Li is far
-cheaper because it converges at much lower `n_orders`.
+At the **same** `n_orders` the rules cost about the same (the eigensolve dominates;
+uniform layers short-circuit to identical work). For the **same accuracy** the
+normal-vector method is far cheaper because it converges at much lower `n_orders` —
+and on curved boundaries it reaches an answer the separable rule never will.
 
 ### Properties
 

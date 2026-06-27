@@ -224,15 +224,16 @@ def layer_modes(ERC: np.ndarray, Kx: np.ndarray, Ky: np.ndarray,
     # the Q blocks are diagonal -- avoid the dense O(N^3) matmuls.
     # NB: because Omega^2 = P @ Q cross-routes the blocks, the Ex (TM) mode is
     # governed by the operator in Q's (1,0) slot and Ey by the (0,1) slot -- so
-    # eps_xx (=Exx) goes in (1,0) and eps_yy (=Eyy) in (0,1).  The permittivity
-    # part of Q is J @ eps_tensor (J = 90deg rotation), so the off-diagonal
-    # eps_yx/eps_xy enter the (0,0)/(1,1) blocks.
+    # eps_xx (=Exx) goes in (1,0) and eps_yy (=Eyy) in (0,1).  The off-diagonal
+    # eps_yx/eps_xy enter the (0,0)/(1,1) blocks; the sign is set by Ikarus's
+    # engineering exp(+jwt) / conjugated-permittivity convention (validated to match
+    # FMMax's normal-vector formulation on a curved high-contrast cylinder).
     Q00 = np.diag(kxc * kyr)
     Q11 = -np.diag(kyr * kxc)
     if Eyx is not None:
-        Q00 = Q00 + Eyx
+        Q00 = Q00 - Eyx
     if Exy is not None:
-        Q11 = Q11 - Exy
+        Q11 = Q11 + Exy
     P = _block(kx * Einv * ky, I - kx * Einv * kx.T,
                (ky.T * Einv * ky) - I, -ky.T * Einv * kx.T)
     Q = _block(Q00, Eyy - np.diag(kxc * kxc),
@@ -409,6 +410,9 @@ def _inplane_operators(eps_grid_eng: np.ndarray, ERC: np.ndarray,
                        grid: HarmonicGrid, factorization: str):
     r"""In-plane permittivity tensor operators ``(Exx, Eyy, Exy, Eyx)`` for ``Q``.
 
+    ``auto`` (the default) -> ``normal`` for every patterned layer (it reduces to
+    ``li`` on axis-aligned geometry, so it is never less accurate).
+
     ``laurent`` -> all ``None`` (``layer_modes`` then uses ``ERC = <<eps>>``).
 
     ``li`` -> Li's two-step inverse rule (:func:`_mixed_convolution`): diagonal
@@ -425,9 +429,13 @@ def _inplane_operators(eps_grid_eng: np.ndarray, ERC: np.ndarray,
     """
     if factorization == "laurent":
         return None, None, None, None
+    # "auto" applies the normal-vector method everywhere (it reduces to "li" on
+    # axis-aligned geometry, so it is never worse and much better on curved ones).
+    if factorization == "auto":
+        factorization = "normal"
     if factorization not in ("li", "normal"):
         raise ValueError(f"unknown factorization {factorization!r} "
-                         "(expected 'laurent', 'li' or 'normal')")
+                         "(expected 'auto', 'laurent', 'li' or 'normal')")
     ge = np.asarray(eps_grid_eng)
     # Uniform layer: <<1/eps>>^{-1} == <<eps>>, so all rules coincide.
     if np.ptp(ge.real) < 1e-12 and np.ptp(ge.imag) < 1e-12:
@@ -455,7 +463,7 @@ def solve_stack(
     period_y: float,
     wavelength: float,
     polarization_xy: tuple[complex, complex],
-    factorization: str = "li",
+    factorization: str = "auto",
 ) -> FieldSolution:
     """Solve a layered stack and return outgoing fields + efficiencies.
 

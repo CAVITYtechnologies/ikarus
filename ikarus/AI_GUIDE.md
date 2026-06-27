@@ -50,7 +50,17 @@ are not RCWA's domain.
 7. **Energy balance is the universal smoke test.** `R_total + T_total` (`result.energy_balance`):
    `≈1` lossless & converged; `<1` absorption (physics); slightly `>1`
    unconverged → raise `n_orders`; wildly `>1` numerical breakdown → *lower*
-   `n_orders` or raise `resolution`.
+   `n_orders` or raise `resolution`. Note the default factorization (`"auto"`, the
+   normal-vector method) is not strictly energy-conserving at *finite* order — a
+   small `>1` imbalance on curved/oblique structures is normal and shrinks to 0 as
+   `n_orders` grows; it is a *more* honest convergence signal than the classic
+   inverse rule, which can report `R_total+T_total==1` while still being a percent
+   off the true answer on curved boundaries.
+8. **Factorization is automatic — don't set it.** The default `factorization="auto"`
+   applies the normal-vector (Fast Fourier Factorization) method to every patterned
+   layer: full accuracy on curved/oblique high-contrast boundaries, reducing exactly
+   to the classic inverse rule on axis-aligned geometry. Users never need to choose.
+   `"li"`, `"laurent"`, `"normal"` remain as explicit overrides for benchmarking.
 
 ## Minimal forward simulation
 

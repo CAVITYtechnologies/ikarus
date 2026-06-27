@@ -32,9 +32,9 @@
     Start 8–12 for dielectric metasurfaces, more for metals/TM, then run the
     [convergence ritual](tutorials/parameter-sweeps.md#convergence-study) — or
     let `simulate(auto_converge="once")` decide. Cost is \(\mathcal{O}(M^6)\)
-    in 2-D, so don't dial it up "to be safe". The default **Li factorization**
-    keeps even high-contrast TM converging at modest `M`
-    ([RCWA → Factorization](api/rcwa.md#factorization)).
+    in 2-D, so don't dial it up "to be safe". The default **normal-vector
+    factorization** keeps even high-contrast TM and curved boundaries converging at
+    modest `M` ([RCWA → Factorization](api/rcwa.md#factorization)).
 
 ??? question "6 · `resolution` vs. `n_orders` — what's the difference?"
     `resolution` *draws* the geometry (real-space pixels); `n_orders` *resolves*
@@ -48,11 +48,13 @@
     `n_orders` or raise `resolution`. Ikarus warns on (b) and (c)
     automatically.
 
-    **But beware the converse:** `R+T ≈ 1` does **not** prove convergence. A
-    lossless structure conserves energy at *every* `n_orders`, even while `R` and
-    the phase are still drifting — exactly the trap high-contrast TM sets. Always
-    confirm `R`/phase have stopped moving with `n_orders`; the default
-    [Li factorization](api/rcwa.md#factorization) makes that happen fast.
+    **But beware the converse:** `R+T ≈ 1` does **not** prove convergence. With the
+    separable rules a lossless structure conserves energy at *every* `n_orders`, even
+    while `R` and the phase are still drifting — exactly the trap high-contrast TM
+    sets. The default [normal-vector factorization](api/rcwa.md#factorization)
+    converges fast *and* makes `energy_balance` itself a more honest signal (it
+    deviates slightly until converged on curved layers). Always confirm `R`/phase
+    have stopped moving with `n_orders`.
 
 ??? question "8 · How do I get just the specular order?"
     `result.T_orders[result.order_index(0, 0)]` (same for `R_orders`).
