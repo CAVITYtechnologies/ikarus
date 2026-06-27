@@ -1,0 +1,69 @@
+name: Publish to PyPI
+
+# Build and publish the package to PyPI when a version tag (vX.Y.Z) is pushed.
+#
+# Authentication is via PyPI "Trusted Publishing" (OIDC) -- there is NO API token
+# stored anywhere. One-time setup on PyPI (project ikarus-rcwa -> Manage ->
+# Publishing -> Add a trusted publisher):
+#   Owner:        CAVITYtechnologies
+#   Repository:   ikarus
+#   Workflow:     publish.yml
+#   Environment:  pypi
+#
+# Release flow:  bump the version (pyproject.toml + ikarus/__init__.py), commit,
+#   then  `git tag v0.8.0 && git push origin v0.8.0`.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:        # allow a manual run from the Actions tab
+
+jobs:
+  build:
+    name: Build distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify the tag matches the package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          echo "git tag = $TAG | package version = $PKG"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::tag v$TAG does not match pyproject version $PKG -- bump the version before tagging"
+            exit 1
+          fi
+
+      - name: Build wheel and sdist
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build
+          python -m twine check dist/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/ikarus-rcwa
+    permissions:
+      id-token: write       # REQUIRED for trusted publishing (OIDC); no token used
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
