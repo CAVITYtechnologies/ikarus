@@ -17,15 +17,31 @@ double-angle orientation diffusion) are **validated**: the field is unit-magnitu
 and correctly azimuthal on a circle, the tensor reduces to ``li`` exactly for
 axis-aligned geometry, and ``normal`` reduces to ``li`` exactly for 1-D.
 
-REMAINING GAP (the eigenproblem integration): feeding the full tensor (incl.
-off-diagonal) into Ikarus's Rumpf ``Q`` (``solver.layer_modes``) only *partially*
-captures its effect, so curved high-contrast layers are improved but not fully
-accelerated to match FMMax ``Formulation.NORMAL`` (cylinder: ``normal`` ~0.92 at
-``M=16`` vs FMMax ~0.939 fast).  FMMax left-multiplies the transverse-permittivity
-tensor onto the script-k matrix (Liu 2012 eq. 28: ``matrix = E2 @ omega_script_k
-- k_matrix``), a different structure than Rumpf ``P@Q``.  The robust fix is to
-mirror that eigenproblem for ``factorization="normal"`` patterned layers.
-See ``~/Desktop/ikarus_metamirror/fmmax_validation/``.
+REMAINING GAP (the eigenproblem integration -- the hard research kernel):
+feeding the full tensor into Ikarus's Rumpf ``Q`` (``solver.layer_modes``) gives
+the right *converged limit* but **not** the FFF *acceleration*: on a curved
+high-contrast cylinder ``normal`` tracks ``li`` (~0.92 at ``M=16``, slow) while
+FMMax ``Formulation.NORMAL`` converges fast to ~0.939.
+
+Established by exhaustive testing (see ``~/Desktop/ikarus_metamirror/fmmax_validation/``):
+  - The tangent field is correct (azimuthal/unit on a circle; reduces ``normal`` to
+    ``li`` exactly for 1-D).  Injecting FMMax's *own* field changes nothing (~0.915),
+    so the field is not the issue.
+  - The FFF acceleration is **specific to the Liu-2012 eigenproblem**
+    (``matrix = E2 @ omega_script_k - k_matrix``), where the FFF permittivity
+    *left-multiplies* the script-k operator.  Ikarus's Rumpf ``P@Q`` adds the
+    permittivity to wavevector terms instead -- a different algebraic structure
+    that does not deliver the same finite-truncation convergence.
+
+The robust fix is to implement the Liu-2012 layer eigensolve for
+``factorization="normal"`` patterned layers (build ``M``, eigendecompose, and map
+its eigenvectors to electric/magnetic modes ``W``/``V`` for Ikarus's S-matrix).
+That eigenvector-convention mapping (Liu's H-field vs Ikarus's Rumpf modes, plus
+the differing harmonic orderings) is the remaining, research-grade work -- and
+Ikarus has no raw-eigenvalue oracle for it (it is validated only through R/T), so
+it must be ported and validated end-to-end against FMMax.  Do NOT enable
+``factorization="normal"`` until that lands; the architecture (tensor + field)
+below is correct and reusable.
 """
 
 from __future__ import annotations
