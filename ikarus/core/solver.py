@@ -192,7 +192,8 @@ def _regularize_grazing(lam: np.ndarray, eps: float = 1e-7) -> np.ndarray:
 
 
 def layer_modes(ERC: np.ndarray, Kx: np.ndarray, Ky: np.ndarray,
-                Exx: np.ndarray = None, Eyy: np.ndarray = None
+                Exx: np.ndarray = None, Eyy: np.ndarray = None,
+                Exy: np.ndarray = None, Eyx: np.ndarray = None
                 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     r"""Eigenmodes ``(W, V, lam)`` of a layer with permittivity conv. matrix ERC.
 
@@ -201,12 +202,13 @@ def layer_modes(ERC: np.ndarray, Kx: np.ndarray, Ky: np.ndarray,
     eigenvectors ``V`` and the 1-D array of modal eigenvalues ``lam`` (with
     ``Re(lam) >= 0`` so ``exp(-lam k0 L)`` is bounded for forward modes).
 
-    ``Exx``/``Eyy`` are the in-plane permittivity operators that enter the ``Q``
-    matrix.  They default to ``ERC`` (Laurent's direct rule).  Li's inverse rule
-    passes ``inv(<<1/eps>>)`` for the component whose in-plane E-field is
-    *discontinuous* across the boundary (normal to it), restoring fast
-    convergence for high-contrast / TM problems.  ``ERC`` (hence ``Einv``) still
-    supplies the longitudinal ``eps_zz`` term in ``P``, which is correct as-is.
+    ``Exx``/``Eyy``/``Exy``/``Eyx`` are the in-plane permittivity **tensor**
+    operators in the ``Q`` matrix.  All default to ``ERC`` (diagonal) / ``0``
+    (off-diagonal) -- i.e. Laurent's direct rule.  Li's inverse rule supplies
+    diagonal ``Exx``/``Eyy`` (separable); the **normal-vector method** additionally
+    supplies the off-diagonal ``Exy``/``Eyx`` so the inverse rule follows the true
+    boundary normal (curved/oblique edges).  ``ERC`` (hence ``Einv``) still
+    supplies the longitudinal ``eps_zz`` term in ``P``, correct as-is.
     """
     p = Kx.shape[0]
     I = np.eye(p, dtype=complex)
@@ -222,11 +224,20 @@ def layer_modes(ERC: np.ndarray, Kx: np.ndarray, Ky: np.ndarray,
     # the Q blocks are diagonal -- avoid the dense O(N^3) matmuls.
     # NB: because Omega^2 = P @ Q cross-routes the blocks, the Ex (TM) mode is
     # governed by the operator in Q's (1,0) slot and Ey by the (0,1) slot -- so
-    # eps_xx (=Exx) goes in (1,0) and eps_yy (=Eyy) in (0,1).
+    # eps_xx (=Exx) goes in (1,0) and eps_yy (=Eyy) in (0,1).  The off-diagonal
+    # eps_yx/eps_xy enter the (0,0)/(1,1) blocks; the sign is set by Ikarus's
+    # engineering exp(+jwt) / conjugated-permittivity convention (validated to match
+    # FMMax's normal-vector formulation on a curved high-contrast cylinder).
+    Q00 = np.diag(kxc * kyr)
+    Q11 = -np.diag(kyr * kxc)
+    if Eyx is not None:
+        Q00 = Q00 - Eyx
+    if Exy is not None:
+        Q11 = Q11 + Exy
     P = _block(kx * Einv * ky, I - kx * Einv * kx.T,
                (ky.T * Einv * ky) - I, -ky.T * Einv * kx.T)
-    Q = _block(np.diag(kxc * kyr), Eyy - np.diag(kxc * kxc),
-               np.diag(kyr * kyr) - Exx, -np.diag(kyr * kxc))
+    Q = _block(Q00, Eyy - np.diag(kxc * kxc),
+               np.diag(kyr * kyr) - Exx, Q11)
 
     omega2 = P @ Q
     eigvals, W = _sla.eig(omega2, overwrite_a=True, check_finite=False)
@@ -243,15 +254,17 @@ def layer_smatrix(
     V0: np.ndarray,
     Exx: np.ndarray = None,
     Eyy: np.ndarray = None,
+    Exy: np.ndarray = None,
+    Eyx: np.ndarray = None,
 ) -> tuple[SMatrix, LayerModes]:
     """Scattering matrix of a single finite layer, referenced to the gap medium.
 
     The gap electric modes ``W0`` are the identity, so ``W^{-1} W0 = W^{-1}``.
     The phase matrix ``X = exp(-lam k0 L)`` is diagonal and applied as a
-    row-broadcast rather than a dense matmul.  ``Exx``/``Eyy`` select the Fourier
-    factorization rule (see :func:`layer_modes`).
+    row-broadcast rather than a dense matmul.  ``Exx``/``Eyy``/``Exy``/``Eyx``
+    select the Fourier factorization rule (see :func:`layer_modes`).
     """
-    W, V, lam = layer_modes(ERC, Kx, Ky, Exx, Eyy)
+    W, V, lam = layer_modes(ERC, Kx, Ky, Exx, Eyy, Exy, Eyx)
 
     Winv = _inv(W)
     VinvV0 = _inv(V) @ V0
@@ -395,29 +408,47 @@ def _mixed_convolution(eps_grid_eng: np.ndarray, grid: HarmonicGrid, axis: str):
 
 def _inplane_operators(eps_grid_eng: np.ndarray, ERC: np.ndarray,
                        grid: HarmonicGrid, factorization: str):
-    r"""In-plane permittivity operators ``(Exx, Eyy)`` for the ``Q`` matrix.
+    r"""In-plane permittivity tensor operators ``(Exx, Eyy, Exy, Eyx)`` for ``Q``.
 
-    ``laurent`` -> ``(None, None)`` (``layer_modes`` then uses ``ERC = <<eps>>``).
+    ``auto`` (the default) -> ``normal`` for every patterned layer (it reduces to
+    ``li`` on axis-aligned geometry, so it is never less accurate).
 
-    ``li`` -> Li's inverse rule via the two-step factorization
-    (:func:`_mixed_convolution`): ``Exx`` inverts ``<<1/eps>>`` across ``x``
-    (where ``E_x`` is discontinuous) and ``Eyy`` across ``y``.  This restores fast
-    convergence for high-contrast / TM problems and handles 1-D and axis-aligned
-    2-D gratings; a uniform layer (no discontinuity) returns ``(None, None)``.
+    ``laurent`` -> all ``None`` (``layer_modes`` then uses ``ERC = <<eps>>``).
 
-    ``eps_grid_eng`` is the engineering-convention permittivity grid (already
-    conjugated and anomaly-regularized), so ``1/eps`` is taken consistently here.
+    ``li`` -> Li's two-step inverse rule (:func:`_mixed_convolution`): diagonal
+    ``Exx``/``Eyy`` apply the inverse rule across x / y; exact for 1-D and
+    axis-aligned 2-D, off-diagonal ``None``.
+
+    ``normal`` -> the **normal-vector method**: a tangent field follows the true
+    boundary normal everywhere, giving the full in-plane tensor
+    (:func:`ikarus.core._normalvector.inplane_tensor`) -- the off-diagonal
+    ``Exy``/``Eyx`` are what curved/oblique high-contrast boundaries need.  Reduces
+    to ``li`` on axis-aligned geometry.
+
+    A uniform layer (no discontinuity) returns all ``None`` either way.
     """
     if factorization == "laurent":
-        return None, None
-    if factorization != "li":
+        return None, None, None, None
+    # "auto" applies the normal-vector method everywhere (it reduces to "li" on
+    # axis-aligned geometry, so it is never worse and much better on curved ones).
+    if factorization == "auto":
+        factorization = "normal"
+    if factorization not in ("li", "normal"):
         raise ValueError(f"unknown factorization {factorization!r} "
-                         "(expected 'laurent' or 'li')")
+                         "(expected 'auto', 'laurent', 'li' or 'normal')")
     ge = np.asarray(eps_grid_eng)
-    # Uniform layer: <<1/eps>>^{-1} == <<eps>>, so Li and Laurent coincide.
+    # Uniform layer: <<1/eps>>^{-1} == <<eps>>, so all rules coincide.
     if np.ptp(ge.real) < 1e-12 and np.ptp(ge.imag) < 1e-12:
-        return None, None
-    return _mixed_convolution(ge, grid, "x"), _mixed_convolution(ge, grid, "y")
+        return None, None, None, None
+    if factorization == "li":
+        return (_mixed_convolution(ge, grid, "x"),
+                _mixed_convolution(ge, grid, "y"), None, None)
+    # normal-vector method: full tensor from the boundary normal field.
+    from ._normalvector import tangent_field, inplane_tensor
+    tx, ty = tangent_field(ge)
+    E00, E01, E10, E11 = inplane_tensor(ge, tx, ty, grid)
+    # Mapping (see _normalvector): E00 = eps_yy, E11 = eps_xx, E01 = eps_yx, E10 = eps_xy.
+    return E11, E00, E10, E01    # (Exx, Eyy, Exy, Eyx)
 
 
 def solve_stack(
@@ -432,7 +463,7 @@ def solve_stack(
     period_y: float,
     wavelength: float,
     polarization_xy: tuple[complex, complex],
-    factorization: str = "li",
+    factorization: str = "auto",
 ) -> FieldSolution:
     """Solve a layered stack and return outgoing fields + efficiencies.
 
@@ -480,8 +511,8 @@ def solve_stack(
     S = S_ref
     modes: list[LayerModes] = []
     layer_smats: list[SMatrix] = []
-    for ERC, (Exx, Eyy), h in zip(erc_list, inplane_list, heights):
-        S_layer, lm = layer_smatrix(ERC, Kx, Ky, k0 * h, V0, Exx, Eyy)
+    for ERC, (Exx, Eyy, Exy, Eyx), h in zip(erc_list, inplane_list, heights):
+        S_layer, lm = layer_smatrix(ERC, Kx, Ky, k0 * h, V0, Exx, Eyy, Exy, Eyx)
         modes.append(lm)
         layer_smats.append(S_layer)
         S = redheffer_star(S, S_layer)

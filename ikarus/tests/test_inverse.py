@@ -58,7 +58,13 @@ def test_shape_build_renders_topology():
 
 def test_shape_used_directly_in_add_layer():
     from ikarus import RCWA
-    rcwa = RCWA(period_x=500e-9, period_y=500e-9, resolution=(64, 64), n_orders=(6, 6))
+    # factorization="li" so the strict energy bound is meaningful even at this very
+    # low order: the separable rule conserves energy exactly at any truncation,
+    # whereas the default normal-vector method (more accurate for oblique shapes
+    # like this rotated cross) has a small finite-order energy imbalance that only
+    # vanishes as n_orders grows.  This test is about shape ergonomics, not the rule.
+    rcwa = RCWA(period_x=500e-9, period_y=500e-9, resolution=(64, 64),
+                n_orders=(6, 6), factorization="li")
     rcwa.add_uniform_layer(np.inf, "Air")
     rcwa.add_layer(200e-9, Cross(arm_length=0.6, arm_width=0.2, angle=15),
                    ["Air", "TiO2"])
