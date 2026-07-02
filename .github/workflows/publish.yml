@@ -20,8 +20,27 @@ on:
   workflow_dispatch:        # allow a manual run from the Actions tab
 
 jobs:
+  test:
+    name: Run test suite
+    runs-on: ubuntu-latest
+    env:
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install package with dev extras
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Run test suite
+        run: python -m pytest ikarus/tests/ -q
+
   build:
     name: Build distribution
+    needs: test        # never publish from a red suite
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
