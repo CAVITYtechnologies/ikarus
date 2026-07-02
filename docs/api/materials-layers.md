@@ -149,6 +149,45 @@ default_library.available()
 default_library.get("Si", 1.55e-6)   # complex index at 1550 nm
 ```
 
+## Anisotropic (birefringent) materials { #anisotropic }
+
+Anywhere the API accepts a material you may pass an **anisotropic** one:
+
+```python
+from ikarus import RCWA, AnisotropicMaterial, uniaxial
+
+rcwa.add_uniform_layer(700e-9, (1.9, 2.4, 2.4))          # (n_x, n_y, n_z) tuple
+rcwa.add_uniform_layer(700e-9, uniaxial(1.9, 2.4, axis="z"))    # a c-plate
+rcwa.add_uniform_layer(700e-9, uniaxial(1.9, 2.4, axis=45.0))   # wave plate at 45°
+rcwa.add_layer(500e-9, mask, ["Air", (2.0, 2.3, 2.2)])   # patterned birefringence
+```
+
+- **`(n_x, n_y, n_z)` tuple** — a diagonal tensor. Each element is itself any
+  scalar material spec (a name, number, or `Material`), so **dispersive
+  anisotropy** (e.g. tabulated ordinary/extraordinary indices) works.
+- **`AnisotropicMaterial(n_x, n_y, n_z, angle=0.0)`** — the underlying class;
+  `angle` (degrees) rotates the principal axes in the x-y plane, producing the
+  \(\varepsilon_{xy}=\varepsilon_{yx}\) off-diagonal tensor components.
+- **`uniaxial(n_o, n_e, axis="z")`** — the ordinary/extraordinary shorthand.
+  `axis` is `"z"` (c-plate), `"x"`/`"y"` (a-plate), or an in-plane angle in
+  degrees.
+
+Anisotropic materials work in **uniform and patterned layers** at every
+factorization; patterned layers may freely mix isotropic and anisotropic
+constituents. `(n, n, n)` reduces *exactly* to the plain scalar material.
+
+**Scope.** The permittivity tensor is \([[\varepsilon_{xx}, \varepsilon_{xy}, 0],
+[\varepsilon_{yx}, \varepsilon_{yy}, 0], [0, 0, \varepsilon_{zz}]]\): any
+in-plane optic-axis orientation plus a distinct z response. Tilted-optic-axis
+media (\(\varepsilon_{xz}/\varepsilon_{yz}\)) and magneto-optic gyrotropy
+(\(\varepsilon_{xy} \neq \varepsilon_{yx}\)) are not supported, and the
+**cover and substrate must be isotropic** (a `ValueError` says so).
+
+!!! tip "Which axis does my polarization see?"
+    At normal incidence `linear_pol_angle=0` is E along **y** (it sees
+    \(\varepsilon_{yy}\)); `90` is E along **x** (\(\varepsilon_{xx}\)). Only
+    oblique-incidence TM light feels \(\varepsilon_{zz}\).
+
 ## Examples
 
 ```python

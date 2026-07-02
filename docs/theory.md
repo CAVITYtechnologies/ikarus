@@ -249,7 +249,11 @@ nothing and patterned layers cost one eigensolve each.
     diffusion and assembles the tensor in `_normalvector.py`; on axis-aligned
     geometry the field is constant and it collapses **exactly** back to `"li"`.
     This is the default, validated against FMMax's `Formulation.NORMAL` to
-    \(\le 2\times10^{-3}\) on cylinders, rings, ellipses and rotated shapes. One
+    \(\le 2\times10^{-3}\) on cylinders, rings, ellipses and rotated shapes.
+    For **anisotropic** patterned layers the same idea is applied via the rotated
+    form of Liu & Fan eq. 45: the in-plane tensor is rotated pointwise into local
+    (tangent, normal) coordinates, factorized there (inverse rule on the
+    normal-normal entry, Laurent elsewhere), and rotated back in Fourier space. One
     caveat: the tensor formulation is not strictly energy-conserving at *finite*
     order, so `energy_balance` shows a small deviation that shrinks to 0 with
     convergence — a more honest signal than the separable rule, which can report
@@ -375,7 +379,7 @@ Ikarus's own validation reproduces:
 - **TE and gentle structures**: fast convergence, \(M \sim 8\!-\!12\) often suffices.
 - **TM, high contrast, metals**: historically slow — the normal \(D\)-field is
   discontinuous at boundaries and a directly-factorized series rings (Gibbs). The
-  default [normal-vector factorization](#factorization) removes that error along the
+  default [normal-vector factorization](api/rcwa.md#factorization) removes that error along the
   true local boundary normal, so these now converge at \(M \sim 8\!-\!15\) instead
   of \(30+\) — including on **curved/oblique** boundaries where the older separable
   rule stays biased. Pass `factorization="laurent"` to see the old slow behaviour.
@@ -405,7 +409,7 @@ but the practical method — and this implementation — has edges:
 |---|---|
 | **Staircase approximation** | Curved/slanted sidewalls are pixelated; approximate slopes by slicing into several thin layers. |
 | **Curved-boundary factorization** | Handled: the default *normal-vector* method (Fast Fourier Factorization) applies the inverse rule along the true local boundary normal, so curved/oblique high-contrast in-plane boundaries converge correctly (validated against FMMax). It is not strictly energy-conserving at finite order — a small `energy_balance` deviation that vanishes with `n_orders`. |
-| **Isotropic media only** | Full 3×3 permittivity tensors are on the roadmap, not in the code. |
+| **Anisotropy: in-plane + z only** | Birefringent media are supported as `[[eps_xx, eps_xy, 0], [eps_yx, eps_yy, 0], [0, 0, eps_zz]]` — any in-plane optic axis plus a distinct z response (wave plates, c-plates, patterned birefringence). *Tilted*-optic-axis media (`eps_xz`/`eps_yz`) and magneto-optic gyrotropy are not supported; the cover and substrate must be isotropic. |
 | **Strict periodicity** | Isolated objects need a padded supercell. |
 | **One frequency per solve** | Broadband = sweep wavelengths. No time-domain output. |
 | **CPU only** | No GPU backend; see [Need for Speed](performance.md) for what to do instead. |

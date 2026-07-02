@@ -119,3 +119,55 @@ def inplane_tensor(eps_grid_eng: np.ndarray, tx: np.ndarray, ty: np.ndarray,
     E10 = -delta @ cm(Pxy)
     E11 = eps_hat - delta @ cm(Pxx)
     return E00, E01, E10, E11
+
+
+def inplane_tensor_anisotropic(exx, exy, eyx, eyy, tx, ty, grid: HarmonicGrid):
+    r"""Normal-vector in-plane operators for an **anisotropic** permittivity tensor.
+
+    Implements the rotated-coordinates construction of Liu & Fan (2012) eq. 45
+    (mirroring FMMax ``transverse_permittivity_vector_anisotropic``): the in-plane
+    tensor is rotated pointwise into local (tangent, normal) coordinates set by
+    the boundary field ``(tx, ty)``, factorized there -- Laurent's rule for the
+    tangential and off-diagonal entries, the inverse rule for the normal-normal
+    entry -- and rotated back with Fourier-space rotation operators.
+
+    Inputs are the engineering-convention component grids; returns the Ikarus
+    ``(Exx, Eyy, Exy, Eyx)`` convolution operators for ``layer_modes``.
+    """
+    cm = lambda f: convolution_matrix(np.asarray(f, dtype=complex), grid)
+    P = grid.size
+
+    # Rotation T with T [E_t, E_n]^T = [-E_y, E_x]^T (FMMax's basis).
+    t00, t01, t10, t11 = ty, np.conj(tx), -tx, np.conj(ty)
+    det = np.abs(t00 * t11 - t10 * t01)          # == |tx|^2 + |ty|^2 (unit field: 1)
+    det = np.where(np.isclose(det, 0.0), 1.0, det)
+
+    # Pointwise rotated tensor  rot = T^{-1} @ [[eyy, -eyx], [-exy, exx]] @ T.
+    a00 = eyy * t00 - eyx * t10
+    a01 = eyy * t01 - eyx * t11
+    a10 = -exy * t00 + exx * t10
+    a11 = -exy * t01 + exx * t11
+    r00 = (t11 * a00 - t01 * a10) / det
+    r01 = (t11 * a01 - t01 * a11) / det
+    r10 = (-t10 * a00 + t00 * a10) / det
+    r11 = (-t10 * a01 + t00 * a11) / det
+
+    # Factorize in the rotated frame: Laurent everywhere except the normal-normal
+    # entry, which takes the inverse rule (the D-component that jumps).
+    M = np.block([[cm(r00), cm(r01)],
+                  [cm(r10), np.linalg.inv(cm(1.0 / r11))]])
+
+    # Fourier-space rotation back to (x, y).
+    F = np.block([[cm(t00), cm(t01)],
+                  [cm(t10), cm(t11)]])
+    Finv = np.block([[cm(t11 / det), cm(-t01 / det)],
+                     [cm(-t10 / det), cm(t00 / det)]])
+    E2 = F @ M @ Finv
+
+    # E2 relates [-D_y, D_x] = E2 [-E_y, E_x]; translate to Ikarus's blocks:
+    #   eps_yy = E2[0,0], eps_yx = -E2[0,1], eps_xy = -E2[1,0], eps_xx = E2[1,1].
+    Eyy = E2[:P, :P]
+    Eyx = -E2[:P, P:]
+    Exy = -E2[P:, :P]
+    Exx = E2[P:, P:]
+    return Exx, Eyy, Exy, Eyx

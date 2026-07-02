@@ -125,6 +125,70 @@ class Material:
         return eps
 
 
+@dataclass
+class AnisotropicMaterial:
+    """An anisotropic (birefringent) material: a permittivity *tensor*.
+
+    The three principal refractive indices are ordinary material specifiers
+    (a name like ``'SiO2'``, a number, or a :class:`Material`), so **dispersive
+    anisotropy** works out of the box -- e.g. tabulated ordinary/extraordinary
+    indices of calcite.  ``angle`` (degrees) rotates the principal axes in the
+    x-y plane, which produces the off-diagonal ``eps_xy = eps_yx`` tensor
+    components; this is how wave plates at arbitrary orientation are built.
+
+    Scope: the permittivity tensor is ``[[eps_xx, eps_xy, 0], [eps_yx, eps_yy, 0],
+    [0, 0, eps_zz]]`` -- any in-plane orientation plus a distinct z response.
+    Tilted-optic-axis media (``eps_xz``/``eps_yz``) and magneto-optic gyrotropy
+    (``eps_xy != eps_yx``) are out of scope.
+
+    Anywhere Ikarus accepts a material you may equivalently pass a plain
+    ``(n_x, n_y, n_z)`` tuple, or use :func:`uniaxial` for the common
+    ordinary/extraordinary parametrization.
+    """
+
+    n_x: object
+    n_y: object
+    n_z: object
+    angle: float = 0.0          # in-plane rotation of the principal axes (deg)
+    name: str = "anisotropic"
+
+    def permittivity_tensor(
+        self, wavelength: float, library: "MaterialLibrary",
+    ) -> tuple[complex, complex, complex, complex, complex]:
+        """Tensor components ``(eps_xx, eps_xy, eps_yx, eps_yy, eps_zz)``."""
+        e1 = library.permittivity(self.n_x, wavelength)   # principal, pre-rotation
+        e2 = library.permittivity(self.n_y, wavelength)
+        ezz = library.permittivity(self.n_z, wavelength)
+        phi = np.deg2rad(self.angle)
+        c, s = np.cos(phi), np.sin(phi)
+        exx = e1 * c * c + e2 * s * s
+        eyy = e1 * s * s + e2 * c * c
+        exy = (e1 - e2) * s * c                            # reciprocal: eps_xy == eps_yx
+        return exx, exy, exy, eyy, ezz
+
+
+def uniaxial(n_o, n_e, axis: str | float = "z", name: str = "uniaxial") -> AnisotropicMaterial:
+    """Convenience constructor for a uniaxial (birefringent) material.
+
+    ``n_o``/``n_e`` are the ordinary/extraordinary indices (any material spec --
+    a name, a number, or a :class:`Material`, so dispersion is supported).
+    ``axis`` sets the optic (extraordinary) axis:
+
+    * ``"z"`` (default) -- a *c-plate*: isotropic in-plane, distinct z response.
+    * ``"x"`` / ``"y"`` -- an *a-plate*: wave-plate behaviour at normal incidence.
+    * a number (degrees) -- optic axis in the x-y plane at that angle from x.
+    """
+    if axis == "z":
+        return AnisotropicMaterial(n_o, n_o, n_e, name=name)
+    if axis == "x":
+        return AnisotropicMaterial(n_e, n_o, n_o, name=name)
+    if axis == "y":
+        return AnisotropicMaterial(n_o, n_e, n_o, name=name)
+    if isinstance(axis, (int, float)) and not isinstance(axis, bool):
+        return AnisotropicMaterial(n_e, n_o, n_o, angle=float(axis), name=name)
+    raise ValueError(f"axis must be 'x', 'y', 'z' or an in-plane angle in degrees, got {axis!r}")
+
+
 class MaterialLibrary:
     """Lazy-loading registry of named materials.
 
@@ -132,7 +196,9 @@ class MaterialLibrary:
 
     * a ``str`` naming a database entry (``'Si'``) or a JSON file path,
     * a ``Material`` instance,
-    * a number -> constant index.
+    * a number -> constant index,
+    * an :class:`AnisotropicMaterial` or a plain ``(n_x, n_y, n_z)`` tuple
+      -> anisotropic (tensor) material.
     """
 
     def __init__(self, db_dir: str | Path = _DB_DIR):
@@ -150,8 +216,43 @@ class MaterialLibrary:
     def register(self, material: Material) -> None:
         self._cache[material.name] = material
 
+    # -- anisotropy ---------------------------------------------------------
+    @staticmethod
+    def _coerce_anisotropic(spec) -> "AnisotropicMaterial | None":
+        """Return an :class:`AnisotropicMaterial` if ``spec`` denotes one, else None.
+
+        A plain 3-element tuple/list of scalar specs is shorthand for a diagonal
+        tensor ``(n_x, n_y, n_z)``.
+        """
+        if isinstance(spec, AnisotropicMaterial):
+            return spec
+        if isinstance(spec, (tuple, list)) and len(spec) == 3:
+            return AnisotropicMaterial(*spec)
+        return None
+
+    def is_anisotropic(self, spec) -> bool:
+        return self._coerce_anisotropic(spec) is not None
+
+    def permittivity_tensor(
+        self, spec, wavelength: float,
+    ) -> tuple[complex, complex, complex, complex, complex]:
+        """Tensor components ``(eps_xx, eps_xy, eps_yx, eps_yy, eps_zz)`` of any
+        material spec.  Isotropic specs return the scalar on the diagonal."""
+        aniso = self._coerce_anisotropic(spec)
+        if aniso is not None:
+            return aniso.permittivity_tensor(wavelength, self)
+        eps = self.permittivity(spec, wavelength)
+        return eps, 0.0 + 0.0j, 0.0 + 0.0j, eps, eps
+
     def resolve(self, spec) -> Material:
         """Turn any accepted material specifier into a :class:`Material`."""
+        if isinstance(spec, AnisotropicMaterial) or (
+            isinstance(spec, (tuple, list)) and len(spec) == 3
+        ):
+            raise TypeError(
+                "anisotropic material used where a scalar (isotropic) material is "
+                "required -- use permittivity_tensor() for anisotropic specs"
+            )
         if isinstance(spec, Material):
             return spec
         if isinstance(spec, (int, float, complex)):

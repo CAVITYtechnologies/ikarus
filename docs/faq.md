@@ -13,7 +13,7 @@
 
 ??? question "2 · And what is *not* a good fit?"
     Isolated (non-periodic) scatterers, continuously-varying-in-z topographies
-    that resist layer slicing, time-domain/pulse physics, and full anisotropy.
+    that resist layer slicing, and time-domain/pulse physics.
     Not Ikarus's fault — not RCWA's domain
     ([Theory → Limitations](theory.md#limitations-of-rcwa)).
 
@@ -119,7 +119,13 @@
     other black-box optimizer.
 
 ??? question "19 · Anisotropic materials?"
-    Not yet — isotropic only. Full 3×3 tensors are on the roadmap.
+    Yes. Pass `(n_x, n_y, n_z)` anywhere a material goes, or use
+    `ikarus.uniaxial(n_o, n_e, axis=...)` for wave plates and c-plates at any
+    in-plane optic-axis angle — in uniform *and* patterned layers, with
+    dispersive components. Scope: the in-plane tensor plus a distinct z
+    response (`eps_xz`/`eps_yz` tilted-axis media and magneto-optic gyrotropy
+    are not supported). The cover and substrate must stay isotropic.
+    See [Materials → Anisotropic](api/materials-layers.md#anisotropic).
 
 ??? question "20 · How do I look at the near field?"
     `rcwa.get_fields(plane="xz"|"yz"|"xy", ...)` →
