@@ -90,7 +90,41 @@ class Layer:
         """Scalar permittivity of a uniform layer (raises if patterned)."""
         if not self.is_uniform:
             raise ValueError("layer is patterned, no single permittivity")
+        if library.is_anisotropic(self.material):
+            raise ValueError(
+                "the cover and substrate (semi-infinite) layers must be isotropic; "
+                "anisotropic materials are supported in the interior layers"
+            )
         return library.permittivity(self.material, wavelength)
+
+    # -- anisotropy ----------------------------------------------------------
+    def is_anisotropic(self, library: MaterialLibrary) -> bool:
+        """True if this layer contains any anisotropic (tensor) material."""
+        specs = [self.material] if self.is_uniform else self.materials
+        return any(library.is_anisotropic(s) for s in specs)
+
+    def permittivity_tensor_grid(
+        self,
+        wavelength: float,
+        library: MaterialLibrary,
+        resolution: tuple[int, int],
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Sample the permittivity *tensor* on the grid.
+
+        Returns ``(eps_xx, eps_xy, eps_yx, eps_yy, eps_zz)`` as five ``(Nx, Ny)``
+        arrays.  Isotropic constituents simply repeat their scalar on the
+        diagonal, so mixed isotropic/anisotropic patterned layers work naturally.
+        """
+        nx, ny = self.resolution or resolution
+        if self.is_uniform:
+            comps = library.permittivity_tensor(self.material, wavelength)
+            return tuple(np.full((nx, ny), c, dtype=complex) for c in comps)
+        topo = self._resample_topology(nx, ny)
+        values = np.array(
+            [library.permittivity_tensor(m, wavelength) for m in self.materials],
+            dtype=complex,
+        )                                       # (n_materials, 5)
+        return tuple(values[:, i][topo] for i in range(5))
 
     def _resample_topology(self, nx: int, ny: int) -> np.ndarray:
         """Nearest-neighbour resample of the integer topology to ``(nx, ny)``."""

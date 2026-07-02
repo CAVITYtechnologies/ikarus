@@ -26,8 +26,8 @@ stacks, Bragg mirrors, metamirrors. You get per-order efficiencies, complex
 amplitudes, phase, exit angles and real-space fields.
 
 **Not** for: isolated (non-periodic) scatterers, continuously-varying-in-z shapes
-that resist layer slicing, time-domain/pulse physics, or full anisotropy. Those
-are not RCWA's domain.
+that resist layer slicing, or time-domain/pulse physics. Those are not RCWA's
+domain. (Anisotropic/birefringent media **are** supported — see Materials.)
 
 ## Conventions — the mistakes everyone makes
 
@@ -113,6 +113,18 @@ SiO₂, TiO₂, aSi**. Anywhere a material is wanted you may pass a name (`"Si"`
 bare number (`1.5`, `2.4+0.01j` = constant index), a JSON path, or a `Material`.
 `default_library.get("Si", 1.55e-6)` returns the complex index;
 `default_library.available()` lists names.
+
+**Anisotropic (birefringent) materials:** anywhere a material goes you may also
+pass a 3-tuple `(n_x, n_y, n_z)` (diagonal tensor; each element any scalar spec,
+so dispersive components work), an `ikarus.AnisotropicMaterial(n_x, n_y, n_z,
+angle=deg)` (in-plane rotation of the principal axes → `eps_xy` off-diagonals),
+or `ikarus.uniaxial(n_o, n_e, axis="z"|"x"|"y"|angle_deg)`. Works in uniform
+*and* patterned layers, at every factorization. Scope: the in-plane tensor plus
+a distinct z response — NO tilted optic axis (`eps_xz`/`eps_yz`) and NO
+magneto-optic gyrotropy; the **cover and substrate must be isotropic** (a clear
+`ValueError` otherwise). `(n, n, n)` reduces *exactly* to the scalar material.
+Convention reminder: at normal incidence `linear_pol_angle=0` is E along **y**
+(sees `eps_yy`), `90` is E along **x** (sees `eps_xx`).
 
 **Shapes** (`from ikarus import shapes`): functions in fractional `[0,1)` unit-cell
 coords — `circle, rectangle, ring, ellipse, cross, polygon`, all taking
@@ -219,10 +231,9 @@ to tune.
 
 ## Known gaps (do not promise these)
 
-- **Anisotropic (3×3 tensor) materials** — isotropic only.
-- **Smooth-boundary (off-diagonal) normal-vector factorization** — the Li rule is
-  the two-step *diagonal* form (exact for axis-aligned/pixelated masks); the full
-  normal-vector method for sub-pixel-accurate *curved* boundaries is not yet in.
+- **Tilted-optic-axis anisotropy** (`eps_xz`/`eps_yz`) and **magneto-optic
+  gyrotropy** (`eps_xy != eps_yx`) — anisotropy covers the in-plane tensor + z
+  only, and the cover/substrate must be isotropic.
 - **No GPU** (pure NumPy/SciPy CPU) and **no analytic/AD gradients** (inverse design is gradient-free).
 
 ## Read more

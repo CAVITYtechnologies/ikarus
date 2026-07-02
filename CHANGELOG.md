@@ -4,6 +4,34 @@ All notable changes to Ikarus are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
+## 0.9.0
+
+### Added
+- **Anisotropic (birefringent) materials.** Anywhere Ikarus accepts a material you
+  may now pass a `(n_x, n_y, n_z)` tuple (diagonal tensor; each component is any
+  scalar spec, so dispersive anisotropy works), an `AnisotropicMaterial(n_x, n_y,
+  n_z, angle=deg)` (in-plane principal-axis rotation → `eps_xy` off-diagonals), or
+  the `uniaxial(n_o, n_e, axis="z"|"x"|"y"|angle_deg)` shorthand — in **uniform and
+  patterned layers**, at every factorization (`auto` uses the rotated normal-vector
+  construction of Liu & Fan 2012 eq. 45 for anisotropic patterned layers).
+  Wave plates, c-plates, and patterned birefringence just work.
+- Validation: uniform anisotropic layers (including rotated plates with
+  off-diagonal tensor components) match analytic Fresnel results and FMMax
+  *exactly*; patterned birefringent pillars agree with FMMax's anisotropic
+  eigensolve to ~2×10⁻⁵ (Laurent-vs-FFT, formulation-identical) and to a few
+  10⁻⁴ at convergence for the normal-vector formulations.
+
+### Scope / limitations
+- The permittivity tensor is `[[exx, exy, 0], [eyx, eyy, 0], [0, 0, ezz]]`:
+  any in-plane optic-axis orientation plus a distinct z response. Tilted optic
+  axes (`exz`/`eyz`) and magneto-optic gyrotropy (`exy != eyx`) are not
+  supported. The cover and substrate must remain isotropic (clear `ValueError`).
+- `(n, n, n)` is detected and reduces *exactly* to the scalar (isotropic) path.
+
+### CI
+- New `tests.yml` workflow runs the full pytest suite on every push/PR
+  (Python 3.10 + 3.12), and publishing to PyPI now requires a green suite.
+
 ## 0.8.0
 
 ### Added

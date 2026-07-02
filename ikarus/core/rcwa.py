@@ -225,7 +225,12 @@ class RCWA:
 
         eps_grids, heights = [], []
         for lay in self.layers[1:-1]:
-            eps_grids.append(lay.permittivity_grid(wl, self.materials, sampling))
+            if lay.is_anisotropic(self.materials):
+                # 5-tuple of tensor component grids (exx, exy, eyx, eyy, ezz).
+                eps_grids.append(
+                    lay.permittivity_tensor_grid(wl, self.materials, sampling))
+            else:
+                eps_grids.append(lay.permittivity_grid(wl, self.materials, sampling))
             heights.append(lay.height)
 
         pol = self.source.polarization_vector()

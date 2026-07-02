@@ -451,6 +451,43 @@ def _inplane_operators(eps_grid_eng: np.ndarray, ERC: np.ndarray,
     return E11, E00, E10, E01    # (Exx, Eyy, Exy, Eyx)
 
 
+def _inplane_operators_anisotropic(comps_eng: tuple, grid: HarmonicGrid,
+                                   factorization: str):
+    r"""In-plane operators ``(Exx, Eyy, Exy, Eyx)`` for an **anisotropic** layer.
+
+    ``comps_eng`` are the engineering-convention tensor component grids
+    ``(eps_xx, eps_xy, eps_yx, eps_yy, eps_zz)``.  Factorization rules mirror the
+    isotropic ones:
+
+    * uniform (no in-plane discontinuity) or ``laurent`` -> Laurent's (direct)
+      rule per component -- exact for uniform anisotropic layers (wave plates).
+    * ``li`` -> the two-step inverse rule on the diagonal components (``eps_xx``
+      across x, ``eps_yy`` across y); Laurent for the off-diagonals, which may
+      vanish and make the inverse rule ill-defined.
+    * ``auto``/``normal`` -> the rotated normal-vector construction of Liu & Fan
+      (2012) eq. 45 (:func:`ikarus.core._normalvector.inplane_tensor_anisotropic`),
+      with the tangent field sourced from ``(eps_xx + eps_yy) / 2`` (as FMMax).
+    """
+    exx, exy, eyx, eyy, ezz = (np.asarray(c) for c in comps_eng)
+    cm = lambda f: convolution_matrix(np.asarray(f, dtype=complex), grid)
+    uniform = all(
+        np.ptp(c.real) < 1e-12 and np.ptp(c.imag) < 1e-12
+        for c in (exx, exy, eyx, eyy)
+    )
+    if factorization == "laurent" or uniform:
+        return cm(exx), cm(eyy), cm(exy), cm(eyx)
+    if factorization == "li":
+        return (_mixed_convolution(exx, grid, "x"),
+                _mixed_convolution(eyy, grid, "y"), cm(exy), cm(eyx))
+    if factorization not in ("auto", "normal"):
+        raise ValueError(f"unknown factorization {factorization!r} "
+                         "(expected 'auto', 'laurent', 'li' or 'normal')")
+    # auto / normal: rotated-frame FFF with the boundary-normal tangent field.
+    from ._normalvector import tangent_field, inplane_tensor_anisotropic
+    tx, ty = tangent_field((exx + eyy) / 2.0)
+    return inplane_tensor_anisotropic(exx, exy, eyx, eyy, tx, ty, grid)
+
+
 def solve_stack(
     eps_grids: list[np.ndarray],
     heights: list[float],
@@ -501,10 +538,35 @@ def solve_stack(
     # A negligible loss (_ANOMALY_LOSS) regularizes exact Rayleigh anomalies.
     eps_ref_e = np.conj(eps_ref) - _ANOMALY_LOSS
     eps_trn_e = np.conj(eps_trn) - _ANOMALY_LOSS
-    eps_eng = [np.conj(np.asarray(g)) - _ANOMALY_LOSS for g in eps_grids]
-    erc_list = [convolution_matrix(ge, grid) for ge in eps_eng]
-    inplane_list = [_inplane_operators(ge, ERC, grid, factorization)
-                    for ge, ERC in zip(eps_eng, erc_list)]
+    # A layer entry is either an (Nx, Ny) scalar grid (isotropic) or a 5-tuple of
+    # component grids (eps_xx, eps_xy, eps_yx, eps_yy, eps_zz) (anisotropic).
+    # The conjugation bridge applies componentwise; the anomaly regularization
+    # belongs on the diagonal components only.
+    eps_eng = []
+    for g in eps_grids:
+        if isinstance(g, tuple):
+            exx, exy, eyx, eyy, ezz = (np.asarray(c) for c in g)
+            if (np.array_equal(exx, eyy) and np.array_equal(exx, ezz)
+                    and not exy.any() and not eyx.any()):
+                # Numerically isotropic tensor: collapse to the scalar path so
+                # (n, n, n) materials reproduce plain materials *exactly*.
+                eps_eng.append(np.conj(exx) - _ANOMALY_LOSS)
+            else:
+                eps_eng.append((np.conj(exx) - _ANOMALY_LOSS, np.conj(exy),
+                                np.conj(eyx), np.conj(eyy) - _ANOMALY_LOSS,
+                                np.conj(ezz) - _ANOMALY_LOSS))
+        else:
+            eps_eng.append(np.conj(np.asarray(g)) - _ANOMALY_LOSS)
+    # ERC feeds P's longitudinal eps_zz^{-1}; for anisotropic layers that is the
+    # eps_zz component (the in-plane blocks are always passed explicitly).
+    erc_list = [convolution_matrix(ge[4] if isinstance(ge, tuple) else ge, grid)
+                for ge in eps_eng]
+    inplane_list = [
+        _inplane_operators_anisotropic(ge, grid, factorization)
+        if isinstance(ge, tuple)
+        else _inplane_operators(ge, ERC, grid, factorization)
+        for ge, ERC in zip(eps_eng, erc_list)
+    ]
 
     # Assemble the global scattering matrix: cover ⋆ layers ⋆ substrate.
     S_ref, Kz_ref = reflection_smatrix(eps_ref_e, Kx, Ky, V0inv)

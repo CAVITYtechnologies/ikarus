@@ -24,16 +24,18 @@ from .core import (
     SimulationResult,
     Source,
     Layer,
+    AnisotropicMaterial,
     Material,
     MaterialLibrary,
     default_library,
+    uniaxial,
     HarmonicGrid,
 )
 from . import shapes
 from .sweep import Sweep, SweepResult
 from ._progress import progress
 
-__version__ = "0.8.0"
+__version__ = "0.9.0"
 
 
 def ai_guide() -> str:
@@ -55,9 +57,11 @@ __all__ = [
     "SimulationResult",
     "Source",
     "Layer",
+    "AnisotropicMaterial",
     "Material",
     "MaterialLibrary",
     "default_library",
+    "uniaxial",
     "HarmonicGrid",
     "shapes",
     "Sweep",

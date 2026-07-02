@@ -139,7 +139,7 @@ the setup costs a weekend). Ikarus aims for the missing third thing:
 | Li inverse-rule + Laurent factorization — available explicitly | :material-check:{ .feat-yes } |
 | Gradient-free inverse design — single-layer or multi-layer (pixels, parametric shapes, `Structure`; GA / NSGA-III) | :material-check:{ .feat-yes } |
 | Declarative parameter sweeps + progress bars (`Sweep`, `progress`) | :material-check:{ .feat-yes } |
-| Anisotropic (3×3 tensor) materials | :material-close:{ .feat-no } on the roadmap |
+| Anisotropic (birefringent) materials — wave plates, c-plates, patterned birefringence | :material-check:{ .feat-yes } |
 | GPU acceleration | :material-close:{ .feat-no } CPU (NumPy/SciPy) only |
 
 ## Sixty seconds of metasurface

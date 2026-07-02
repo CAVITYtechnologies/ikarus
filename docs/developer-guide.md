@@ -79,9 +79,13 @@ Numerical decisions you should know before touching the solver:
 
 Wish-list items, mapped to the known gaps:
 
-- **Li's inverse-rule factorization** — faster TM/metal convergence; the
-  single highest-value solver contribution.
-- **Anisotropic (3×3 tensor) materials** in `core.layer` / `core.solver`.
+- **Tilted-optic-axis anisotropy** (`eps_xz`/`eps_yz`) and magneto-optic
+  gyrotropy — the in-plane + z tensor shipped in 0.9.0; the fully general
+  tensor changes the P matrix as well as Q.
+- **Parallel sweeps** (`Sweep.run(workers=N)`) and reuse of identical-layer
+  eigensolves across a stack and across optimizer populations.
+- **Absorption analysis** — per-layer absorbed power and absorption-density
+  maps from the existing field machinery.
 - New database materials (with a cited source) under `ikarus/materials/`.
 - More worked examples and tutorials.
 
