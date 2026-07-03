@@ -24,7 +24,7 @@ stacks of patterned slabs, and the answers you usually want (efficiency per
 diffraction order, phase, exit angles) fall out natively.
 
 <figure markdown="span">
-  ![The RCWA pipeline: one incident wave, discrete diffraction orders, one eigensolve per layer, an S-matrix cascade](assets/theory_pipeline.png){ width="860" }
+  ![The RCWA pipeline: one incident wave, discrete diffraction orders, one eigensolve per layer, an S-matrix cascade](assets/theory_pipeline.svg){ width="860" }
   <figcaption>The whole method on one napkin: a single incident plane wave meets
   a stack of periodic slabs; each layer gets one eigensolve; scattering matrices
   chain the layers together; discrete diffraction orders carry the answer away.</figcaption>

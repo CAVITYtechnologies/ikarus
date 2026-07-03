@@ -4,6 +4,17 @@ All notable changes to Ikarus are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
+## Unreleased
+
+### Changed
+- **`plot_field` cross-sections are now drawn the way the physics happens:** for
+  `xz`/`yz` maps the stack is vertical — cover on top, substrate at the bottom,
+  light entering from the top (`z` increases downward). Previously `z` ran
+  horizontally, which read as light arriving from the left. `xy` slices are
+  unchanged.
+- `plot_field` axes now auto-scale to nm/µm (no more `1e-7` offset notation on
+  nanophotonic length scales).
+
 ## 0.9.0
 
 ### Added

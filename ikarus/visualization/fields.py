@@ -36,6 +36,11 @@ def plot_field(field_map, component: str = "intensity", ax=None,
     ``component`` is ``'intensity'``, a field component (``'Ex'``..``'Hz'``) for
     magnitude, or ``'<comp>phase'`` (e.g. ``'Eyphase'``) for phase.
 
+    Orientation: ``xz`` / ``yz`` cross-sections are drawn the way the physics
+    happens -- the stack is **vertical**, with the cover on top, the substrate at
+    the bottom, and light entering from the top (``z`` increases downward).
+    ``xy`` slices keep x horizontal / y vertical.
+
     If ``overlay`` is true and the map carries the structure permittivity
     (``field_map.eps``, attached by :meth:`ikarus.RCWA.get_fields`), the material
     boundaries are drawn as semi-transparent contours: the topology outline for
@@ -45,19 +50,42 @@ def plot_field(field_map, component: str = "intensity", ax=None,
     data, label = _extract(field_map, component)
     coords = list(field_map.coords.items())
     (a_name, a), (b_name, b) = coords[0], coords[1]
+    eps = getattr(field_map, "eps", None)
+
+    if b_name == "z":
+        # Cross-section: propagation axis vertical, cover on top (z downward).
+        data = data.T
+        eps = eps.T if eps is not None else None
+        x_name, x_ax, y_name = a_name, a, b_name
+        extent = [x_ax.min(), x_ax.max(), b.max(), b.min()]
+        origin = "upper"
+    else:
+        x_name, y_name = b_name, a_name
+        extent = [b.min(), b.max(), a.min(), a.max()]
+        origin = "lower"
+
+    # Human axes: pick nm / um / m by the size of the plot window (no 1e-7
+    # offset notation on nanophotonic length scales).
+    span = max(abs(v) for v in extent)
+    if span < 3e-6:
+        scale, unit = 1e9, "nm"
+    elif span < 3e-3:
+        scale, unit = 1e6, "µm"
+    else:
+        scale, unit = 1.0, "m"
+    extent = [v * scale for v in extent]
 
     if ax is None:
         _, ax = plt.subplots(figsize=(6, 4))
     if cmap is None:
         cmap = "twilight" if "phase" in component else "inferno"
-    extent = [b.min(), b.max(), a.min(), a.max()]
-    im = ax.imshow(data, origin="lower", extent=extent, aspect="auto", cmap=cmap)
+    im = ax.imshow(data, origin=origin, extent=extent, aspect="auto", cmap=cmap)
 
-    if overlay and getattr(field_map, "eps", None) is not None:
-        _overlay_structure(ax, field_map.eps, extent, overlay_color, overlay_alpha)
+    if overlay and eps is not None:
+        _overlay_structure(ax, eps, extent, origin, overlay_color, overlay_alpha)
 
-    ax.set_xlabel(f"{b_name} (m)")
-    ax.set_ylabel(f"{a_name} (m)")
+    ax.set_xlabel(f"{x_name} ({unit})")
+    ax.set_ylabel(f"{y_name} ({unit})")
     ax.set_title(label + (f"  (z={field_map.z:.2e} m)" if field_map.z is not None else ""))
     ax.figure.colorbar(im, ax=ax, label=label)
     if savefig:
@@ -65,14 +93,14 @@ def plot_field(field_map, component: str = "intensity", ax=None,
     return ax
 
 
-def _overlay_structure(ax, eps, extent, color, alpha):
+def _overlay_structure(ax, eps, extent, origin, color, alpha):
     """Draw material boundaries (contours at permittivity jumps) over a field."""
     eps = np.real(eps)
     vals = np.unique(np.round(eps, 6))
     if vals.size < 2:
         return  # uniform region -> nothing to outline
     levels = (vals[:-1] + vals[1:]) / 2.0
-    ax.contour(eps, levels=levels, extent=extent, origin="lower",
+    ax.contour(eps, levels=levels, extent=extent, origin=origin,
                colors=color, alpha=alpha, linewidths=1.0)
 
 

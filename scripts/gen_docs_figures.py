@@ -47,8 +47,10 @@ plt.rcParams.update({
 
 
 def save(fig, name):
+    # 220 dpi: crisp on hi-dpi displays at the widths the docs use.  Names
+    # ending in .svg are written as true vector graphics.
     fig.tight_layout()
-    fig.savefig(ASSETS / name, dpi=130, bbox_inches="tight")
+    fig.savefig(ASSETS / name, dpi=220, bbox_inches="tight")
     plt.close(fig)
     print("  wrote", name)
 
@@ -489,28 +491,35 @@ def hero_showcase():
     fig = plt.figure(figsize=(13.4, 4.1))
     gs = fig.add_gridspec(1, 3, width_ratios=[1.05, 1.25, 1.0], wspace=0.25)
 
-    # (a) the structure -- 3-D pillar array on a substrate slab
+    # (a) the structure -- 3-D pillar array on a substrate slab.  matplotlib's
+    # 3-D z-sorting is per-artist and unreliable, so we disable it and paint the
+    # pillars ourselves, farthest-from-camera first with increasing zorder.
+    AZIM, ELEV = -62, 24
     ax3 = fig.add_subplot(gs[0], projection="3d")
     ax3.computed_zorder = False
     xx, yy = np.meshgrid(np.linspace(0, 3, 2), np.linspace(0, 3, 2))
     ax3.plot_surface(xx, yy, np.zeros_like(xx), color="#ffe0b2", alpha=1.0,
-                     shade=False, zorder=1)
+                     shade=False, zorder=0)
     theta = np.linspace(0, 2 * np.pi, 40)
     zc = np.linspace(0, 0.7, 2)
     th, zz = np.meshgrid(theta, zc)
-    for cx in (0.5, 1.5, 2.5):
-        for cy in (0.5, 1.5, 2.5):
-            ax3.plot_surface(cx + radius * np.cos(th), cy + radius * np.sin(th),
-                             zz, color=ORANGE, shade=True,
-                             linewidth=0, antialiased=True, zorder=2)
-            disk_xy = np.c_[cx + radius * np.cos(theta), cy + radius * np.sin(theta)]
-            top = mpl.collections.PolyCollection(
-                [disk_xy], facecolors="#ffab91", edgecolors="#d84315",
-                linewidths=0.7, zorder=4)
-            ax3.add_collection3d(top, zs=0.7, zdir="z")
+    cam = np.deg2rad(AZIM)
+    centers = sorted(
+        ((cx, cy) for cx in (0.5, 1.5, 2.5) for cy in (0.5, 1.5, 2.5)),
+        key=lambda c: c[0] * np.cos(cam) + c[1] * np.sin(cam))   # farthest first
+    for i, (cx, cy) in enumerate(centers):
+        z0 = 1 + 2 * i                                            # painter's order
+        ax3.plot_surface(cx + radius * np.cos(th), cy + radius * np.sin(th),
+                         zz, color=ORANGE, shade=True,
+                         linewidth=0, antialiased=True, zorder=z0)
+        disk_xy = np.c_[cx + radius * np.cos(theta), cy + radius * np.sin(theta)]
+        top = mpl.collections.PolyCollection(
+            [disk_xy], facecolors="#ffab91", edgecolors="#d84315",
+            linewidths=0.7, zorder=z0 + 1)
+        ax3.add_collection3d(top, zs=0.7, zdir="z")
     ax3.set_box_aspect((1, 1, 0.55))
     ax3.set_zlim(0, 1.15); ax3.set_xlim(0, 3); ax3.set_ylim(0, 3)
-    ax3.view_init(elev=24, azim=-62)
+    ax3.view_init(elev=ELEV, azim=AZIM)
     ax3.set_axis_off(); ax3.grid(False)
     ax3.set_title("the structure you build\n(aSi pillars on glass)", fontsize=11)
 
@@ -523,18 +532,17 @@ def hero_showcase():
                  xytext=(-9, 0), fontsize=9, color="0.4", rotation=90,
                  ha="center", va="center")
     axs.set_xlabel("wavelength (nm)"); axs.set_ylabel("efficiency")
-    axs.set_ylim(0, 1.04); axs.legend(frameon=False, loc="center right")
+    axs.set_ylim(0, 1.04)
+    axs.legend(frameon=False, ncol=2, loc="upper center",
+               bbox_to_anchor=(0.5, -0.20), columnspacing=2.5)
     axs.set_title("the physics Ikarus computes", fontsize=11)
 
-    # (c) the field inside, at the resonance
+    # (c) the field inside, at the resonance (light enters from the top)
     axf = fig.add_subplot(gs[2])
     rcwa.set_source(wavelength=wl_res, theta=0, polarization="linear")
     rcwa.simulate()
     xz = rcwa.get_fields(plane="xz", nx=180, y_position=period / 2)["xz"]
     plot_field(xz, component="intensity", ax=axf)
-    nm = mpl.ticker.FuncFormatter(lambda v, _: f"{v * 1e9:.0f}")
-    axf.xaxis.set_major_formatter(nm); axf.yaxis.set_major_formatter(nm)
-    axf.set_xlabel("z (nm)"); axf.set_ylabel("x (nm)")
     axf.set_title(f"…and what light does inside\n(|E|² at {wl_res*1e9:.0f} nm, xz)",
                   fontsize=11)
     save(fig, "hero_showcase.png")
@@ -591,7 +599,7 @@ def theory_pipeline():
     for y in (4.85, 3.45, 2.05):
         ax.annotate("", xy=(8.575, y - 0.3), xytext=(8.575, y - 0.1),
                     arrowprops=dict(arrowstyle="-|>", lw=1.4, color="0.45"))
-    save(fig, "theory_pipeline.png")
+    save(fig, "theory_pipeline.svg")     # pure schematic -> true vector graphics
 
 
 # -- 14. theory: why factorization matters (Gibbs + convergence race) --------

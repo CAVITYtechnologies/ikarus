@@ -9,7 +9,7 @@ objects in Ikarus, learn these.
 
 ```python
 RCWA(period_x, period_y, resolution=32, n_orders=25,
-     dtype=np.complex128, materials=None, convergence_tol=1e-6,
+     dtype=np.complex128, materials=None, convergence_tol=1e-4,
      factorization="auto")
 ```
 
@@ -24,7 +24,7 @@ RCWA(period_x, period_y, resolution=32, n_orders=25,
 | `n_orders` | `int` or `(int, int)` | `25` | Max positive harmonic order `M` per axis. Total harmonics \(P=(2M_x+1)(2M_y+1)\). |
 | `dtype` | numpy dtype | `complex128` | Working precision. |
 | `materials` | `MaterialLibrary` | `None` | Custom library; defaults to the shared `default_library`. |
-| `convergence_tol` | `float` | `1e-6` | Default tolerance for `auto_converge`. |
+| `convergence_tol` | `float` | `1e-4` | Default tolerance for `auto_converge`. |
 | `factorization` | `str` | `"auto"` | Fourier factorization rule. Leave it at `"auto"` — it picks the best rule per layer. See [Factorization](#factorization) below. |
 
 **Raises.** `ValueError` if a period is non-positive, or if `factorization` is not one of `"auto"`/`"li"`/`"laurent"`/`"normal"`.

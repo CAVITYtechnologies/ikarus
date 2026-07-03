@@ -68,6 +68,9 @@ With `overlay=True` and `eps` present, material boundaries are drawn as
 semi-transparent contours — your built-in sanity check that the field lives
 where the structure is.
 
+Cross-sections (`xz`/`yz`) are drawn the way the physics happens: the stack is
+**vertical**, cover on top, substrate at the bottom — light enters from the top.
+
 ```python
 ax = plot_field(xz, component="intensity")
 ax.figure.savefig("field.png", dpi=150)
