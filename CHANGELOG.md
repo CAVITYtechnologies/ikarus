@@ -4,7 +4,7 @@ All notable changes to Ikarus are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
-## Unreleased
+## 0.9.1
 
 ### Changed
 - **`plot_field` cross-sections are now drawn the way the physics happens:** for
@@ -14,6 +14,15 @@ semantic versioning.
   unchanged.
 - `plot_field` axes now auto-scale to nm/µm (no more `1e-7` offset notation on
   nanophotonic length scales).
+
+### Docs
+- Reworked home page (centered layout, a structure→spectrum→field hero) and the
+  Physics chapter (pipeline schematic, the factorization convergence race, the
+  normal-vector tangent field). The convergence example figure now tracks
+  coefficient stability (`|R − R_ref|` and phase), not the energy defect that the
+  docs themselves warn is not a convergence test. Corrected lingering
+  `factorization="li"`-is-default references (the default has been `"auto"` since
+  0.8.0) across the AI guide, performance page and citations.
 
 ## 0.9.0
 
