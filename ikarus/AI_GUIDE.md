@@ -220,12 +220,14 @@ to tune.
   **warns** if it's still moving. **Do not trust `R+T≈1` as convergence** — a
   lossless structure conserves energy at every `n_orders` while R/phase still
   drift (the classic high-contrast-TM trap that has cost real optimization runs).
-- **Fourier factorization:** the default `factorization="li"` applies Li's
-  inverse rule (two-step for crossed gratings), giving fast TM / high-contrast
-  convergence — high-contrast TM gratings converge by `n_orders≈10–15` instead of
-  drifting. It works automatically for **any** topology and any number of
-  materials (it acts on the rendered `ε(x,y)` grid). Pass
-  `factorization="laurent"` to force the old direct rule for comparison. Caveat:
+- **Fourier factorization:** the default `factorization="auto"` applies the
+  normal-vector (Fast Fourier Factorization) method, giving fast TM /
+  high-contrast convergence on sharp *and* curved boundaries — high-contrast TM
+  gratings converge by `n_orders≈10–15` instead of drifting. On axis-aligned
+  geometry it reduces exactly to Li's inverse rule (`"li"`, the default through
+  v0.7). It works automatically for **any** topology and any number of
+  materials (it acts on the rendered `ε(x,y)` grid); `"li"`, `"laurent"`,
+  `"normal"` are explicit overrides for benchmarking. Caveat:
   **R+T≈1 does not prove convergence** for high-contrast TM — always check that
   R/phase have stopped moving with `n_orders`.
 

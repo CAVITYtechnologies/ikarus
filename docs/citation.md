@@ -44,10 +44,16 @@ paper, these are the canonical citations:
   binary gratings," *J. Opt. Soc. Am. A* **12**, 1068 (1995).
 - L. Li, "Use of Fourier series in the analysis of discontinuous periodic
   structures," *J. Opt. Soc. Am. A* **13**, 1870 (1996) — the factorization
-  rules; Ikarus applies the **inverse rule by default**.
+  rules; the default normal-vector method applies Li's **inverse rule** along
+  the local boundary normal.
 - L. Li, "New formulation of the Fourier modal method for crossed surface-relief
   gratings," *J. Opt. Soc. Am. A* **14**, 2758 (1997) — the two-step factorization
-  Ikarus uses for 2-D patterned layers.
+  behind `factorization="li"`, to which the default reduces on axis-aligned
+  geometry.
+- T. Schuster, J. Ruoff, N. Kerwien, S. Rafler, W. Osten, "Normal vector method
+  for convergence improvement using the RCWA for crossed gratings," *J. Opt.
+  Soc. Am. A* **24**, 2880 (2007) — the normal-vector (Fast Fourier
+  Factorization) method behind the default `factorization="auto"`.
 - L. Li, "Formulation and comparison of two recursive matrix algorithms for
   modeling layered diffraction gratings," *J. Opt. Soc. Am. A* **13**, 1024
   (1996) — the S-matrix recursion.

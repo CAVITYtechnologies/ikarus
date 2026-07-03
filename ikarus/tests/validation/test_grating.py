@@ -43,7 +43,8 @@ def _ikarus_grating(n_orders, pol_angle, period=800e-9, thickness=300e-9,
 def test_matches_mode_matching_reference(pol_angle, pol):
     # The reference (te1d_reference.grating_1d) uses the Laurent/direct rule for
     # the TM admittance (Einv = inv(<<eps>>)), so this cross-check pins Ikarus's
-    # *Laurent* path against it.  Under the default Li inverse rule the two
+    # *Laurent* path against it.  Under the default factorization (which reduces
+    # to Li's inverse rule on this axis-aligned grating) the two
     # intentionally differ for TM -- Li converges faster to the true value while
     # the Laurent reference drifts (see test_factorization.py).
     M = 30

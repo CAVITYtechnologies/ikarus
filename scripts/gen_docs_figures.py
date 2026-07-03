@@ -3,7 +3,8 @@
 Runs Ikarus end-to-end and writes PNGs into ``docs/assets/``. Re-run after any
 change that should be reflected in the docs figures::
 
-    python scripts/gen_docs_figures.py
+    python scripts/gen_docs_figures.py                # all figures
+    python scripts/gen_docs_figures.py convergence    # only the named one(s)
 
 The matrices here are small, so single-threaded BLAS is fastest.
 """
@@ -283,14 +284,23 @@ def convergence():
     rcwa.add_layer(300e-9, sq, ["Air", "aSi"])
     rcwa.add_uniform_layer(np.inf, "SiO2")
     rcwa.set_source(wavelength=700e-9, theta=0, polarization="linear", linear_pol_angle=90)
-    orders = np.arange(3, 15)
-    Ms, defect = convergence_curve(rcwa, orders, metric="energy")
-    harmonics = (2 * Ms + 1) ** 2
+    # Coefficient stability, not |R+T-1|, is the convergence test (FAQ Q7):
+    # track R and its phase against the highest-order run as reference.
+    orders = np.arange(3, 16)
+    Ms, R = convergence_curve(rcwa, orders, metric="R")
+    _, phase = convergence_curve(rcwa, orders, metric="R_phase")  # degrees
+    dR = np.abs(R[:-1] - R[-1])
+    dphi = np.abs((phase[:-1] - phase[-1] + 180.0) % 360.0 - 180.0)
+    harmonics = (2 * Ms[:-1] + 1) ** 2
     fig, ax = plt.subplots(figsize=(7, 3.8))
-    ax.semilogy(harmonics, defect + 1e-12, "o-", color=ORANGE, lw=2)
+    ax.semilogy(harmonics, dR + 1e-12, "o-", color=ORANGE, lw=2,
+                label=r"reflectance  $|R - R_\mathrm{ref}|$")
+    ax.semilogy(harmonics, dphi + 1e-12, "s-", color=BLUE, lw=2,
+                label=r"reflected phase  $|\varphi - \varphi_\mathrm{ref}|$  (deg)")
     ax.set_xlabel("number of Fourier harmonics  $P=(2M+1)^2$")
-    ax.set_ylabel("energy defect  |R + T − 1|")
-    ax.set_title("Convergence — aSi square, TM (the slow case)")
+    ax.set_ylabel("distance from converged value")
+    ax.set_title("Convergence — aSi square, TM: watch R and its phase")
+    ax.legend(frameon=False)
     ax.grid(True, which="both", alpha=0.25)
     save(fig, "convergence.png")
 
@@ -686,16 +696,37 @@ def theory_tangent_field():
     save(fig, "theory_tangent_field.png")
 
 
+FIGURES = [
+    thin_film_spectrum,
+    grating_orders,
+    metasurface_phase,
+    metasurface_field,
+    polarization,
+    convergence,
+    shape_gallery,
+    ar_coating,
+    lesson7_parametric,
+    structure_arstack,
+    structure_motheye,
+    sweep_map,
+    dispersion_map,
+    hero_showcase,
+    theory_pipeline,
+    theory_factorization,
+    theory_tangent_field,
+]
+
+
 if __name__ == "__main__":
     import sys
-    ALL = [thin_film_spectrum, grating_orders, metasurface_phase,
-           metasurface_field, polarization, convergence, shape_gallery,
-           ar_coating, lesson7_parametric, structure_arstack, structure_motheye,
-           sweep_map, dispersion_map, hero_showcase, theory_pipeline,
-           theory_factorization, theory_tangent_field]
-    only = set(sys.argv[1:])
+
+    by_name = {f.__name__: f for f in FIGURES}
+    names = sys.argv[1:]
+    unknown = [n for n in names if n not in by_name]
+    if unknown:
+        sys.exit(f"unknown figure(s): {', '.join(unknown)}\n"
+                 f"available: {', '.join(by_name)}")
     print("Generating documentation figures ->", ASSETS)
-    for fn in ALL:
-        if not only or fn.__name__ in only:
-            fn()
+    for fig in [by_name[n] for n in names] or FIGURES:
+        fig()
     print("Done.")
