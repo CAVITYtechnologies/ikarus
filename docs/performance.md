@@ -55,8 +55,8 @@ From \(M=9\) to \(M=13\): \(P\) doubles, time ×8. The cube never sleeps.
     `scipy.linalg.solve` right-division instead of explicit inverses.
 
 <figure markdown="span">
-  ![Convergence of the energy defect](assets/convergence.png){ width="640" }
-  <figcaption>Energy-conservation defect |R+T−1| vs. harmonic count for a high-contrast aSi square in TM — the slow-converging regime.</figcaption>
+  ![Coefficient convergence of R and its phase](assets/convergence.png){ width="640" }
+  <figcaption>Convergence of what you actually use — total reflectance R and the zero-order reflected phase, plotted as distance from a high-order reference, for a high-contrast aSi square in TM. Coefficient stability like this, not the energy balance |R+T−1|, is the convergence test.</figcaption>
 </figure>
 
 ## Memory scaling { #memory-scaling }
@@ -110,20 +110,25 @@ parallelize coarser. When in doubt, benchmark both; it takes two minutes.
 | Metals, TM / p-pol | 18–30+ | the slow lane — see below |
 | 1-D gratings | `(15–30, 0)` | cheap because 1-D |
 
-Always converge at your **worst-case** wavelength/polarization, watching
-\(|R+T-1|\) for lossless structures.
+Always converge at your **worst-case** wavelength/polarization, watching that
+\(R\) and its phase have stopped moving — not \(|R+T-1|\), which a lossless
+structure satisfies at every truncation.
 
-!!! tip "Li's inverse rule (default)"
-    Ikarus factors the permittivity with **Li's inverse rule** by default
-    (`factorization="li"`) — the two-step form for crossed gratings — which
-    restores fast convergence at sharp high-contrast/metallic edges: high-contrast
-    TM gratings settle by \(n_{\text{orders}}\approx 10\text{–}15\) instead of
-    drifting. It is automatic for any topology and any number of materials. Pass
-    `factorization="laurent"` to fall back to the classic direct rule for
-    comparison. **Watch out:** for high-contrast TM, \(|R+T-1|\approx 0\) does
-    *not* prove convergence — confirm \(R\) and phase have stopped moving with
-    `n_orders` (the direct rule can conserve energy while still far from the
-    converged value).
+!!! tip "Normal-vector factorization (default)"
+    Ikarus factors the permittivity with the **normal-vector method** (Fast
+    Fourier Factorization) by default (`factorization="auto"`): the inverse rule
+    is applied along the true local boundary normal, so sharp
+    high-contrast/metallic edges *and* curved boundaries converge fast —
+    high-contrast TM gratings settle by
+    \(n_{\text{orders}}\approx 10\text{–}15\) instead of drifting. On
+    axis-aligned geometry it reduces exactly to Li's inverse rule (`"li"`, the
+    default through v0.7). It is automatic for any topology and any number of
+    materials; `"li"`, `"laurent"` and `"normal"` remain as explicit overrides
+    for benchmarking ([RCWA → Factorization](api/rcwa.md#factorization)).
+    **Watch out:** for high-contrast TM, \(|R+T-1|\approx 0\) does *not* prove
+    convergence — confirm \(R\) and phase have stopped moving with `n_orders`
+    (the direct rule can conserve energy while still far from the converged
+    value).
 
 ## Accuracy ledger
 
