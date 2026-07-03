@@ -23,6 +23,13 @@ metasurfaces and photonic-crystal slabs: those structures are *literally*
 stacks of patterned slabs, and the answers you usually want (efficiency per
 diffraction order, phase, exit angles) fall out natively.
 
+<figure markdown="span">
+  ![The RCWA pipeline: one incident wave, discrete diffraction orders, one eigensolve per layer, an S-matrix cascade](assets/theory_pipeline.png){ width="860" }
+  <figcaption>The whole method on one napkin: a single incident plane wave meets
+  a stack of periodic slabs; each layer gets one eigensolve; scattering matrices
+  chain the layers together; discrete diffraction orders carry the answer away.</figcaption>
+</figure>
+
 ---
 
 ## Part I — The story (no math yet)
@@ -258,6 +265,25 @@ nothing and patterned layers cost one eigensolve each.
     order, so `energy_balance` shows a small deviation that shrinks to 0 with
     convergence — a more honest signal than the separable rule, which can report
     perfect energy balance while still biased on a curved boundary.
+
+<figure markdown="span">
+  ![Gibbs ringing of the direct Fourier series, and the measured convergence race between the three factorization rules](assets/theory_factorization.png){ width="880" }
+  <figcaption><strong>Left:</strong> the disease — a truncated Fourier series of a
+  high-contrast ε profile rings at the jumps, and field products inherit the
+  error. <strong>Right:</strong> the cure, measured on a high-index cylinder
+  (the case cross-validated against FMMax): the default normal-vector rule is
+  converged by \(M \approx 8\), while the classic rules are still climbing
+  toward — or biased away from — the true value.</figcaption>
+</figure>
+
+<figure markdown="span">
+  ![The normal-vector method's tangent field on a cylinder and a ring](assets/theory_tangent_field.png){ width="760" }
+  <figcaption>The machinery behind the default: a smooth, unit-length vector
+  field that follows the boundary <em>everywhere</em> (here for a cylinder and a
+  ring, straight from <code>ikarus.core._normalvector.tangent_field</code>).
+  The inverse rule is applied along the local normal it defines — that single
+  idea is what the right panel above is measuring.</figcaption>
+</figure>
 
 ### Scattering matrices and the star product
 

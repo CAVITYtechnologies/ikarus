@@ -1,5 +1,6 @@
 ---
 hide:
+  - navigation
   - toc
 ---
 
@@ -45,8 +46,11 @@ print(f"R = {result.R_total:.4f}  T = {result.T_total:.4f}  "
 ---
 
 <figure class="hero-figure" markdown="span">
-  ![Metasurface dispersion fingerprint](assets/dispersion_map.png){ width="720" }
-  <figcaption>A TiO₂ metasurface's angle–wavelength reflectance fingerprint — Rayleigh–Wood anomalies and all — computed in seconds. (See [Flight School, Lesson 6](tutorials/angular-response.md).)</figcaption>
+  ![One structure, three views: pillar array, its spectrum, the field inside](assets/hero_showcase.png){ width="980" }
+  <figcaption>One simulation, three views: an aSi pillar metasurface, the resonant
+  spectrum Ikarus computes for it, and the light trapped inside at resonance —
+  about fifteen lines of Python end to end.
+  (Build it yourself in <a href="tutorials/">Flight School</a>.)</figcaption>
 </figure>
 
 ## Pick your runway

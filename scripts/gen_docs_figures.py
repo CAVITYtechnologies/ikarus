@@ -463,19 +463,231 @@ def structure_motheye():
     save(fig, "structure_motheye.png")
 
 
+# -- 12. home-page hero: structure -> spectrum -> field ----------------------
+def hero_showcase():
+    """The landing-page hero: one structure, told three ways -- what you build
+    (3-D pillar array), what Ikarus computes (spectrum), what light does inside
+    (field cross-section). All three panels are the SAME simulation."""
+    period, N, M = 750e-9, 96, 8
+    radius, height = 0.28, 350e-9
+    disk = shapes.circle(center=(0.5, 0.5), radius=radius, grid_shape=(N, N))
+
+    rcwa = RCWA(period_x=period, period_y=period, resolution=(N, N), n_orders=(M, M))
+    rcwa.add_uniform_layer(np.inf, "Air")
+    rcwa.add_layer(height, disk, ["Air", "aSi"])
+    rcwa.add_uniform_layer(np.inf, "SiO2")
+
+    wl = np.linspace(1050e-9, 1650e-9, 61)
+    R, T = [], []
+    for w in wl:
+        rcwa.set_source(wavelength=w, theta=0, polarization="linear")
+        _, _, res = rcwa.simulate()
+        R.append(res.R_total); T.append(res.T_total)
+    R, T = np.array(R), np.array(T)
+    wl_res = wl[int(np.argmax(R))]                      # strongest resonance
+
+    fig = plt.figure(figsize=(13.4, 4.1))
+    gs = fig.add_gridspec(1, 3, width_ratios=[1.05, 1.25, 1.0], wspace=0.25)
+
+    # (a) the structure -- 3-D pillar array on a substrate slab
+    ax3 = fig.add_subplot(gs[0], projection="3d")
+    ax3.computed_zorder = False
+    xx, yy = np.meshgrid(np.linspace(0, 3, 2), np.linspace(0, 3, 2))
+    ax3.plot_surface(xx, yy, np.zeros_like(xx), color="#ffe0b2", alpha=1.0,
+                     shade=False, zorder=1)
+    theta = np.linspace(0, 2 * np.pi, 40)
+    zc = np.linspace(0, 0.7, 2)
+    th, zz = np.meshgrid(theta, zc)
+    for cx in (0.5, 1.5, 2.5):
+        for cy in (0.5, 1.5, 2.5):
+            ax3.plot_surface(cx + radius * np.cos(th), cy + radius * np.sin(th),
+                             zz, color=ORANGE, shade=True,
+                             linewidth=0, antialiased=True, zorder=2)
+            disk_xy = np.c_[cx + radius * np.cos(theta), cy + radius * np.sin(theta)]
+            top = mpl.collections.PolyCollection(
+                [disk_xy], facecolors="#ffab91", edgecolors="#d84315",
+                linewidths=0.7, zorder=4)
+            ax3.add_collection3d(top, zs=0.7, zdir="z")
+    ax3.set_box_aspect((1, 1, 0.55))
+    ax3.set_zlim(0, 1.15); ax3.set_xlim(0, 3); ax3.set_ylim(0, 3)
+    ax3.view_init(elev=24, azim=-62)
+    ax3.set_axis_off(); ax3.grid(False)
+    ax3.set_title("the structure you build\n(aSi pillars on glass)", fontsize=11)
+
+    # (b) the spectrum Ikarus computes
+    axs = fig.add_subplot(gs[1])
+    axs.plot(wl * 1e9, R, color=ORANGE, lw=2.4, label="R")
+    axs.plot(wl * 1e9, T, color=BLUE, lw=1.8, alpha=0.75, label="T")
+    axs.axvline(wl_res * 1e9, color="0.6", lw=1.0, ls=":")
+    axs.annotate("resonance", (wl_res * 1e9, 0.5), textcoords="offset points",
+                 xytext=(-9, 0), fontsize=9, color="0.4", rotation=90,
+                 ha="center", va="center")
+    axs.set_xlabel("wavelength (nm)"); axs.set_ylabel("efficiency")
+    axs.set_ylim(0, 1.04); axs.legend(frameon=False, loc="center right")
+    axs.set_title("the physics Ikarus computes", fontsize=11)
+
+    # (c) the field inside, at the resonance
+    axf = fig.add_subplot(gs[2])
+    rcwa.set_source(wavelength=wl_res, theta=0, polarization="linear")
+    rcwa.simulate()
+    xz = rcwa.get_fields(plane="xz", nx=180, y_position=period / 2)["xz"]
+    plot_field(xz, component="intensity", ax=axf)
+    nm = mpl.ticker.FuncFormatter(lambda v, _: f"{v * 1e9:.0f}")
+    axf.xaxis.set_major_formatter(nm); axf.yaxis.set_major_formatter(nm)
+    axf.set_xlabel("z (nm)"); axf.set_ylabel("x (nm)")
+    axf.set_title(f"…and what light does inside\n(|E|² at {wl_res*1e9:.0f} nm, xz)",
+                  fontsize=11)
+    save(fig, "hero_showcase.png")
+
+
+# -- 13. theory: the RCWA pipeline schematic ---------------------------------
+def theory_pipeline():
+    """Schematic of the method: periodic layers, one incident wave, discrete
+    reflected/transmitted orders, one eigensolve per layer, S-matrix cascade."""
+    fig, ax = plt.subplots(figsize=(10.6, 4.6))
+    ax.set_xlim(0, 10); ax.set_ylim(0, 6); ax.set_axis_off(); ax.grid(False)
+
+    # layer bands
+    ax.add_patch(plt.Rectangle((0.6, 3.9), 6.2, 1.9, color="#e3f2fd"))       # cover
+    ax.add_patch(plt.Rectangle((0.6, 2.6), 6.2, 1.3, color="#fff3e0"))       # layer
+    ax.add_patch(plt.Rectangle((0.6, 0.4), 6.2, 2.2, color="#ffe0b2"))       # substrate
+    for cx in np.arange(1.0, 6.6, 0.9):                                       # pillars
+        ax.add_patch(plt.Rectangle((cx, 2.6), 0.45, 1.3, color=ORANGE))
+    ax.text(6.6, 5.45, "cover (air)", ha="right", fontsize=10, color="#1565c0")
+    ax.text(0.8, 2.75, "patterned layer(s)", fontsize=10, color=DEEP,
+            bbox=dict(facecolor="white", edgecolor="none", alpha=0.75, pad=1.5))
+    ax.text(6.6, 0.6, "substrate", ha="right", fontsize=10, color="#8d6e63")
+
+    # incident + diffracted orders
+    ax.annotate("", xy=(2.5, 3.95), xytext=(1.6, 5.75),
+                arrowprops=dict(arrowstyle="-|>", lw=2.6, color="0.25"))
+    ax.text(1.25, 5.62, "one incident\nplane wave", fontsize=9.5, ha="center",
+            va="top", color="0.25")
+    for dx, m in ((-0.1, "-1"), (0.9, "0"), (1.9, "+1")):
+        ax.annotate("", xy=(2.5 + dx + 0.9, 5.75), xytext=(2.5, 3.95),
+                    arrowprops=dict(arrowstyle="-|>", lw=1.8, color=ORANGE))
+        ax.text(2.5 + dx + 1.0, 5.55, m, fontsize=9, color=ORANGE)
+    for dx, m in ((-0.9, "-1"), (0.0, "0"), (0.9, "+1")):
+        ax.annotate("", xy=(2.9 + dx + 0.5 * (dx != 0) * np.sign(dx), 0.55),
+                    xytext=(2.9, 2.55),
+                    arrowprops=dict(arrowstyle="-|>", lw=1.8, color=BLUE))
+        ax.text(2.95 + dx + 0.5 * (dx != 0) * np.sign(dx), 0.28, m,
+                fontsize=9, color=BLUE)
+    ax.text(4.9, 4.95, "reflected orders", fontsize=9.5, color=ORANGE)
+    ax.text(4.5, 1.15, "transmitted orders", fontsize=9.5, color=BLUE)
+
+    # the algorithm, as boxes on the right
+    steps = [
+        (4.85, "periodic ε(x, y) → Fourier series\n(a convolution matrix per layer)"),
+        (3.45, "one eigensolve per layer\n(its natural modes + phases)"),
+        (2.05, "layers joined by S-matrices\n(Redheffer ⋆ — never overflows)"),
+        (0.65, "amplitudes → R, T, phase,\nfields, per-order efficiencies"),
+    ]
+    for y, txt in steps:
+        ax.add_patch(mpl.patches.FancyBboxPatch(
+            (7.35, y), 2.45, 1.0, boxstyle="round,pad=0.08",
+            facecolor="white", edgecolor=ORANGE, linewidth=1.4))
+        ax.text(8.575, y + 0.5, txt, ha="center", va="center", fontsize=8.6)
+    for y in (4.85, 3.45, 2.05):
+        ax.annotate("", xy=(8.575, y - 0.3), xytext=(8.575, y - 0.1),
+                    arrowprops=dict(arrowstyle="-|>", lw=1.4, color="0.45"))
+    save(fig, "theory_pipeline.png")
+
+
+# -- 14. theory: why factorization matters (Gibbs + convergence race) --------
+def theory_factorization():
+    """(a) a truncated Fourier series rings at permittivity jumps; (b) the race:
+    Laurent vs Li vs the normal-vector method on a high-contrast cylinder (the
+    exact case validated against FMMax; the default converges by n_orders ~ 8)."""
+    # (a) Gibbs ringing of the direct series
+    x = np.linspace(0, 1, 2000, endpoint=False)
+    eps = np.where((x > 0.25) & (x < 0.75), 12.25, 1.0)
+    Mg = 10
+    c = np.fft.fft(eps) / eps.size
+    recon = np.real(sum(c[m] * np.exp(2j * np.pi * m * x)
+                        for m in range(-Mg, Mg + 1)))
+
+    # (b) convergence race on the FMMax-validated cylinder
+    N = 128
+    mask = shapes.circle(center=(0.5, 0.5), radius=0.30, grid_shape=(N, N))
+    Ms = [4, 6, 8, 10, 12]
+    curves = {}
+    for fac in ("laurent", "li", "auto"):
+        vals = []
+        for M in Ms:
+            rc = RCWA(period_x=400e-9, period_y=400e-9, resolution=(N, N),
+                      n_orders=(M, M), factorization=fac)
+            rc.add_uniform_layer(np.inf, "Air")
+            rc.add_layer(200e-9, mask.astype(int), [1.0, 3.5])
+            rc.add_uniform_layer(np.inf, "Air")
+            rc.set_source(wavelength=700e-9, theta=0, polarization="linear",
+                          linear_pol_angle=0)
+            vals.append(rc.simulate()[2].R_total)
+        curves[fac] = np.array(vals)
+
+    fig, (axg, axr) = plt.subplots(1, 2, figsize=(11.2, 4.0))
+    axg.plot(x, eps, color="0.3", lw=2.0, label="true ε(x)")
+    axg.plot(x, recon, color=ORANGE, lw=1.6,
+             label=f"direct Fourier series (M={Mg})")
+    axg.set_xlabel("x / period"); axg.set_ylabel("permittivity ε")
+    axg.legend(frameon=False, loc="upper left", fontsize=9)
+    axg.set_title("the problem: truncated series ring at jumps", fontsize=11)
+
+    styles = {"laurent": ("0.55", "--", "Laurent (direct rule)"),
+              "li": (BLUE, "-.", "Li two-step (axis-aligned exact)"),
+              "auto": (ORANGE, "-", "normal-vector — the default")}
+    for fac, (color, ls, label) in styles.items():
+        axr.plot(Ms, curves[fac], ls, color=color, lw=2.2, marker="o",
+                 ms=5, label=label)
+    axr.axhline(0.9397, color="0.75", lw=1.0, ls=":")
+    axr.text(4.1, 0.9445, "converged value (cross-checked vs FMMax)",
+             fontsize=8.5, color="0.45")
+    axr.set_xlabel("n_orders  M"); axr.set_ylabel("reflectance R")
+    axr.set_xticks(Ms)
+    axr.legend(frameon=False, fontsize=9, loc="lower right")
+    axr.set_title("the fix, measured: high-contrast cylinder", fontsize=11)
+    save(fig, "theory_factorization.png")
+
+
+# -- 15. theory: the normal-vector tangent field ------------------------------
+def theory_tangent_field():
+    """The boundary-following tangent field of the normal-vector method,
+    computed by ikarus.core._normalvector.tangent_field on real masks."""
+    from matplotlib.colors import ListedColormap
+    from ikarus.core._normalvector import tangent_field
+
+    N, step = 128, 9
+    masks = {
+        "cylinder": shapes.circle(center=(0.5, 0.5), radius=0.30, grid_shape=(N, N)),
+        "ring": shapes.ring(inner_radius=0.16, outer_radius=0.34, grid_shape=(N, N)),
+    }
+    fig, axes = plt.subplots(1, 2, figsize=(9.6, 4.6))
+    for ax, (name, mask) in zip(axes, masks.items()):
+        ge = np.where(np.asarray(mask) > 0, 12.25, 1.0).astype(complex)
+        tx, ty = tangent_field(ge)
+        ax.imshow(np.asarray(mask).T, origin="lower",
+                  cmap=ListedColormap(["#fff8f0", "#ffcc80"]))
+        ii = np.arange(step // 2, N, step)
+        X, Y = np.meshgrid(ii, ii, indexing="ij")
+        ax.quiver(X, Y, tx.real[X, Y], ty.real[X, Y], color=DEEP,
+                  scale=30, width=0.004, pivot="mid")
+        ax.set_xticks([]); ax.set_yticks([]); ax.grid(False)
+        ax.set_title(name, fontsize=11)
+    fig.suptitle("the normal-vector method's tangent field — smooth, unit-length, "
+                 "boundary-following everywhere", fontsize=11.5, y=0.99)
+    save(fig, "theory_tangent_field.png")
+
+
 if __name__ == "__main__":
+    import sys
+    ALL = [thin_film_spectrum, grating_orders, metasurface_phase,
+           metasurface_field, polarization, convergence, shape_gallery,
+           ar_coating, lesson7_parametric, structure_arstack, structure_motheye,
+           sweep_map, dispersion_map, hero_showcase, theory_pipeline,
+           theory_factorization, theory_tangent_field]
+    only = set(sys.argv[1:])
     print("Generating documentation figures ->", ASSETS)
-    thin_film_spectrum()
-    grating_orders()
-    metasurface_phase()
-    metasurface_field()
-    polarization()
-    convergence()
-    shape_gallery()
-    ar_coating()
-    lesson7_parametric()
-    structure_arstack()
-    structure_motheye()
-    sweep_map()
-    dispersion_map()
+    for fn in ALL:
+        if not only or fn.__name__ in only:
+            fn()
     print("Done.")
