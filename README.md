@@ -20,7 +20,7 @@ for 2-D periodic photonic structures — metasurfaces, gratings and photonic
 crystals. It uses a numerically stable scattering-matrix formulation, supports
 full vectorial (linear and circular) polarization, arbitrary pixel-map
 topologies, a built-in dispersive material database, real-space field
-reconstruction, automatic convergence testing, HDF5 I/O and gradient-free
+reconstruction, automatic convergence testing, HDF5 I/O and adjoint + gradient-free
 inverse design.
 
 ```python
@@ -68,15 +68,17 @@ wavelength sweep, while running **~1.5–1.7× faster per solve**.
 | Numerically stable S-matrix cascade (no transfer-matrix overflow) | ✅ |
 | Normal-vector factorization (Fast Fourier Factorization) — exact convergence on curved/oblique boundaries, on by default | ✅ |
 | Li inverse-rule + Laurent factorization — available explicitly | ✅ |
-| Gradient-free inverse design (pixels + parameters, GA / NSGA-III via pymoo) | ✅ |
+| Adjoint (gradient-based) inverse design — freeform pixel maps to thousands of DOFs, min-feature fab filter, auto-selected | ✅ |
+| Gradient-free inverse design (parametric shapes, Pareto fronts; GA / NSGA-III via pymoo) | ✅ |
 | Anisotropic (birefringent) materials — wave plates, c-plates, patterned birefringence, any in-plane optic axis | ✅ |
 
 ## Installation
 
 ```bash
 pip install ikarus-rcwa                # core (numpy, scipy)
-pip install "ikarus-rcwa[all]"         # + matplotlib (viz), h5py (HDF5), pymoo (inverse)
+pip install "ikarus-rcwa[all]"         # + viz, HDF5, GA inverse design, adjoint (JAX)
 pip install "ikarus-rcwa[inverse]"     # + pymoo, for gradient-free inverse design
+pip install "ikarus-rcwa[grad]"        # + JAX/optax, for adjoint (gradient) inverse design
 ```
 
 The import name is `ikarus` (the distribution is `ikarus-rcwa`). From source for

@@ -143,11 +143,13 @@ os.environ.setdefault("OMP_NUM_THREADS", "1")
 from ikarus.inverse import MetaAtom, free, pixels, Target, optimize
 
 atom = MetaAtom(period=1.2e-6, cover="Air", substrate="SiO2")
-atom.add_pattern(topology=pixels(16, 4, symmetry="mirror_y"),
+atom.add_pattern(topology=pixels(48, 8, symmetry="mirror_y"),
                  materials=["Air", "Si"], height=free(0.2e-6, 0.6e-6))
 
+# pixels + a free height are differentiable, so optimize() automatically uses
+# adjoint gradients here -- 200 pixel DOFs cost the same as 4.
 best = optimize(atom, Target.maximize("R", order=(1, 0), at=1550e-9),
-                n_orders=(12, 4), pop=40, n_gen=30)
+                n_orders=(12, 4), min_feature=100e-9)
 print(best.report())
 ```
 

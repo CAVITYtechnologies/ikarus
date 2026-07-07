@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ikarus-rcwa"
-version = "0.9.1"
+version = "0.10.0"
 description = "High-precision 2D RCWA simulation for periodic photonic structures"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -33,8 +33,9 @@ viz = ["matplotlib>=3.4"]
 io = ["h5py>=3.0"]
 inverse = ["pymoo>=0.6"]
 progress = ["tqdm>=4"]
-all = ["matplotlib>=3.4", "h5py>=3.0", "pymoo>=0.6", "tqdm>=4"]
-dev = ["pytest>=7.0", "matplotlib>=3.4", "h5py>=3.0", "pymoo>=0.6", "tqdm>=4"]
+grad = ["jax>=0.4.30", "optax>=0.2"]
+all = ["matplotlib>=3.4", "h5py>=3.0", "pymoo>=0.6", "tqdm>=4", "jax>=0.4.30", "optax>=0.2"]
+dev = ["pytest>=7.0", "matplotlib>=3.4", "h5py>=3.0", "pymoo>=0.6", "tqdm>=4", "jax>=0.4.30", "optax>=0.2"]
 
 [project.urls]
 Homepage = "https://github.com/CAVITYtechnologies/ikarus"

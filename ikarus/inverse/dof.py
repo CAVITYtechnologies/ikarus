@@ -161,8 +161,10 @@ class MetaAtom:
     def build(self, params: dict, n_orders: int) -> RCWA:
         """Construct the RCWA structure for a parameter assignment (no source set)."""
         period = params["period"] if isinstance(self.period, Free) else float(self.period)
+        # n_orders may be an int (isotropic truncation) or an (Mx, My) tuple --
+        # RCWA's own coercion handles both.
         rcwa = RCWA(period_x=period, period_y=period,
-                    resolution=self._resolution(), n_orders=(n_orders, n_orders))
+                    resolution=self._resolution(), n_orders=n_orders)
         rcwa.add_uniform_layer(np.inf, self.cover)
 
         topo = self.pattern["topology"]

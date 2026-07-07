@@ -15,8 +15,9 @@ its API or its sharp edges. When in doubt, prefer these facts over guesses.
 
 - **PyPI:** `ikarus-rcwa` · **import:** `import ikarus` (the names differ on purpose).
 - **Docs:** <https://cavitytechnologies.github.io/ikarus/> · **GitHub:** `CAVITYtechnologies/ikarus`.
-- **Extras:** `pip install "ikarus-rcwa[inverse]"` (pymoo, for `optimize`),
-  `[io]` (h5py, for save/load), `[progress]` (tqdm), `[all]`.
+- **Extras:** `pip install "ikarus-rcwa[inverse]"` (pymoo, GA `optimize`),
+  `[grad]` (JAX+optax, adjoint `optimize` + `ikarus.grad`), `[io]` (h5py),
+  `[progress]` (tqdm), `[all]`.
 
 ## What it is for — and what it is not
 
@@ -149,9 +150,30 @@ only `set_source` changes; structural edits force a fresh eigensolve.
 
 ## Inverse design (`from ikarus.inverse import …`)
 
-Gradient-free GA (single objective) / NSGA-III (multi-objective Pareto), via pymoo
-(`[inverse]` extra). Anything exposing `variables()` + `build(params, n_orders)` is
-optimizable — `MetaAtom`, `Structure`, or your own class.
+Two engines behind ONE call — the user never chooses:
+- **Adjoint (gradient-based)**, via the optional differentiable JAX solver
+  (`[grad]` extra): picked automatically for freeform `pixels(...)` maps and
+  free heights/periods with a single (possibly multi-wavelength / worst-case)
+  target. Scales to thousands of pixel DOFs (the whole gradient costs ~1 extra
+  solve); relax-and-project binarization with a `min_feature=<meters>` fab
+  filter; the final design is hard-thresholded and re-verified with the NumPy
+  core. Its edge GROWS with DOF count (measured: ~40 pixels -> GA competitive
+  or better; ~2000 pixels -> adjoint ~2x the GA's result in half the time);
+  for steering/deflection objectives use `init="random"` + a few seeds. Beware
+  trivial attractors (maximize-total-R is satisfied by a uniform slab) and
+  keep `n_orders` faithful to the pixel size -- optimizers exploit unconverged
+  models (re-verify final designs at higher n_orders; the packaged result
+  already is). Adjoint-only knobs (all defaulted): `steps=150`, `learning_rate=0.05`,
+  `min_feature`, `beta=(8, 256)`, `init`.
+- **GA / NSGA-III (gradient-free)**, via pymoo (`[inverse]` extra): picked for
+  parametric-`Shape` DOFs, discrete/anisotropic materials, circular-pol
+  coefficient metrics, and whenever a full **Pareto front** (>= 2 targets) is
+  wanted. `algorithm='adjoint'|'ga'|'nsga2'|'nsga3'` forces an engine.
+
+Anything exposing `variables()` + `build(params, n_orders)` is GA-optimizable —
+`MetaAtom`, `Structure`, or your own class (adjoint currently supports
+`MetaAtom`). The low-level differentiable solver is `ikarus.grad.solve` (mirrors
+`solve_stack`, pinned to ~1e-13; gradients cross-checked against FMMax to ~4e-7).
 
 **`MetaAtom(period, cover, substrate, polarization="linear", pol_angle=0.0)`**
 then `.add_pattern(topology, materials, height)`:
@@ -173,8 +195,10 @@ Constructors (all take `at=`/`band=`, `order=(0,0)`, `weight=`, `worst_case=`):
   multiple are aggregated by the **mean**, or the **worst case** if `worst_case=True`.
 
 **`optimize(atom, targets, n_orders=8, algorithm="auto", pop=100, n_gen=60, seed=0,
-verbose=True, progress=False) -> OptimizeResult`**. One `Target` → GA; a list →
-NSGA-III. Result: `.params` (best dict), `.metaatom`/`.rcwa` (a ready-to-simulate
+verbose=True, progress=False, **adjoint_options) -> OptimizeResult`**.
+`algorithm="auto"` picks adjoint or GA per the rules above (one differentiable
+`Target` → adjoint; a list → NSGA-III; `pop`/`n_gen` are GA-only).
+Result: `.params` (best dict), `.metaatom`/`.rcwa` (a ready-to-simulate
 `RCWA`), `.report()`, `.X`, `.F`, `.history`.
 
 **`Structure`** — multi-layer / shared-parameter inverse design. Subclass it,
@@ -236,7 +260,8 @@ to tune.
 - **Tilted-optic-axis anisotropy** (`eps_xz`/`eps_yz`) and **magneto-optic
   gyrotropy** (`eps_xy != eps_yx`) — anisotropy covers the in-plane tensor + z
   only, and the cover/substrate must be isotropic.
-- **No GPU** (pure NumPy/SciPy CPU) and **no analytic/AD gradients** (inverse design is gradient-free).
+- **No GPU for the NumPy core** (the optional `ikarus.grad` JAX solver runs on
+  GPU where JAX does; the default engine is CPU NumPy/SciPy).
 
 ## Read more
 

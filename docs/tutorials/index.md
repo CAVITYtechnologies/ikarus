@@ -59,12 +59,13 @@ the [Quick Start](../quickstart.md).
 
     [:octicons-arrow-right-24: Start](angular-response.md)
 
--   :material-dna:{ .lg .middle } **Lesson 7 · Designing the Shape Itself**
+-   :material-dna:{ .lg .middle } **Lesson 7 · Inverse Design**
 
     ---
 
-    Inverse design: state a goal and evolve a meta-atom's own shape
-    parameters — arm lengths, rotation, height — with a genetic algorithm.
+    Inverse design: state a goal and let the optimizer design the meta-atom —
+    parametric shapes via a genetic algorithm, or freeform pixel maps via
+    adjoint gradients, chosen automatically.
 
     [:octicons-arrow-right-24: Start](inverse-design.md)
 

@@ -119,9 +119,33 @@ class OptimizeResult:
         return "\n".join(lines)
 
 
+def _auto_algorithm(atom, targets) -> str:
+    """Pick the engine for ``algorithm='auto'`` -- the user never has to.
+
+    Gradient-based (adjoint) when the problem suits it: a single scalarizable
+    objective and differentiable DOFs (pixel maps, heights, periods), with the
+    ``[grad]`` extra installed.  Otherwise the GA family: NSGA-III for a full
+    Pareto front (>= 2 targets), GA for discrete/parametric-shape DOFs.
+    """
+    if len(targets) > 1:
+        return "nsga3"          # a full Pareto front is a GA-family capability
+    try:
+        import jax  # noqa: F401
+        import optax  # noqa: F401
+    except ModuleNotFoundError:
+        return "ga"
+    from .adjoint import AdjointIncompatible, check_compatible
+    try:
+        check_compatible(atom, targets)
+    except AdjointIncompatible:
+        return "ga"
+    return "adjoint"
+
+
 def optimize(atom, targets, n_orders: int = 8, algorithm: str = "auto",
              pop: int = 100, n_gen: int = 60, seed: int = 0,
-             verbose: bool = True, progress: bool = False) -> OptimizeResult:
+             verbose: bool = True, progress: bool = False,
+             **adjoint_options) -> OptimizeResult:
     """Optimize ``atom`` against one or more ``targets``.
 
     Parameters
@@ -129,21 +153,48 @@ def optimize(atom, targets, n_orders: int = 8, algorithm: str = "auto",
     atom: :class:`~ikarus.inverse.dof.MetaAtom`
     targets: a :class:`Target` or list of them (>=2 -> multi-objective).
     n_orders: harmonic truncation for every forward solve.
-    algorithm: ``'auto'`` (GA if one objective, NSGA-III if several), or one of
-        ``'ga'``, ``'nsga2'``, ``'nsga3'``.
-    pop, n_gen, seed: optimizer settings.
-    verbose: print the per-generation pymoo table.
-    progress: show a single progress bar over the generations (sets
-        ``verbose=False``; needs ``tqdm`` for a rich bar, else a plain fallback).
+    algorithm: ``'auto'`` (the default -- picks the best engine for the
+        problem: gradient-based ``'adjoint'`` for differentiable DOFs such as
+        pixel maps and heights, the GA family otherwise), or explicitly one of
+        ``'adjoint'``, ``'ga'``, ``'nsga2'``, ``'nsga3'``.
+    pop, n_gen: GA-family settings (ignored by ``'adjoint'``).
+    seed: optimizer seed (both engines).
+    verbose: print progress (the pymoo table, or the adjoint loss every few
+        steps).
+    progress: show a single progress bar instead (sets ``verbose=False``).
+    adjoint_options: forwarded to the adjoint engine -- ``steps``,
+        ``learning_rate``, ``min_feature`` (meters), ``beta``.  All defaulted;
+        see :func:`ikarus.inverse.adjoint.adjoint_optimize`.
+
+    Whatever the engine, the result is the same :class:`OptimizeResult`:
+    ``result.rcwa`` is the optimized, ready-to-simulate structure and
+    ``result.report()`` summarizes it.
     """
+    if isinstance(targets, Target):
+        targets = [targets]
+    if algorithm == "auto":
+        algorithm = _auto_algorithm(atom, targets)
+        if algorithm == "adjoint" and (pop, n_gen) != (100, 60):
+            import warnings
+            warnings.warn(
+                "optimize() picked the adjoint engine for this problem, so the "
+                "GA settings pop/n_gen are ignored (adjoint uses steps=/"
+                "learning_rate=). Pass algorithm='ga' to force the GA.",
+                stacklevel=2)
+
+    if algorithm == "adjoint":
+        from .adjoint import adjoint_optimize
+        return adjoint_optimize(atom, targets, n_orders=n_orders, seed=seed,
+                                verbose=verbose, progress=progress,
+                                **adjoint_options)
+    if adjoint_options:
+        raise TypeError(f"unexpected keyword(s) for the GA path: "
+                        f"{sorted(adjoint_options)} (adjoint-only options)")
+
     _require_pymoo()
     from pymoo.optimize import minimize as pymoo_minimize
 
-    if isinstance(targets, Target):
-        targets = [targets]
     problem = _build_problem(atom, targets, n_orders)
-    if algorithm == "auto":
-        algorithm = "ga" if len(targets) == 1 else "nsga3"
     algo = _make_algorithm(algorithm, pop, len(targets))
 
     # Only pass a callback when one exists -- pymoo's default is a no-op Callback,

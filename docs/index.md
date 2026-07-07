@@ -89,7 +89,8 @@ print(f"R = {result.R_total:.4f}  T = {result.T_total:.4f}  "
     ---
 
     Declare *what you want* — "minimize reflection from 300 to 600 nm" —
-    and a genetic algorithm sculpts the metaatom. Three lines of intent.
+    and adjoint gradients (or a genetic algorithm, chosen automatically)
+    sculpt the metaatom. Three lines of intent.
 
     [:octicons-arrow-right-24: Inverse Design](api/inverse.md)
 
@@ -112,7 +113,9 @@ the setup costs a weekend). Ikarus aims for the missing third thing:
 - **An API that respects your time.** Full per-order, vectorial results —
   efficiencies, complex amplitudes, exit angles, fields — without ceremony.
 - **Inverse design in the box.** The same metaatom you simulate forward can be
-  optimized backward, gradient-free, with one function call.
+  optimized backward with one function call — adjoint gradients for freeform
+  topology (thousands of pixels), a genetic algorithm for everything else,
+  chosen automatically.
 
 !!! example "Myth break — why \"Ikarus\"?"
 
@@ -141,7 +144,8 @@ the setup costs a weekend). Ikarus aims for the missing third thing:
 | Numerically stable S-matrix cascade (no transfer-matrix overflow) | :material-check:{ .feat-yes } |
 | Normal-vector factorization (Fast Fourier Factorization) — exact convergence on curved/oblique boundaries, on by default | :material-check:{ .feat-yes } |
 | Li inverse-rule + Laurent factorization — available explicitly | :material-check:{ .feat-yes } |
-| Gradient-free inverse design — single-layer or multi-layer (pixels, parametric shapes, `Structure`; GA / NSGA-III) | :material-check:{ .feat-yes } |
+| Adjoint (gradient-based) inverse design — freeform pixel maps to thousands of DOFs, min-feature fab filter, auto-selected | :material-check:{ .feat-yes } |
+| Gradient-free inverse design — parametric shapes, `Structure`, Pareto fronts (GA / NSGA-III) | :material-check:{ .feat-yes } |
 | Declarative parameter sweeps + progress bars (`Sweep`, `progress`) | :material-check:{ .feat-yes } |
 | Anisotropic (birefringent) materials — wave plates, c-plates, patterned birefringence | :material-check:{ .feat-yes } |
 | GPU acceleration | :material-close:{ .feat-no } CPU (NumPy/SciPy) only |
