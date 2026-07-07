@@ -123,3 +123,33 @@ weakness is largely hypothetical for us; leave it to the GA path.
   framework already differentiates cleanly?
 - Which existing study is the **benchmark case** for the "faster/better than GA"
   demonstration?
+
+## Phase 0 result (2026-07-07): GO
+
+The de-risk spike (`adjoint_phase0_spike.py` in this directory, run on the
+validated 1-D high-contrast TM grating, `M=12`, 512 pixel DOFs) passed every
+gate:
+
+| Gate | Result |
+|---|---|
+| Forward: JAX mirror vs NumPy core | **5e-15 / 1e-14** (binary / gray density grids) |
+| `d(R)/d(rho_i)` vs central finite differences | worst rel. err **1.8e-6** (at a near-zero-gradient pixel; others 1e-7–1e-9) |
+| `d(R)/d(height)` vs finite differences | rel. err **2.2e-10** |
+| Adjoint cost | full 512-DOF gradient = **1.87x** one forward solve |
+
+The custom differentiable non-Hermitian `eig` (Boeddeker 2019 eq. 4.77 VJP with
+scale-aware Lorentzian broadening, mirroring FMMax `eig.py`) works through the
+full pipeline: the engineering-conjugation bridge, li mixed convolution
+(batched `inv` + FFT), forward-branch selection and the Redheffer cascade all
+differentiate cleanly under `jax.grad` + `jax.jit`.
+
+**Open questions answered:** JAX backend (FMMax is the gradient oracle; optax
+ecosystem; functional style matches the stateless core). A **separate optional
+differentiable core** (`ikarus-rcwa[grad]` extra) rather than a dual-backend
+abstraction — the NumPy core stays canonical and default. Custom eig VJP rather
+than framework-default `eig` differentiation. Benchmarks: freeform 1550 nm
+aSi/SiO2 reflector pixel map first, then the bispectral 1064/1550 min-max as
+the many-objectives demo. For the `auto` factorization under topology
+optimization, plan is `stop_gradient` on the tangent field (second-order effect
+on the FOM), falling back to `li` if noisy. Hardware: development/validation on
+macOS (CPU JAX); large design runs later on a Windows machine via WSL2 GPU JAX.
