@@ -696,7 +696,113 @@ def theory_tangent_field():
     save(fig, "theory_tangent_field.png")
 
 
+# -- 16. adjoint vs GA: the scale story (Lesson 7 / inverse) -----------------
+# At-scale reference numbers for adjoint_vs_ga (2,048-DOF deflector; both
+# engines optimized at M=8, designs VERIFIED at M=12; adjoint = best of 3
+# random starts in ~10 min, the GA given roughly double that wall-clock).
+# Source: docs/dev/adjoint_benchmarks.py B2 legs, 2026-07-07.
+ADJOINT_ATSCALE = 0.3570     # best of 3 starts @M8=0.5134, verified @M12
+GA_ATSCALE = 0.1818          # pop 40 x 17 gen, 2x adjoint wall, verified @M12
+
+
+def adjoint_vs_ga():
+    """Two engines, two regimes, honestly scored.
+
+    Left: a toy 1-D beam deflector (40 binary DOFs) where BOTH engines run in
+    seconds -- and the GA legitimately wins: a few hundred evaluations can
+    genuinely search a space that small.  Right: the same physics at freeform
+    scale (2,048 DOFs, from docs/dev/adjoint_benchmarks.py B2) -- where the
+    adjoint's whole-gradient steps dominate.  The crossover IS the lesson, and
+    why optimize() keeps both engines.
+
+    All numbers are verified: hard-binarized designs re-evaluated at a higher
+    truncation than either optimizer used.
+    """
+    import time as _time
+    from ikarus.inverse import MetaAtom, Target, optimize, pixels
+    from ikarus.inverse.optimize import _build_problem, _make_algorithm
+
+    WL, M_OPT, M_EVAL = 1550e-9, (10, 0), (20, 0)
+
+    def make_atom():
+        atom = MetaAtom(period=2000e-9, cover="Air", substrate="SiO2")
+        atom.add_pattern(topology=pixels(40, 1), materials=["Air", "aSi"],
+                         height=500e-9)
+        return atom
+
+    target = Target.maximize("R", at=WL, order=(1, 0))
+
+    def verified_R(atom, params):
+        rc = atom.build(params, M_EVAL)
+        rc.set_source(wavelength=WL, theta=0, polarization="linear")
+        r = rc.simulate()[2]
+        return r.R_orders[r.order_index(1, 0)]
+
+    # --- toy, adjoint: two random starts, keep the better -------------------
+    atom = make_atom()
+    best_trace, best_final = None, -1.0
+    for seed in (0, 1):
+        trace = []
+        optimize(atom, target, n_orders=M_OPT, algorithm="adjoint", steps=200,
+                 init="random", seed=seed, verbose=False,
+                 _trace=trace, _trace_every=4)
+        final = verified_R(atom, trace[-1][1])
+        if final > best_final:
+            best_trace, best_final = trace, final
+    adj_t = np.array([t for t, _ in best_trace])
+    adj_R = np.array([verified_R(atom, p) for _, p in best_trace])
+    adj_best = np.maximum.accumulate(adj_R)
+
+    # --- toy, GA: best-so-far per generation via a pymoo callback -----------
+    from pymoo.core.callback import Callback
+    from pymoo.optimize import minimize as pymoo_minimize
+
+    atom_g = make_atom()
+    problem = _build_problem(atom_g, [target], M_OPT)
+    algo = _make_algorithm("ga", pop=30, n_obj=1)
+    trace_g, tg0 = [], _time.perf_counter()
+
+    class _Trace(Callback):
+        def notify(self, algorithm):
+            trace_g.append((_time.perf_counter() - tg0,
+                            dict(algorithm.opt[0].X)))
+
+    pymoo_minimize(problem, algo, ("n_gen", 25), seed=0, verbose=False,
+                   callback=_Trace())
+    ga_t = np.array([t for t, _ in trace_g])
+    ga_R = np.array([verified_R(atom_g, p) for _, p in trace_g])
+    ga_best = np.maximum.accumulate(ga_R)
+
+    fig = plt.figure(figsize=(11.2, 4.2))
+    gs = fig.add_gridspec(1, 2, width_ratios=[1.7, 1.0], wspace=0.28)
+
+    ax = fig.add_subplot(gs[0])
+    ax.semilogx(adj_t, adj_best * 100, color=ORANGE, lw=2.4,
+                drawstyle="steps-post", label="adjoint (gradient)")
+    ax.semilogx(ga_t, ga_best * 100, color=BLUE, lw=2.2,
+                drawstyle="steps-post", label="genetic algorithm")
+    ax.set_xlabel("wall-clock time (s)")
+    ax.set_ylabel("verified efficiency into +1 order (%)")
+    ax.legend(frameon=False, loc="upper left", fontsize=9)
+    ax.set_title("toy scale (40 DOFs): evolution wins", fontsize=11)
+
+    axb = fig.add_subplot(gs[1])
+    names = ["adjoint", "GA"]
+    vals = [ADJOINT_ATSCALE * 100, GA_ATSCALE * 100]
+    bars = axb.bar(names, vals, color=[ORANGE, BLUE], width=0.55)
+    for b, v in zip(bars, vals):
+        axb.text(b.get_x() + b.get_width() / 2, v + 1, f"{v:.0f}%",
+                 ha="center", fontsize=10)
+    axb.set_ylabel("verified efficiency into +1 order (%)")
+    axb.set_ylim(0, max(vals) * 1.25)
+    axb.grid(axis="x")
+    axb.set_title("freeform scale (2,048 DOFs, GA given\ntwice the time): gradients win",
+                  fontsize=11)
+    save(fig, "adjoint_vs_ga.png")
+
+
 FIGURES = [
+    adjoint_vs_ga,
     thin_film_spectrum,
     grating_orders,
     metasurface_phase,

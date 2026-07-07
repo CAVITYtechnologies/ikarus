@@ -111,4 +111,4 @@ for th in (0, 20, 40):
 
 ---
 
-*Next — the finale:* [Lesson 7 · Designing the Shape Itself →](inverse-design.md)
+*Next — the finale:* [Lesson 7 · Inverse Design →](inverse-design.md)

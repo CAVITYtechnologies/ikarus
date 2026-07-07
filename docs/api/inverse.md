@@ -4,12 +4,16 @@
 from ikarus.inverse import MetaAtom, Structure, free, pixels, Target, optimize
 ```
 
-*Declare what you want; let evolution do the drafting.* Three steps: describe a
-parameterized **design**, state one or more **targets**, call **optimize** — a
-gradient-free mixed-variable GA (one objective) or NSGA-III (several).
+*Declare what you want; the engine is chosen for you.* Three steps: describe a
+parameterized **design**, state one or more **targets**, call **optimize** —
+which automatically uses **adjoint gradients** for differentiable problems
+(pixel maps, heights, periods) and the **GA / NSGA-III family** for the rest
+(parametric shapes, discrete choices, Pareto fronts). See
+[Two engines, one call](#adjoint).
 
-!!! note "Optional dependency"
-    Needs **pymoo**: `pip install "ikarus-rcwa[inverse]"`.
+!!! note "Optional dependencies"
+    GA family: **pymoo** (`pip install "ikarus-rcwa[inverse]"`). Adjoint:
+    **JAX + optax** (`pip install "ikarus-rcwa[grad]"`). `[all]` has both.
 
 ## Which construct should I use? { #which-construct }
 
@@ -261,7 +265,7 @@ phase = Target.match("t_phase", value=1.57, at=1550e-9)
 
 ```python
 optimize(atom, targets, n_orders=8, algorithm="auto",
-         pop=100, n_gen=60, seed=0, verbose=True) -> OptimizeResult
+         pop=100, n_gen=60, seed=0, verbose=True, **adjoint_options) -> OptimizeResult
 ```
 
 | Argument | Default | Description |
@@ -269,11 +273,37 @@ optimize(atom, targets, n_orders=8, algorithm="auto",
 | `atom` | — | a `MetaAtom`. |
 | `targets` | — | a `Target` or list (≥ 2 → multi-objective Pareto). |
 | `n_orders` | `8` | harmonic truncation for every forward solve. |
-| `algorithm` | `"auto"` | GA if one objective, NSGA-III if several; or `"ga"`, `"nsga2"`, `"nsga3"`. |
-| `pop`, `n_gen` | `100`, `60` | population size and generations. |
+| `algorithm` | `"auto"` | picks the best engine for the problem (see below); or explicitly `"adjoint"`, `"ga"`, `"nsga2"`, `"nsga3"`. |
+| `pop`, `n_gen` | `100`, `60` | population size and generations (GA family only). |
 | `seed` | `0` | RNG seed — runs are reproducible. |
-| `verbose` | `True` | print the per-generation pymoo table. |
-| `progress` | `False` | show one [progress bar](sweeps.md#optimization-progress) over the generations (sets `verbose=False`). |
+| `verbose` | `True` | print progress (the pymoo table, or the adjoint loss every few steps). |
+| `progress` | `False` | show one [progress bar](sweeps.md#optimization-progress) instead (sets `verbose=False`). |
+| `adjoint_options` | — | adjoint-only, all defaulted: `steps=150`, `learning_rate=0.05`, `min_feature=<meters>`, `beta=(8, 256)`, `init="uniform"|"random"`. |
+
+### Two engines, one call { #adjoint }
+
+`algorithm="auto"` chooses for you — you never need to know which engine ran:
+
+- **Adjoint (gradient-based)** — chosen for differentiable problems: freeform
+  `pixels(...)` maps and free `height`/`period`, with a single (possibly
+  multi-wavelength / worst-case) target and the `[grad]` extra installed
+  (`pip install "ikarus-rcwa[grad]"`). Reverse-mode differentiation through the
+  JAX solver (`ikarus.grad`) is the adjoint method: the gradient with respect
+  to **every pixel** costs about one extra forward solve, so freeform topology
+  scales to thousands of DOFs. Pixel maps are optimized by relax-and-project:
+  continuous densities, a conic **minimum-feature filter**
+  (`min_feature=80e-9` keeps the design fabbable), and a sharpness-ramped
+  binarization. The final design is hard-thresholded and **re-evaluated with
+  the standard solver** — the reported objective is exactly what
+  `result.rcwa.simulate()` reproduces.
+- **GA / NSGA-III (gradient-free)** — chosen for parametric-`Shape` DOFs
+  (rasterization is not differentiable), discrete material choices,
+  anisotropic materials, and whenever you pass ≥ 2 targets and want the full
+  **Pareto front** (a single adjoint run yields one trade-off point, not the
+  front).
+
+Both engines return the same `OptimizeResult`; `algorithm="adjoint"` or `"ga"`
+forces a specific one.
 
 ### `OptimizeResult`
 

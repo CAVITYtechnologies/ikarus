@@ -143,6 +143,22 @@ full pipeline: the engineering-conjugation bridge, li mixed convolution
 (batched `inv` + FFT), forward-branch selection and the Redheffer cascade all
 differentiate cleanly under `jax.grad` + `jax.jit`.
 
+## Phase A/B results (2026-07-07)
+
+- **Phase A** (`ikarus/grad`, commit c4b36ed): differentiable solve pinned to
+  the NumPy core at <=1e-12 across the geometry zoo; 2-D cylinder M=8 with
+  9216 pixel DOFs: full gradient = **1.44x** one forward solve (jitted).
+- **Phase B** (commit 26b2eee): `optimize(atom, target)` auto-dispatches to the
+  adjoint engine with zero UX change; quarter-wave AR height converges to the
+  analytic optimum exactly; relax-and-project pixel maps with min-feature
+  filter; final designs re-verified by the NumPy core.
+- **Gradient oracle cross-check (success criterion 4):** on a 48x48 gray
+  density map (2304 pixels, laurent/FFT, identical parallelogramic harmonic
+  set), ikarus.grad vs FMMax's independent autodiff: forward R agrees to
+  **2e-8**, the full 2304-pixel gradient to **rel-L2 3.9e-7**.
+- Phase C benchmark results (B1-B3) are recorded below the run script
+  `adjoint_benchmarks.py`.
+
 **Open questions answered:** JAX backend (FMMax is the gradient oracle; optax
 ecosystem; functional style matches the stateless core). A **separate optional
 differentiable core** (`ikarus-rcwa[grad]` extra) rather than a dual-backend
@@ -153,3 +169,42 @@ the many-objectives demo. For the `auto` factorization under topology
 optimization, plan is `stop_gradient` on the tangent field (second-order effect
 on the FOM), falling back to `li` if noisy. Hardware: development/validation on
 macOS (CPU JAX); large design runs later on a Windows machine via WSL2 GPU JAX.
+
+
+## Phase C results (2026-07-07): benchmarks, findings, ship-bar verdict
+
+All numbers are **verified**: hard-binarized designs re-evaluated with the
+NumPy core at a higher truncation than the optimizer used.
+
+| Benchmark | Adjoint | GA | Note |
+|---|---|---|---|
+| Toy 1-D deflector, 40 DOFs (docs figure) | 0.23, ~1 s (best of 2 starts) | **0.41**, ~2 s (780 solves) | GA legitimately wins small discrete spaces |
+| Freeform deflector, 2,048 DOFs, M=8 opt / M=12 verify | **0.357**, 572 s (best of 3 starts) | 0.182, 1161 s (2x the budget) | gradients win at scale: 2x the FOM in half the time |
+| Bispectral min-max (1064+1550), 210 DOFs + free height | **worst-case R = 0.61** (0.623/0.611), 96 s; M=12 re-check identical | (adjoint-only demo) | the many-objectives mode of this brief, working |
+| Gradient oracle (2,304-pixel gradient vs FMMax autodiff) | rel-L2 **3.9e-7** | -- | success criterion 4 |
+
+**Ship-bar verdict:** criteria 2 (freeform DOF counts with a min-feature fab
+filter), 3 (min-max multi-wavelength) and 4 (external gradient verification)
+met cleanly. Criterion 1 ("equal-or-better FOM in less wall-clock") holds **at
+freeform scale** -- and measurably *fails at toy scale*, where a GA can nearly
+enumerate the space. That crossover is now the docs' honestly-told story
+(Lesson 7 figure) and the reason both engines ship.
+
+### Findings the benchmarks forced (all fixed/documented)
+
+1. **Optimizers exploit unconverged forward models.** At M=6, the GA "won"
+   with unphysical fitness (R = 1.015) that collapsed to R = 0.10 on converged
+   re-evaluation -- the bispectral-study failure mode reproduced in a
+   controlled experiment. Protocol everywhere now: optimize on a faithful
+   model, verify higher. (The adjoint's min-feature filter incidentally
+   shields it from artifact-mining.)
+2. **Hard min-max starves gradients** -> smoothed maximum (logsumexp) in the
+   adjoint Target loss. B3 went from stalled (0.02) to 0.61 worst-case.
+3. **Deflection landscapes are flat at uniform gray** -> `init="random"`
+   option + a-few-seeds practice. B2 went from 0.09 to 0.45 (@M8).
+4. **Maximize-total-R has a trivial uniform-slab attractor** (R = 0.52 for
+   aSi/SiO2 at 1550): a poor objective for gradient demos and a genuine local
+   optimum in production use -- documented in the lesson's pilot habits.
+5. **The scale crossover** (~10^2 DOFs): below, GA competitive-or-better;
+   above, adjoint dominates. Auto-selection currently always prefers adjoint
+   for pixel problems; a DOF-count threshold is a possible future refinement.

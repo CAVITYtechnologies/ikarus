@@ -4,6 +4,39 @@ All notable changes to Ikarus are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
+## 0.10.0
+
+### Added
+- **Adjoint (gradient-based) inverse design.** `optimize(atom, target)` now
+  automatically uses reverse-mode differentiation through a new differentiable
+  JAX solver when the problem suits gradients — freeform `pixels(...)` maps and
+  free heights/periods with a single (possibly multi-wavelength / worst-case)
+  target. The gradient with respect to *every* pixel costs about one extra
+  forward solve, so freeform topology scales to thousands of DOFs where a GA
+  cannot follow. Pixel maps use relax-and-project (continuous densities, conic
+  **minimum-feature filter** via `min_feature=<meters>`, sharpness-ramped
+  binarization); the final design is hard-thresholded and re-evaluated with the
+  standard NumPy solver, so the reported objective is exactly what
+  `result.rcwa.simulate()` reproduces. The GA / NSGA-III path is unchanged and
+  still chosen for parametric shapes, discrete/anisotropic materials and full
+  Pareto fronts; `algorithm="adjoint"`/`"ga"` force an engine. **The user
+  experience is unchanged** — same `MetaAtom`/`Target` in, same
+  `OptimizeResult` out.
+- **`ikarus.grad`** — the differentiable solver itself (optional `[grad]`
+  extra: JAX + optax): a line-for-line mirror of the forward solve (all
+  factorizations including normal-vector, multi-layer, oblique incidence,
+  complex amplitudes for phase objectives) with a custom-VJP non-Hermitian
+  eigendecomposition (Boeddeker 2019 + scale-aware Lorentzian broadening).
+  Pinned to the NumPy core at ~1e-13; gradients validated against finite
+  differences and against FMMax's independent autodiff (relative agreement
+  ~4e-7 over a 2304-pixel gradient). Supports `jax.jit`; normal-vector tangent
+  fields are precomputed per iteration (`ikarus.grad.tangent_fields_for`).
+
+### Notes
+- Anisotropic (tensor) layers and `Structure` stacks stay on the GA path for
+  now; parametric-`Shape` DOFs are inherently non-differentiable (binary
+  rasterization) and always use the GA.
+
 ## 0.9.1
 
 ### Changed

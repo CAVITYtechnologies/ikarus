@@ -114,9 +114,16 @@
     typical metaatom sizes that's worth more than a GPU port.
 
 ??? question "18 · Are there gradients for optimization?"
-    No analytic/AD gradients. The built-in [inverse design](api/inverse.md) is
-    gradient-free (GA / NSGA-III), and `MetaAtom` is a clean interface for any
-    other black-box optimizer.
+    Yes — **adjoint** gradients. With the `[grad]` extra installed
+    (`pip install "ikarus-rcwa[grad]"`), the same `optimize(atom, target)` call
+    automatically uses gradient-based (adjoint) optimization when the problem
+    suits it: freeform pixel maps (thousands of DOFs — the gradient with
+    respect to *every* pixel costs about one extra solve), free heights and
+    periods, with a minimum-feature-size fab filter built in. Parametric-shape
+    DOFs, discrete material choices and full Pareto fronts stay on the
+    GA / NSGA-III path — same call, the engine is picked for you
+    ([Inverse Design](api/inverse.md)). The differentiable solver itself is
+    exposed as `ikarus.grad.solve` for custom objectives.
 
 ??? question "19 · Anisotropic materials?"
     Yes. Pass `(n_x, n_y, n_z)` anywhere a material goes, or use
