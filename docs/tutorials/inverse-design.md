@@ -168,7 +168,8 @@ a *higher* truncation than either optimizer used:
   <figcaption><strong>The crossover is the lesson.</strong> Left: a toy 1-D
   deflector (40 pixels) — both engines finish in <em>seconds</em>, and the
   genetic algorithm legitimately wins: a few hundred evaluations can genuinely
-  search a space that small. Right: the same physics at freeform scale (2,048
+  search a space that small. (The adjoint curve's late start is one-time JAX
+  compilation — at freeform scale it amortizes to nothing.) Right: the same physics at freeform scale (2,048
   pixels; the adjoint got ten minutes, the GA got twice that) — the adjoint's
   whole-gradient steps dominate, because the gradient's cost doesn't grow with the pixel count but
   the GA's search space explodes. Small discrete spaces belong to evolution;
