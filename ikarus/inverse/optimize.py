@@ -174,6 +174,13 @@ def optimize(atom, targets, n_orders: int = 8, algorithm: str = "auto",
         targets = [targets]
     if algorithm == "auto":
         algorithm = _auto_algorithm(atom, targets)
+        if algorithm == "adjoint" and (pop, n_gen) != (100, 60):
+            import warnings
+            warnings.warn(
+                "optimize() picked the adjoint engine for this problem, so the "
+                "GA settings pop/n_gen are ignored (adjoint uses steps=/"
+                "learning_rate=). Pass algorithm='ga' to force the GA.",
+                stacklevel=2)
 
     if algorithm == "adjoint":
         from .adjoint import adjoint_optimize

@@ -100,6 +100,18 @@ def test_incompatible_problems_raise_clearly():
         check_compatible(aniso, [Target.minimize("R", at=600e-9)])
 
 
+def test_tuple_n_orders_and_coarse_pixel_grid():
+    """(Mx, My) truncation + a pixel grid coarser than 4M+1 must both work:
+    the driver upsamples by the same nearest-neighbour rule as the core."""
+    atom = MetaAtom(period=1.2e-6, cover="Air", substrate="SiO2")
+    atom.add_pattern(topology=pixels(24, 4, symmetry="mirror_y"),
+                     materials=["Air", "Si"], height=free(0.2e-6, 0.6e-6))
+    res = optimize(atom, Target.maximize("R", order=(1, 0), at=1550e-9),
+                   n_orders=(8, 2), steps=6, verbose=False)
+    assert np.isfinite(res.history).all()
+    assert 0.2e-6 <= res.params["height"] <= 0.6e-6
+
+
 def test_ga_path_rejects_adjoint_kwargs():
     with pytest.raises(TypeError, match="adjoint-only"):
         optimize(_film_atom(), Target.minimize("R", at=600e-9),

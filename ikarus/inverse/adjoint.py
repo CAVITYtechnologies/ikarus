@@ -83,6 +83,7 @@ def _order_flat_index(grid: HarmonicGrid, order) -> int:
 
 def _target_loss_grad(target: Target, sols: dict, grid: HarmonicGrid, pol):
     """Differentiable twin of ``Target.objective`` on GradSolutions per lambda."""
+    import jax
     import jax.numpy as jnp
 
     i0 = grid.zero_order_index()
@@ -118,7 +119,16 @@ def _target_loss_grad(target: Target, sols: dict, grid: HarmonicGrid, pol):
         return (1.0 - score) if target.mode == "max" else score
 
     losses = jnp.stack([loss_at(sols[wl]) for wl in target.wavelengths])
-    agg = jnp.max(losses) if target.worst_case else jnp.mean(losses)
+    if target.worst_case:
+        # Smooth maximum: a hard max starves every non-worst wavelength of
+        # gradient, which makes min-max optimization oscillate or stall.  The
+        # logsumexp overestimates the true max by at most log(n)/k (~2e-2
+        # here); the final reported objective is the *hard* worst case,
+        # re-evaluated with the NumPy core.
+        k = 32.0
+        agg = jax.scipy.special.logsumexp(k * losses) / k
+    else:
+        agg = jnp.mean(losses)
     return target.weight * agg
 
 
@@ -127,8 +137,9 @@ def _target_loss_grad(target: Target, sols: dict, grid: HarmonicGrid, pol):
 # ---------------------------------------------------------------------------
 def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
                      learning_rate: float = 0.05, min_feature: float = None,
-                     beta: tuple = (8.0, 256.0), seed: int = 0,
-                     verbose: bool = True, progress: bool = False):
+                     beta: tuple = (8.0, 256.0), init="uniform", seed: int = 0,
+                     verbose: bool = True, progress: bool = False,
+                     _trace: list = None, _trace_every: int = 5):
     """Gradient-based drop-in for the GA path of :func:`ikarus.inverse.optimize`.
 
     Same inputs and result type as the GA; see :func:`optimize` for the shared
@@ -140,6 +151,11 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
     ``min_feature``    minimum feature size in meters for pixel maps (conic
                        filter radius = half this).  Default: two pixels.
     ``beta``           ``(beta_min, beta_max)`` binarization ramp.
+    ``init``           pixel-density start: ``"uniform"`` (0.5 everywhere --
+                       good for reflect/transmit objectives), ``"random"``
+                       (recommended for deflection/steering objectives, whose
+                       landscape is a plateau at uniform gray; combine with a
+                       few ``seed`` values and keep the best), or a float fill.
     """
     _require_grad()
     import jax
@@ -155,7 +171,10 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
 
     # ---- static problem data -------------------------------------------
     wavelengths = sorted({wl for t in targets for wl in t.wavelengths})
-    grid = HarmonicGrid(n_orders, n_orders)
+    if isinstance(n_orders, (tuple, list)):
+        grid = HarmonicGrid(int(n_orders[0]), int(n_orders[1]))
+    else:
+        grid = HarmonicGrid(int(n_orders), int(n_orders))
     topo = atom.pattern["topology"]
     mats = atom.pattern["materials"]
     is_pixels = isinstance(topo, Pixels)
@@ -202,6 +221,19 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
     index_map = topo._index if is_pixels else None
     fixed_topo = None if is_pixels else np.asarray(topo).astype(int)
 
+    # The solver needs >= 4M+1 real-space samples per axis (the same rule the
+    # RCWA facade applies); upsample coarse pixel grids by nearest neighbour --
+    # a differentiable gather, identical to Layer._resample_topology so the
+    # final binarized design is evaluated on exactly the same geometry.
+    n_up = (max(nx, 4 * grid.n_orders_x + 1), max(ny, 4 * grid.n_orders_y + 1))
+    _ix = (np.arange(n_up[0]) * nx / n_up[0]).astype(int).clip(0, nx - 1)
+    _iy = (np.arange(n_up[1]) * ny / n_up[1]).astype(int).clip(0, ny - 1)
+
+    def upsample(g):
+        if n_up == (nx, ny):
+            return g
+        return g[_ix][:, _iy]
+
     def density(theta, beta_now):
         """theta -> filtered+projected density grid in [0, 1]."""
         rho = theta[:n_pix][index_map]
@@ -214,11 +246,11 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
         for wl in wavelengths:
             _, _, eps_mats = per_wl[wl]
             if is_pixels:
-                rho = density(theta, beta_now)
+                rho = upsample(density(theta, beta_now))
                 grids[wl] = eps_mats[0] + rho * (eps_mats[1] - eps_mats[0])
             else:
                 values = jnp.asarray(eps_mats)
-                grids[wl] = values[fixed_topo]
+                grids[wl] = upsample(values[fixed_topo])
         return grids, height, period
 
     def loss_fn(theta, beta_now, tfields):
@@ -240,7 +272,11 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
     rng = np.random.default_rng(seed)
     theta0 = []
     if n_pix:
-        theta0.append(np.full(n_pix, 0.5) + 0.01 * rng.standard_normal(n_pix))
+        if init == "random":
+            theta0.append(rng.uniform(0.05, 0.95, n_pix))
+        else:
+            fill = 0.5 if init == "uniform" else float(init)
+            theta0.append(np.full(n_pix, fill) + 0.01 * rng.standard_normal(n_pix))
     if height_free:
         theta0.append([0.5])
     if period_free:
@@ -254,11 +290,33 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
     betas = beta_schedule(steps, *beta) if is_pixels else np.ones(steps)
     history = []
 
+    def params_of(th):
+        """Hard-binarized parameter dict for the current state."""
+        out = {}
+        if is_pixels:
+            rho_free = np.asarray(th[:n_pix])
+            filtered = np.asarray(conic_filter(jnp.asarray(rho_free[index_map]),
+                                               kfft))
+            bits_full = (filtered >= 0.5)
+            # collapse back to independent DOFs (orbit-consistent by construction)
+            bits = np.zeros(n_pix, dtype=int)
+            bits[index_map.ravel()] = bits_full.ravel().astype(int)
+            for k in range(n_pix):
+                out[f"px{k}"] = int(bits[k])
+        h, p = scalars(th)
+        if height_free:
+            out["height"] = float(h)
+        if period_free:
+            out["period"] = float(p)
+        return out
+
     bar = None
     if progress:
         from .._progress import counter
         bar = counter(steps, desc="adjoint")
 
+    import time as _time
+    t_start = _time.perf_counter()
     for it in range(steps):
         # Tangent fields are constants per iteration, computed OUTSIDE the
         # traced loss from the current (eagerly evaluated) density.
@@ -268,6 +326,8 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
         updates, opt_state = opt.update(g, opt_state)
         theta = jnp.clip(theta + updates, 0.0, 1.0)
         history.append(float(val))
+        if _trace is not None and (it % _trace_every == 0 or it == steps - 1):
+            _trace.append((_time.perf_counter() - t_start, params_of(theta)))
         if bar is not None:
             bar.update(1)
         elif verbose and (it % max(1, steps // 10) == 0 or it == steps - 1):
@@ -276,21 +336,7 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
         bar.close()
 
     # ---- binarize, re-evaluate with the NumPy core, package --------------
-    params = {}
-    if is_pixels:
-        rho_free = np.asarray(theta[:n_pix])
-        filtered = np.asarray(conic_filter(jnp.asarray(rho_free[index_map]), kfft))
-        bits_full = (filtered >= 0.5)
-        # collapse back to independent DOFs (orbit-consistent by construction)
-        bits = np.zeros(n_pix, dtype=int)
-        bits[index_map.ravel()] = bits_full.ravel().astype(int)
-        for k in range(n_pix):
-            params[f"px{k}"] = int(bits[k])
-    height, period = (float(x) for x in scalars(theta))
-    if height_free:
-        params["height"] = height
-    if period_free:
-        params["period"] = period
+    params = params_of(theta)
 
     rcwa = atom.build(params, n_orders)
     results = {}
