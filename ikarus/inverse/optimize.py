@@ -194,9 +194,10 @@ def _auto_algorithm(atom, targets) -> str:
     return "adjoint"
 
 
-def optimize(atom, targets, n_orders: int = 8, algorithm: str = "auto",
+def optimize(atom, targets, n_orders=8, algorithm: str = "auto",
              pop: int = 100, n_gen: int = 60, seed: int = 0,
              verbose: bool = True, progress: bool = False,
+             verify_n_orders=None, restarts: int = 1,
              **adjoint_options) -> OptimizeResult:
     """Optimize ``atom`` against one or more ``targets``.
 
@@ -204,7 +205,9 @@ def optimize(atom, targets, n_orders: int = 8, algorithm: str = "auto",
     ----------
     atom: :class:`~ikarus.inverse.dof.MetaAtom`
     targets: a :class:`Target` or list of them (>=2 -> multi-objective).
-    n_orders: harmonic truncation for every forward solve.
+    n_orders: harmonic truncation for every forward solve -- an ``int`` (square
+        truncation) or an ``(Mx, My)`` tuple.  Use ``(M, 0)`` for a genuinely
+        1-D structure (uniform in y) to avoid paying the full 2-D ``O(M^6)``.
     algorithm: ``'auto'`` (the default -- picks the best engine for the
         problem: gradient-based ``'adjoint'`` for differentiable DOFs such as
         pixel maps and heights, the GA family otherwise), or explicitly one of
@@ -214,31 +217,55 @@ def optimize(atom, targets, n_orders: int = 8, algorithm: str = "auto",
     verbose: print progress (the pymoo table, or the adjoint loss every few
         steps).
     progress: show a single progress bar instead (sets ``verbose=False``).
+    verify_n_orders: harmonic truncation at which the final design's reported
+        ``achieved``/``F`` are computed (``int``/tuple).  Default ``None`` keeps
+        the optimization truncation, but a **convergence check** always runs: the
+        final design is re-simulated at a higher truncation and, if the metric is
+        still moving, a warning is issued (raise ``n_orders``/set this to
+        confirm).  Optimizing at a modest ``n_orders`` and verifying higher is
+        the recommended, cheap pattern.
+    restarts: **adjoint only** -- run this many random-seeded restarts
+        (``seed, seed+1, ...``) and keep the best verified design.  Strongly
+        recommended for steering/deflection objectives, whose landscape is
+        multi-modal (single-seed results vary a lot).
     adjoint_options: forwarded to the adjoint engine -- ``steps``,
-        ``learning_rate``, ``min_feature`` (meters), ``beta``.  All defaulted;
-        see :func:`ikarus.inverse.adjoint.adjoint_optimize`.
+        ``learning_rate``, ``min_feature`` (meters), ``beta``, ``init``.  All
+        defaulted; see :func:`ikarus.inverse.adjoint.adjoint_optimize`.
 
     Whatever the engine, the result is the same :class:`OptimizeResult`:
     ``result.rcwa`` is the optimized, ready-to-simulate structure and
     ``result.report()`` summarizes it.
     """
+    import warnings
     if isinstance(targets, Target):
         targets = [targets]
     if algorithm == "auto":
         algorithm = _auto_algorithm(atom, targets)
         if algorithm == "adjoint" and (pop, n_gen) != (100, 60):
-            import warnings
             warnings.warn(
                 "optimize() picked the adjoint engine for this problem, so the "
                 "GA settings pop/n_gen are ignored (adjoint uses steps=/"
                 "learning_rate=). Pass algorithm='ga' to force the GA.",
                 stacklevel=2)
 
+    if restarts > 1 and algorithm != "adjoint":
+        warnings.warn(f"restarts only applies to the adjoint engine; ignored "
+                      f"for '{algorithm}' (its population already searches "
+                      f"broadly).", stacklevel=2)
+        restarts = 1
+
     if algorithm == "adjoint":
         from .adjoint import adjoint_optimize
-        return adjoint_optimize(atom, targets, n_orders=n_orders, seed=seed,
-                                verbose=verbose, progress=progress,
-                                **adjoint_options)
+        result = None
+        for i in range(max(1, restarts)):
+            r = adjoint_optimize(atom, targets, n_orders=n_orders, seed=seed + i,
+                                 verbose=verbose, progress=progress,
+                                 **adjoint_options)
+            if result is None or _total_loss(r.F) < _total_loss(result.F):
+                result = r
+        _verify_convergence(result, verify_n_orders)
+        return result
+
     if adjoint_options:
         raise TypeError(f"unexpected keyword(s) for the GA path: "
                         f"{sorted(adjoint_options)} (adjoint-only options)")
@@ -274,5 +301,65 @@ def optimize(atom, targets, n_orders: int = 8, algorithm: str = "auto",
                          callback=_TrackCallback())
     if bar is not None:
         bar.close()
-    return OptimizeResult(atom, targets, n_orders, res.X, res.F,
-                          ga_history if single else None, algorithm=algorithm)
+    result = OptimizeResult(atom, targets, n_orders, res.X, res.F,
+                            ga_history if single else None, algorithm=algorithm)
+    _verify_convergence(result, verify_n_orders)
+    return result
+
+
+def _total_loss(F) -> float:
+    return float(np.sum(np.ravel(np.asarray(F))))
+
+
+def _bump_orders(n):
+    """A higher truncation for the convergence check (keep a 0 axis at 0)."""
+    if isinstance(n, (tuple, list)):
+        return tuple(0 if int(m) == 0 else max(int(m) + 4, int(np.ceil(1.5 * m)))
+                     for m in n)
+    return max(int(n) + 4, int(np.ceil(1.5 * n)))
+
+
+def _design_objective_at(result, n_orders):
+    """Evaluate the packaged design's objective(s) at a given truncation
+    (single-objective returns a scalar loss)."""
+    rcwa = result.atom.build(result.params, n_orders)
+    per_wl = {}
+    for wl in sorted({w for t in result.targets for w in t.wavelengths}):
+        rcwa.set_source(wavelength=wl, theta=0.0,
+                        polarization=result.atom.polarization,
+                        linear_pol_angle=result.atom.pol_angle)
+        per_wl[wl] = rcwa.simulate()[2]
+    return [t.objective(per_wl) for t in result.targets]
+
+
+def _verify_convergence(result, verify_n_orders):
+    """Re-evaluate the final design at a higher truncation.  If
+    ``verify_n_orders`` is given, report ``achieved``/``F`` there; always warn
+    when the metric is still moving with ``n_orders`` (the packaged number is
+    honest for its truncation but may not be converged -- exactly what an
+    energy-balance check cannot catch)."""
+    if result.multi:
+        return                       # Pareto-front verification is out of scope
+    import warnings
+    opt_orders = result.n_orders
+    t = result.targets[0]
+
+    if verify_n_orders is not None:
+        F_v = _design_objective_at(result, verify_n_orders)
+        result.F = np.asarray(F_v[0])
+        result.n_orders = verify_n_orders      # .achieved/.rcwa now agree here
+        opt_orders = verify_n_orders
+
+    check_orders = _bump_orders(opt_orders)
+    if check_orders == opt_orders:
+        return
+    a_here = t.achieved(_total_loss(result.F))
+    a_high = t.achieved(_total_loss(_design_objective_at(result, check_orders)))
+    if abs(a_high - a_here) > 0.02:
+        warnings.warn(
+            f"the optimized design may not be converged in n_orders: "
+            f"{t.achieved_label} = {a_here:.3f} at n_orders={opt_orders} but "
+            f"{a_high:.3f} at n_orders={check_orders}. The reported value is "
+            f"honest for its truncation; raise n_orders (or pass "
+            f"verify_n_orders=) and re-check before trusting the headline "
+            f"number.", stacklevel=3)

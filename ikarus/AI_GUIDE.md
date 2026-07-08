@@ -156,15 +156,20 @@ Two engines behind ONE call — the user never chooses:
   free heights/periods with a single (possibly multi-wavelength / worst-case)
   target. Scales to thousands of pixel DOFs (the whole gradient costs ~1 extra
   solve); relax-and-project binarization with a `min_feature=<meters>` fab
-  filter; the final design is hard-thresholded and re-verified with the NumPy
-  core. Its edge GROWS with DOF count (measured: ~40 pixels -> GA competitive
-  or better; ~2000 pixels -> adjoint ~2x the GA's result in half the time);
-  for steering/deflection objectives use `init="random"` + a few seeds. Beware
-  trivial attractors (maximize-total-R is satisfied by a uniform slab) and
-  keep `n_orders` faithful to the pixel size -- optimizers exploit unconverged
-  models (re-verify final designs at higher n_orders; the packaged result
-  already is). Adjoint-only knobs (all defaulted): `steps=150`, `learning_rate=0.05`,
-  `min_feature`, `beta=(8, 256)`, `init`.
+  filter; the final design is hard-thresholded and re-simulated with the NumPy
+  core **at the optimization `n_orders`** (so `.achieved` is honest for that
+  truncation, but NOT necessarily converged -- `optimize()` runs a convergence
+  check and warns if the metric still moves with `n_orders`). Optimize at a
+  modest `n_orders`, then confirm/report higher with `optimize(...,
+  verify_n_orders=16)`; energy balance ~1 does NOT prove convergence here. Its
+  edge GROWS with DOF count (measured: ~40 pixels -> GA competitive or better;
+  ~2000 pixels -> adjoint ~2x the GA's result in half the time). For
+  steering/deflection objectives use `init="random"` AND `restarts=3+`
+  (multi-modal -- single-seed results vary a lot; not optional). Beware trivial
+  attractors (maximize-total-R is satisfied by a uniform slab) and keep
+  `n_orders` faithful to the pixel size. Adjoint-only knobs (all defaulted):
+  `steps=150`, `learning_rate=0.05`, `min_feature`, `beta=(8, 256)`, `init`,
+  `restarts`.
 - **GA / NSGA-III (gradient-free)**, via pymoo (`[inverse]` extra): picked for
   parametric-`Shape` DOFs, discrete/anisotropic materials, circular-pol
   coefficient metrics, and whenever a full **Pareto front** (>= 2 targets) is

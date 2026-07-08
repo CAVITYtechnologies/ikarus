@@ -274,12 +274,14 @@ optimize(atom, targets, n_orders=8, algorithm="auto",
 |---|---|---|
 | `atom` | — | a `MetaAtom`. |
 | `targets` | — | a `Target` or list (≥ 2 → multi-objective Pareto). |
-| `n_orders` | `8` | harmonic truncation for every forward solve. |
+| `n_orders` | `8` | harmonic truncation per forward solve -- an `int` or an `(Mx, My)` tuple. Use `(M, 0)` for a 1-D structure to skip the full 2-D `O(M^6)` cost. |
 | `algorithm` | `"auto"` | picks the best engine for the problem (see below); or explicitly `"adjoint"`, `"ga"`, `"nsga2"`, `"nsga3"`. |
 | `pop`, `n_gen` | `100`, `60` | population size and generations (GA family only). |
 | `seed` | `0` | RNG seed — runs are reproducible. |
 | `verbose` | `True` | print progress (the pymoo table, or the adjoint loss every few steps). |
 | `progress` | `False` | show one [progress bar](sweeps.md#optimization-progress) instead (sets `verbose=False`). |
+| `verify_n_orders` | `None` | truncation at which the final design's `achieved`/`F` are reported (`int`/tuple). A convergence check always runs and warns if the metric is still moving with `n_orders` -- optimize modest, verify higher. |
+| `restarts` | `1` | **adjoint only** -- run this many random-seeded restarts and keep the best. Recommended for steering/deflection (multi-modal landscape). |
 | `adjoint_options` | — | adjoint-only, all defaulted: `steps=150`, `learning_rate=0.05`, `min_feature=<meters>`, `beta=(8, 256)`, `init="uniform"|"random"`. |
 
 ### Two engines, one call { #adjoint }
