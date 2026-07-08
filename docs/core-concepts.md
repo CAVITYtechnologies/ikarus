@@ -48,7 +48,7 @@ can hand it:
 | A `Material` object | `Material.constant(2.0)` | used as-is |
 
 The [`MaterialLibrary`](api/materials-layers.md#materiallibrary) resolves and
-caches all of these; a shared `default_library` ships with **Air, Au, GaN, GaP,
+caches all of these; a shared `default_library` ships with **Air, Ag, Au, GaN, GaP,
 Si, Si₃N₄, SiO₂, TiO₂, aSi**. Adding your own from CSV or a Lorentz model takes
 one call — see [Aerobatics → Custom materials](advanced.md#custom-materials).
 

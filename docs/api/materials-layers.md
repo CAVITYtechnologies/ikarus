@@ -144,7 +144,7 @@ its own:
 ```python
 from ikarus import default_library
 default_library.available()
-# ['Air', 'Au', 'GaN', 'GaP', 'Si', 'Si3N4', 'SiO2', 'TiO2', 'aSi']
+# ['Ag', 'Air', 'Au', 'GaN', 'GaP', 'Si', 'Si3N4', 'SiO2', 'TiO2', 'aSi']
 
 default_library.get("Si", 1.55e-6)   # complex index at 1550 nm
 ```

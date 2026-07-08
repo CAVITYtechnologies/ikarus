@@ -79,7 +79,7 @@ def _make_algorithm(name, pop, n_obj):
 class OptimizeResult:
     """Outcome of :func:`optimize`."""
 
-    def __init__(self, atom, targets, n_orders, X, F, history):
+    def __init__(self, atom, targets, n_orders, X, F, history, algorithm=None):
         self.atom = atom
         self.targets = targets
         self.n_orders = n_orders
@@ -87,6 +87,7 @@ class OptimizeResult:
         self.F = F            # objective value(s)
         self.history = history
         self.multi = len(targets) > 1
+        self.algorithm = algorithm   # which engine ran: 'adjoint'/'ga'/'nsga3'/...
 
     @property
     def params(self) -> dict:
@@ -129,8 +130,9 @@ class OptimizeResult:
         else:
             t = self.targets[0]
             loss = float(np.ravel(self.F)[0])
+            eng = f"  [{self.algorithm}]" if self.algorithm else ""
             lines.append(f"  {t.name}:  {t.achieved_label} = "
-                         f"{t.achieved(loss):.4f}   (loss = {loss:.5f})")
+                         f"{t.achieved(loss):.4f}   (loss = {loss:.5f}){eng}")
             for k, v in self.params.items():
                 if not (k.startswith("px") or "__px" in k):   # hide binary pixel bits
                     lines.append(f"    {k} = {v:.4g}")
@@ -273,4 +275,4 @@ def optimize(atom, targets, n_orders: int = 8, algorithm: str = "auto",
     if bar is not None:
         bar.close()
     return OptimizeResult(atom, targets, n_orders, res.X, res.F,
-                          ga_history if single else None)
+                          ga_history if single else None, algorithm=algorithm)
