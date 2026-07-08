@@ -96,7 +96,9 @@ MetaAtom(period, cover, substrate, polarization="linear", pol_angle=0.0)
 ```
 
 A parameterized 3-region metaatom: **cover / patterned layer / substrate**.
-`period` and the pattern `height` may be fixed floats or `free(...)` ranges;
+`period` may be a fixed float (square cell), a fixed `(period_x, period_y)` tuple
+(rectangular cell), or a `free(...)` range (square); the pattern `height` may be a
+fixed float or `free(...)`;
 the topology may be a fixed array, a `pixels(...)` map, or a parametric
 [`Shape`](shapes.md#parametric-shapes) with free parameters.
 
@@ -316,6 +318,7 @@ forces a specific one.
 | `metaatom` | Alias of `rcwa` (kept for back-compat). |
 | `report() -> str` | Human-readable summary (objective + parameters, or the Pareto front). |
 | `X`, `F` | Raw best parameters and the internal minimization **loss** (for `maximize` targets, `F = 1 − achieved` — don't quote `F` as the metric). |
+| `algorithm` | Which engine actually ran: `'adjoint'`, `'ga'`, or `'nsga3'` (also shown in `report()`). |
 | `multi` | `True` for multi-objective runs. |
 
 ## Complete example — broadband AR coating

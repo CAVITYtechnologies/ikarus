@@ -104,20 +104,61 @@ def _symmetry_index_map(nx: int, ny: int, symmetry) -> np.ndarray:
 class MetaAtom:
     """A parameterized 3-region metaatom: cover / patterned layer / substrate.
 
-    ``period`` and the pattern ``height`` may be fixed floats or :func:`free`
-    ranges; the pattern ``topology`` may be a fixed integer array or a
-    :func:`pixels` map.  :meth:`build` turns a parameter dict into an
-    :class:`~ikarus.RCWA`.
+    ``period`` may be a fixed float (square cell), a fixed ``(period_x,
+    period_y)`` tuple (rectangular cell), or a :func:`free` range (square, a
+    single DOF).  The pattern ``height`` may be a fixed float or :func:`free`;
+    the ``topology`` a fixed integer array or a :func:`pixels` map.
+    :meth:`build` turns a parameter dict into an :class:`~ikarus.RCWA`.
     """
 
     def __init__(self, period, cover, substrate,
                  polarization: str = "linear", pol_angle: float = 0.0):
-        self.period = period
+        self.period = self._validate_period(period)
         self.cover = cover
         self.substrate = substrate
         self.polarization = polarization
         self.pol_angle = pol_angle
         self.pattern: dict | None = None
+
+    @staticmethod
+    def _validate_period(period):
+        """Accept a positive number, a ``free(...)`` range, or a fixed
+        ``(period_x, period_y)`` tuple; reject anything else with a clear
+        message (the alternative -- a raw ``float()`` TypeError three calls
+        deep in the optimizer -- is impossible to trace back)."""
+        if isinstance(period, Free):
+            return period
+        if isinstance(period, (tuple, list)):
+            if len(period) != 2:
+                raise ValueError(
+                    "period tuple must be (period_x, period_y) for a "
+                    f"rectangular cell, got length {len(period)}")
+            if any(isinstance(p, Free) for p in period):
+                raise ValueError(
+                    "a free rectangular period is not supported; use a single "
+                    "free(lo, hi) for a square cell, or a fixed "
+                    "(period_x, period_y) tuple")
+            px, py = float(period[0]), float(period[1])
+            if px <= 0 or py <= 0:
+                raise ValueError("periods must be positive (meters)")
+            return (px, py)
+        if isinstance(period, (int, float)) and not isinstance(period, bool):
+            if period <= 0:
+                raise ValueError("period must be positive (meters)")
+            return float(period)
+        raise TypeError(
+            "period must be a positive number, a free(lo, hi) range, or a "
+            f"fixed (period_x, period_y) tuple; got {type(period).__name__}")
+
+    def period_xy(self, params: dict) -> tuple[float, float]:
+        """Resolve ``period`` to ``(period_x, period_y)`` for a parameter dict."""
+        p = self.period
+        if isinstance(p, Free):
+            v = float(params["period"])
+            return v, v
+        if isinstance(p, tuple):
+            return p
+        return p, p
 
     def add_pattern(self, topology, materials, height) -> "MetaAtom":
         """Add the single patterned layer (Si-on-substrate metaatom)."""
@@ -160,10 +201,10 @@ class MetaAtom:
 
     def build(self, params: dict, n_orders: int) -> RCWA:
         """Construct the RCWA structure for a parameter assignment (no source set)."""
-        period = params["period"] if isinstance(self.period, Free) else float(self.period)
+        px, py = self.period_xy(params)
         # n_orders may be an int (isotropic truncation) or an (Mx, My) tuple --
         # RCWA's own coercion handles both.
-        rcwa = RCWA(period_x=period, period_y=period,
+        rcwa = RCWA(period_x=px, period_y=py,
                     resolution=self._resolution(), n_orders=n_orders)
         rcwa.add_uniform_layer(np.inf, self.cover)
 

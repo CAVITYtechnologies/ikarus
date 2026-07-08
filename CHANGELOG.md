@@ -4,6 +4,30 @@ All notable changes to Ikarus are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
+## 0.10.2
+
+More papercuts from a second first-user sanity check of the adjoint optimizer
+(which passed -- the engine reproduced on the NumPy core to 4 decimals). All
+ergonomics, no physics.
+
+### Added
+- **Rectangular unit cells for `MetaAtom`**: `period=(period_x, period_y)` (a
+  fixed tuple) now builds a rectangular cell, threaded through both engines.
+  What the reporter tried by analogy with `RCWA(period_x, period_y)` now simply
+  works.
+- **`OptimizeResult.algorithm`** — the engine that actually ran (`'adjoint'`,
+  `'ga'`, `'nsga3'`), for scripted checks; also shown in `report()`.
+
+### Fixed
+- **`MetaAtom(period=...)` validates its argument at construction** with a clear
+  message. Previously a malformed `period` (e.g. a tuple where a scalar was
+  expected) was accepted silently and blew up three calls later with a raw
+  `float()` TypeError inside the optimizer.
+- **The unknown-material error now teaches the fix**: it lists the built-ins
+  *and* points at the workarounds (a constant complex index, an (n,k) CSV/JSON
+  file, or `add_from_file`). (Silver `Ag` is still not bundled -- adding it
+  needs sourced optical constants, tracked separately.)
+
 ## 0.10.1
 
 Fixes from a first-user sanity check of the adjoint optimizer (thanks for the

@@ -271,7 +271,11 @@ class MaterialLibrary:
                 self._cache[mat.name] = mat
                 return mat
             raise KeyError(
-                f"Unknown material {spec!r}. Available: {self.available()}"
+                f"Unknown material {spec!r}. Built-in: {self.available()}. "
+                f"You can also pass a constant complex index directly (e.g. "
+                f"0.51+9.5j for Ag at ~1550 nm), a path to an (n, k) CSV or "
+                f"JSON file, or register one with "
+                f"default_library.add_from_file(path, name={spec!r})."
             )
         raise TypeError(f"Cannot interpret material specifier {spec!r}")
 

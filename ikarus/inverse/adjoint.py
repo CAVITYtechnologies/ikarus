@@ -217,7 +217,15 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
     period_free = isinstance(atom.period, Free)
     n_pix = topo.n_free if is_pixels else 0
 
+    if period_free:
+        px_fix = py_fix = None
+    elif isinstance(atom.period, tuple):
+        px_fix, py_fix = atom.period
+    else:
+        px_fix = py_fix = float(atom.period)
+
     def scalars(theta):
+        """Return (height, period_x, period_y) for a parameter vector."""
         k = n_pix
         h = atom.pattern["height"]
         if height_free:
@@ -226,16 +234,15 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
         else:
             height = float(h)
         if period_free:
-            period = atom.period.low + theta[k] * (atom.period.high - atom.period.low)
-        else:
-            period = float(atom.period)
-        return height, period
+            pv = atom.period.low + theta[k] * (atom.period.high - atom.period.low)
+            return height, pv, pv
+        return height, px_fix, py_fix
 
-    period0 = atom.period.low if period_free else float(atom.period)
+    period0_x = atom.period.low if period_free else px_fix
     if min_feature is None:
         radius_px = 2.0
     else:
-        radius_px = 0.5 * min_feature / (period0 / nx)
+        radius_px = 0.5 * min_feature / (period0_x / nx)
     kfft = jnp.asarray(conic_kernel_fft((nx, ny), radius_px)) if is_pixels else None
     index_map = topo._index if is_pixels else None
     fixed_topo = None if is_pixels else np.asarray(topo).astype(int)
@@ -260,7 +267,7 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
         return tanh_projection(rho, beta_now)
 
     def eps_grids_for(theta, beta_now):
-        height, period = scalars(theta)
+        height, px, py = scalars(theta)
         grids = {}
         for wl in wavelengths:
             _, _, eps_mats = per_wl[wl]
@@ -270,16 +277,16 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
             else:
                 values = jnp.asarray(eps_mats)
                 grids[wl] = upsample(values[fixed_topo])
-        return grids, height, period
+        return grids, height, px, py
 
     def loss_fn(theta, beta_now, tfields):
-        grids, height, period = eps_grids_for(theta, beta_now)
+        grids, height, px, py = eps_grids_for(theta, beta_now)
         total = 0.0
         sols = {}
         for wl in wavelengths:
             eps_cover, eps_sub, _ = per_wl[wl]
             sols[wl] = solve([grids[wl]], [height], eps_cover, eps_sub, grid,
-                             0.0, 0.0, period, period, wl, (pol[0], pol[1]),
+                             0.0, 0.0, px, py, wl, (pol[0], pol[1]),
                              factorization="auto", tangent_fields=tfields)
         for t in targets:
             total = total + _target_loss_grad(t, sols, grid, pol)
@@ -322,11 +329,11 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
             bits[index_map.ravel()] = bits_full.ravel().astype(int)
             for k in range(n_pix):
                 out[f"px{k}"] = int(bits[k])
-        h, p = scalars(th)
+        h, px, _py = scalars(th)
         if height_free:
             out["height"] = float(h)
         if period_free:
-            out["period"] = float(p)
+            out["period"] = float(px)      # free period is square (px == py)
         return out
 
     bar = None
@@ -340,7 +347,7 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
     for it in range(steps):
         # Tangent fields are constants per iteration, computed OUTSIDE the
         # traced loss from the current (eagerly evaluated) density.
-        grids, _, _ = eps_grids_for(theta, betas[it])
+        grids, _, _, _ = eps_grids_for(theta, betas[it])
         tfields = tangent_fields_for([np.asarray(grids[wavelengths[0]])])
         val, g = value_and_grad(theta, betas[it], tfields)
         updates, opt_state = opt.update(g, opt_state)
@@ -382,4 +389,5 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
 
     from .optimize import OptimizeResult
     return OptimizeResult(atom, targets, n_orders, params,
-                          np.asarray(F if len(F) > 1 else F[0]), history)
+                          np.asarray(F if len(F) > 1 else F[0]), history,
+                          algorithm="adjoint")

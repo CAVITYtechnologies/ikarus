@@ -137,6 +137,18 @@ def test_ga_history_and_plot():
     assert res.plot() is not None
 
 
+def test_result_exposes_engine():
+    """OptimizeResult.algorithm names the engine that actually ran, so scripts
+    can assert adjoint-vs-GA without scraping the log."""
+    r_adj = optimize(_film_atom(), Target.minimize("R", at=600e-9),
+                     n_orders=1, steps=8, verbose=False)
+    assert r_adj.algorithm == "adjoint"
+    pytest.importorskip("pymoo")
+    r_ga = optimize(_film_atom(), Target.minimize("R", at=600e-9), n_orders=1,
+                    algorithm="ga", pop=6, n_gen=2, verbose=False)
+    assert r_ga.algorithm == "ga"
+
+
 def test_landscape_warnings():
     atom = MetaAtom(period=2000e-9, cover="Air", substrate="SiO2")
     atom.add_pattern(topology=pixels(16, 16), materials=["Air", "aSi"],
