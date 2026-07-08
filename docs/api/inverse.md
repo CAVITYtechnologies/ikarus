@@ -309,11 +309,13 @@ forces a specific one.
 
 | Member | Description |
 |---|---|
+| `achieved` | **The result in metric units** — the achieved `R`, `T`, …; the number to quote. A float (single target) or list of per-metric bests (Pareto). |
+| `plot(ax=None, savefig=None)` | One-line **convergence curve in metric units**, with the final verified design starred. Works for both engines. |
 | `params` | Best parameter dict (first Pareto point if multi-objective). |
 | `rcwa` | The optimized design as a ready-to-simulate `RCWA`. |
 | `metaatom` | Alias of `rcwa` (kept for back-compat). |
 | `report() -> str` | Human-readable summary (objective + parameters, or the Pareto front). |
-| `X`, `F` | Raw best parameters and objective value(s). |
+| `X`, `F` | Raw best parameters and the internal minimization **loss** (for `maximize` targets, `F = 1 − achieved` — don't quote `F` as the metric). |
 | `multi` | `True` for multi-objective runs. |
 
 ## Complete example — broadband AR coating

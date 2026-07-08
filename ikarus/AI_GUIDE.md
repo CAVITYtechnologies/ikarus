@@ -198,7 +198,9 @@ Constructors (all take `at=`/`band=`, `order=(0,0)`, `weight=`, `worst_case=`):
 verbose=True, progress=False, **adjoint_options) -> OptimizeResult`**.
 `algorithm="auto"` picks adjoint or GA per the rules above (one differentiable
 `Target` → adjoint; a list → NSGA-III; `pop`/`n_gen` are GA-only).
-Result: `.params` (best dict), `.metaatom`/`.rcwa` (a ready-to-simulate
+Result: `.achieved` (**metric units** — the number to quote; `.F` is the internal
+minimization loss: for maximize targets `F = 1 − achieved`), `.plot()` (one-line
+convergence curve in metric units, both engines), `.params` (best dict), `.metaatom`/`.rcwa` (a ready-to-simulate
 `RCWA`), `.report()`, `.X`, `.F`, `.history`.
 
 **`Structure`** — multi-layer / shared-parameter inverse design. Subclass it,

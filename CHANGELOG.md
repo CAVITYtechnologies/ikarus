@@ -4,6 +4,32 @@ All notable changes to Ikarus are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
+## 0.10.1
+
+Fixes from a first-user sanity check of the adjoint optimizer (thanks for the
+brutal notes). The engine was correct; the experience around it was not.
+
+### Fixed
+- **`report()` no longer prints the loss wearing the metric's label.** It now
+  reports in metric units (`max(R):  R = 0.128  (loss = 0.872)`), and the new
+  `OptimizeResult.achieved` returns the metric-valued result directly. `.F`
+  remains the internal minimization loss — documented as such. (This bug
+  predates the adjoint engine: the GA path always reported the same way.)
+- **The adjoint now returns the best *verified* design, not blindly the last
+  iterate**: hard-binarized candidates at every binarization-stage boundary are
+  re-evaluated with the standard solver and the best one is packaged. With an
+  aggressive ramp the final step could previously be worse than a transient —
+  on the reporter's own scenario this fix lifted a freeform reflector from
+  R = 0.31 (worse than a uniform slab) to R = 0.64.
+
+### Added
+- **`OptimizeResult.plot()`** — one-line convergence curve in metric units,
+  final verified design starred; works for both engines (the GA path now
+  records a best-so-far history per generation).
+- **Landscape guardrails**: warnings when maximizing *total* R/T with freeform
+  pixels (the uniform-slab attractor) and when running a steering/deflection
+  target from the default uniform init (flat landscape — use `init="random"`).
+
 ## 0.10.0
 
 ### Added
