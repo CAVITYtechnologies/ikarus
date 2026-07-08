@@ -53,7 +53,10 @@ def test_pixel_topology_improves_and_binarizes():
     _, _, result = rcwa.simulate()
     # the reported objective is exactly the numpy-core value of the design
     assert abs((1.0 - result.R_total) - float(np.ravel(res.F)[0])) < 1e-9
-    assert "objective" in res.report()
+    # report() speaks METRIC units (the 0.10.0 report printed the loss under
+    # the metric's label -- the sanity-check footgun); achieved == real R.
+    assert abs(res.achieved - result.R_total) < 1e-9
+    assert f"R = {res.achieved:.4f}" in res.report()
 
 
 def test_worst_case_multiwavelength_target_runs():
@@ -110,6 +113,40 @@ def test_tuple_n_orders_and_coarse_pixel_grid():
                    n_orders=(8, 2), steps=6, verbose=False)
     assert np.isfinite(res.history).all()
     assert 0.2e-6 <= res.params["height"] <= 0.6e-6
+
+
+def test_achieved_and_plot_in_metric_units():
+    """minimize: achieved IS the metric; plot() returns axes labeled with it."""
+    res = optimize(_film_atom(), Target.minimize("R", at=600e-9),
+                   n_orders=1, steps=30, verbose=False)
+    assert abs(res.achieved - float(np.ravel(res.F)[0])) < 1e-12
+    matplotlib = pytest.importorskip("matplotlib")
+    matplotlib.use("Agg")
+    ax = res.plot()
+    assert ax.get_ylabel() == "R"
+
+
+def test_ga_history_and_plot():
+    """The GA path now records best-so-far history, so plot() works there too."""
+    pytest.importorskip("pymoo")
+    matplotlib = pytest.importorskip("matplotlib")
+    matplotlib.use("Agg")
+    res = optimize(_film_atom(), Target.minimize("R", at=600e-9),
+                   n_orders=1, algorithm="ga", pop=8, n_gen=3, verbose=False)
+    assert res.history and len(res.history) >= 3
+    assert res.plot() is not None
+
+
+def test_landscape_warnings():
+    atom = MetaAtom(period=2000e-9, cover="Air", substrate="SiO2")
+    atom.add_pattern(topology=pixels(16, 16), materials=["Air", "aSi"],
+                     height=500e-9)
+    with pytest.warns(UserWarning, match="uniform design"):
+        optimize(atom, Target.maximize("R", at=1550e-9, order=None),
+                 n_orders=3, steps=3, verbose=False)
+    with pytest.warns(UserWarning, match="init='random'"):
+        optimize(atom, Target.maximize("R", at=1550e-9, order=(1, 0)),
+                 n_orders=3, steps=3, verbose=False)
 
 
 def test_ga_path_rejects_adjoint_kwargs():

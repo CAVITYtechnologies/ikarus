@@ -104,19 +104,69 @@ class OptimizeResult:
         :class:`~ikarus.RCWA` (clearer when the design is a ``Structure``)."""
         return self.atom.build(self.params, self.n_orders)
 
+    @property
+    def achieved(self):
+        """The optimized result in **metric units** -- what you asked for.
+
+        A float for a single target (e.g. the achieved ``R``), a list for
+        multi-objective runs (the best value of each metric across the Pareto
+        front).  This is the number to quote; :attr:`F` is the internal
+        minimization loss (for ``maximize`` targets, ``F = 1 - achieved``).
+        """
+        if self.multi:
+            return [t.achieved(float(np.min(col)))
+                    for t, col in zip(self.targets, np.asarray(self.F).T)]
+        return self.targets[0].achieved(float(np.ravel(self.F)[0]))
+
     def report(self) -> str:
         lines = ["Inverse-design result:"]
         if self.multi:
             lines.append(f"  {len(self.X)} Pareto-optimal designs")
             for t, col in zip(self.targets, np.asarray(self.F).T):
-                lines.append(f"    {t.name:<18} best={np.min(col):.4f}")
+                best = float(np.min(col))
+                lines.append(f"    {t.name:<18} best {t.achieved_label} = "
+                             f"{t.achieved(best):.4f}  (loss {best:.4f})")
         else:
-            lines.append(f"  objective = {float(np.ravel(self.F)[0]):.5f}  "
-                         f"({self.targets[0].name})")
+            t = self.targets[0]
+            loss = float(np.ravel(self.F)[0])
+            lines.append(f"  {t.name}:  {t.achieved_label} = "
+                         f"{t.achieved(loss):.4f}   (loss = {loss:.5f})")
             for k, v in self.params.items():
                 if not (k.startswith("px") or "__px" in k):   # hide binary pixel bits
                     lines.append(f"    {k} = {v:.4g}")
         return "\n".join(lines)
+
+    def plot(self, ax=None, savefig: str | None = None):
+        """Convergence curve in **metric units** (single-objective runs).
+
+        Plots the optimizer's own objective history translated to the metric
+        (positive = better for ``maximize`` targets), plus a marker for the
+        final **verified** design (the packaged result, re-simulated with the
+        standard solver).  For the adjoint engine the curve is the relaxed
+        (gray-density) objective during optimization; for the GA it is the
+        best-so-far fitness per generation.
+        """
+        if self.multi:
+            raise ValueError("plot() supports single-objective runs; for a "
+                             "Pareto front, scatter np.asarray(result.F)")
+        if not self.history:
+            raise ValueError("no optimization history was recorded for this run")
+        import matplotlib.pyplot as plt
+        t = self.targets[0]
+        y = [t.achieved(h) for h in self.history]
+        if ax is None:
+            _, ax = plt.subplots(figsize=(6.5, 4))
+        ax.plot(range(1, len(y) + 1), y, lw=2)
+        ax.scatter([len(y)], [self.achieved], marker="*", s=140, zorder=5,
+                   label=f"final verified: {t.achieved_label} = {self.achieved:.4f}")
+        ax.set_xlabel("optimizer iteration")
+        ax.set_ylabel(t.achieved_label)
+        ax.set_title(t.name)
+        ax.legend(frameon=False)
+        ax.grid(alpha=0.3)
+        if savefig:
+            ax.figure.savefig(savefig, dpi=150, bbox_inches="tight")
+        return ax
 
 
 def _auto_algorithm(atom, targets) -> str:
@@ -199,22 +249,28 @@ def optimize(atom, targets, n_orders: int = 8, algorithm: str = "auto",
 
     # Only pass a callback when one exists -- pymoo's default is a no-op Callback,
     # and explicitly handing it ``callback=None`` makes it crash.
-    extra, bar = {}, None
+    from pymoo.core.callback import Callback
+
+    bar = None
     if progress:
         from .._progress import counter
-        from pymoo.core.callback import Callback
-
         bar = counter(n_gen, desc="optimize")
-
-        class _ProgressCallback(Callback):
-            def notify(self, algorithm):  # called once per generation
-                bar.update(1)
-
-        extra["callback"] = _ProgressCallback()
         verbose = False
 
+    ga_history: list = []
+    single = len(targets) == 1
+
+    class _TrackCallback(Callback):
+        def notify(self, algorithm):  # called once per generation
+            if single:                # best-so-far fitness -> result.plot()
+                ga_history.append(float(algorithm.opt[0].F[0]))
+            if bar is not None:
+                bar.update(1)
+
     res = pymoo_minimize(problem, algo, ("n_gen", n_gen), seed=seed,
-                         verbose=verbose, save_history=False, **extra)
+                         verbose=verbose, save_history=False,
+                         callback=_TrackCallback())
     if bar is not None:
         bar.close()
-    return OptimizeResult(atom, targets, n_orders, res.X, res.F, None)
+    return OptimizeResult(atom, targets, n_orders, res.X, res.F,
+                          ga_history if single else None)

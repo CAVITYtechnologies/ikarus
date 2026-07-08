@@ -89,6 +89,27 @@ class Target:
         """The raw metric value (for reporting)."""
         return self._extract(result)
 
+    # -- reporting in metric units ------------------------------------------
+    def achieved(self, objective: float) -> float:
+        """Translate an aggregated *objective* (the loss the optimizer
+        minimized) back into **metric units** -- what the user actually asked
+        for.  For ``mode='max'`` the loss is ``weight * (1 - score)``, so the
+        achieved score is ``1 - objective/weight``; for ``'min'`` the loss *is*
+        the (weighted) metric; for ``'match'`` it is the residual
+        ``|value - target|``.  Exact for the mean aggregation and for the worst
+        case (both commute with the affine map)."""
+        x = float(objective) / self.weight
+        return 1.0 - x if self.mode == "max" else x
+
+    @property
+    def achieved_label(self) -> str:
+        """How to caption :meth:`achieved` (e.g. ``'R'`` or ``'|r_phase - target|'``)."""
+        if self.mode == "match":
+            return f"|{self.metric} - target|"
+        if self.metric in ("r_co", "t_co", "r_cross", "t_cross"):
+            return f"|{self.metric}|"
+        return self.metric
+
     def _loss(self, result) -> float:
         val = self._extract(result)
         if self.mode == "match":

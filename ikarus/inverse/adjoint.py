@@ -180,6 +180,25 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
     is_pixels = isinstance(topo, Pixels)
     nx, ny = (topo.nx, topo.ny) if is_pixels else np.asarray(topo).shape
 
+    # -- landscape guidance (learned the hard way; see Lesson 7 pilot habits)
+    import warnings
+    if is_pixels and any(t.mode == "max" and t.metric in ("R", "T")
+                         and t.order in (None, "total") for t in targets):
+        warnings.warn(
+            "maximizing TOTAL R/T with freeform pixels: this objective is "
+            "often dominated by a trivial uniform design (a plain slab can "
+            "beat any pattern), so the optimizer may converge to something "
+            "boring or worse. Prefer an order-specific target "
+            "(order=(1, 0), ...) or a phase target, and always compare "
+            "against uniform baselines.", stacklevel=2)
+    if is_pixels and init == "uniform" and any(
+            t.order not in (None, "total", (0, 0)) for t in targets):
+        warnings.warn(
+            "steering/deflection target with the default init='uniform': "
+            "these landscapes are flat at uniform gray, so the run may stall. "
+            "Use init='random' and try a few seed= values, keeping the best.",
+            stacklevel=2)
+
     per_wl = {}
     for wl in wavelengths:
         eps_cover = complex(default_library.permittivity(atom.cover, wl))
@@ -317,6 +336,7 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
 
     import time as _time
     t_start = _time.perf_counter()
+    candidates = []                      # binarized designs worth re-checking
     for it in range(steps):
         # Tangent fields are constants per iteration, computed OUTSIDE the
         # traced loss from the current (eagerly evaluated) density.
@@ -326,6 +346,11 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
         updates, opt_state = opt.update(g, opt_state)
         theta = jnp.clip(theta + updates, 0.0, 1.0)
         history.append(float(val))
+        # Snapshot at every binarization-stage boundary: with an aggressive
+        # ramp the *final* iterate is not always the best one, so the packaged
+        # result is the best VERIFIED candidate, not blindly the last.
+        if it + 1 < steps and betas[it + 1] != betas[it]:
+            candidates.append(params_of(theta))
         if _trace is not None and (it % _trace_every == 0 or it == steps - 1):
             _trace.append((_time.perf_counter() - t_start, params_of(theta)))
         if bar is not None:
@@ -335,16 +360,25 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
     if bar is not None:
         bar.close()
 
-    # ---- binarize, re-evaluate with the NumPy core, package --------------
-    params = params_of(theta)
-
-    rcwa = atom.build(params, n_orders)
-    results = {}
-    for wl in wavelengths:
-        rcwa.set_source(wavelength=wl, theta=0.0, polarization=atom.polarization,
-                        linear_pol_angle=atom.pol_angle)
-        results[wl] = rcwa.simulate()[2]
-    F = [t.objective(results) for t in targets]
+    # ---- binarize, re-evaluate with the NumPy core, keep the BEST ---------
+    candidates.append(params_of(theta))
+    seen, best = set(), None
+    for cand in candidates:
+        key = tuple(sorted(cand.items()))
+        if key in seen:
+            continue
+        seen.add(key)
+        rcwa = atom.build(cand, n_orders)
+        results = {}
+        for wl in wavelengths:
+            rcwa.set_source(wavelength=wl, theta=0.0,
+                            polarization=atom.polarization,
+                            linear_pol_angle=atom.pol_angle)
+            results[wl] = rcwa.simulate()[2]
+        F = [t.objective(results) for t in targets]
+        if best is None or sum(F) < sum(best[1]):
+            best = (cand, F)
+    params, F = best
 
     from .optimize import OptimizeResult
     return OptimizeResult(atom, targets, n_orders, params,

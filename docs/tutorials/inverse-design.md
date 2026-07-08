@@ -76,7 +76,8 @@ target = Target.maximize("T", at=1300e-9)
 
 # 3. evolve it
 best = optimize(atom, target, n_orders=6, pop=16, n_gen=10, seed=0)
-print(best.report())
+print(best.report())            # achieved T, in metric units
+best.plot()                     # convergence curve, one line
 
 design = best.metaatom          # a ready-to-simulate RCWA
 ```
@@ -145,7 +146,8 @@ atom.add_pattern(topology=pixels(64, 64, symmetry="mirror_y"),  # 2,048 DOFs
 best = optimize(atom, Target.maximize("R", at=1550e-9, order=(1, 0)),
                 n_orders=8, min_feature=100e-9,   # fab-ready feature-size limit
                 init="random")                    # steering: start from noise
-print(best.report())
+print(best.report())                              # achieved R(+1,0), honest units
+best.plot()                                       # convergence curve, one line
 best.rcwa.visualize_structure(plane="xy")         # the invented topology
 ```
 
