@@ -145,7 +145,8 @@ atom.add_pattern(topology=pixels(64, 64, symmetry="mirror_y"),  # 2,048 DOFs
 
 best = optimize(atom, Target.maximize("R", at=1550e-9, order=(1, 0)),
                 n_orders=8, min_feature=100e-9,   # fab-ready feature-size limit
-                init="random")                    # steering: start from noise
+                init="random", restarts=4,        # steering is multi-modal: multistart
+                verify_n_orders=16)               # report at a converged truncation
 print(best.report())                              # achieved R(+1,0), honest units
 best.plot()                                       # convergence curve, one line
 best.rcwa.visualize_structure(plane="xy")         # the invented topology
@@ -157,8 +158,12 @@ objective with respect to *every pixel at once* for the price of roughly one
 extra solve. Pixels are optimized as continuous densities, smoothed by a
 minimum-feature filter (`min_feature`, in meters — your fab's design rule),
 sharpened toward binary as the run progresses, and the final hard-binarized
-design is re-verified with the standard solver, so `best.F` is exactly what
-`best.rcwa.simulate()` reproduces.
+design is re-verified with the standard solver at the **optimization**
+`n_orders`, so `best.F` matches `best.rcwa.simulate()` there. That number is
+honest but not necessarily *converged*: `optimize()` re-checks at a higher
+truncation and **warns if the metric is still moving** -- pass
+`verify_n_orders=` to report at a converged order (energy balance ~1 will not
+flag this; only an `n_orders` sweep does).
 
 ### When does each engine actually win?
 
@@ -269,6 +274,8 @@ best = optimize(atom, target, algorithm="ga",          # force the GA
 | `steps`, `learning_rate` | adjoint | Adam iterations (~1.5 solves each per wavelength) and step size. |
 | `min_feature` (meters) | adjoint | conic-filter radius = half this; keeps pixel designs fabbable *and* smooths the landscape. |
 | `beta=(lo, hi)` | adjoint | sharpness ramp pushing densities to binary. |
+| `restarts` | adjoint | run N random-seeded restarts, keep the best (steering objectives are multi-modal -- not optional there). |
+| `verify_n_orders` | both | report/verify the final design at a higher truncation; a convergence warning fires by default. |
 | `init` | adjoint | pixel start: `"uniform"` (default — reflect/transmit objectives), `"random"` (deflection/steering objectives, whose landscape is flat at uniform gray — run a few `seed`s and keep the best), or a float fill. |
 | `pop`, `n_gen` | GA family | population and generations. |
 | `seed` | both | reproducible runs. |

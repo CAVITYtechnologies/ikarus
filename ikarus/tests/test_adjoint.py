@@ -137,6 +137,46 @@ def test_ga_history_and_plot():
     assert res.plot() is not None
 
 
+def _deflector_atom():
+    """A high-contrast 1-D Si deflector (drifts in n_orders -- good for the
+    convergence machinery)."""
+    atom = MetaAtom(period=(2000e-9, 300e-9), cover="Air", substrate="Air")
+    atom.add_pattern(pixels(32, 1), ["Air", "Si"], height=400e-9)
+    return atom
+
+
+def test_bump_orders():
+    from ikarus.inverse.optimize import _bump_orders
+    assert _bump_orders(8) == 12
+    assert _bump_orders((8, 0)) == (12, 0)      # keeps a 1-D axis at 0
+    assert _bump_orders((10, 10)) == (15, 15)
+
+
+def test_verify_n_orders_reports_higher_truncation():
+    """verify_n_orders makes achieved/rcwa agree at the requested truncation --
+    the honest headline number, not the optimization-order one."""
+    t = Target.maximize("T", order=(1, 0), at=1550e-9)
+    r = optimize(_deflector_atom(), t, n_orders=(6, 0), steps=25,
+                 init="random", seed=0, verify_n_orders=(10, 0), verbose=False)
+    assert r.n_orders == (10, 0)
+    rc = r.rcwa
+    rc.set_source(wavelength=1550e-9, theta=0, polarization="linear")
+    res = rc.simulate()[2]
+    eff = res.T_orders[res.order_index(1, 0)]
+    assert abs(r.achieved - eff) < 1e-9         # achieved == honest sim at (10,0)
+
+
+def test_restarts_multistart_and_ga_warning():
+    t = Target.maximize("T", order=(1, 0), at=1550e-9)
+    r = optimize(_deflector_atom(), t, n_orders=(6, 0), steps=15,
+                 init="random", restarts=2, verbose=False)
+    assert r.algorithm == "adjoint" and np.isfinite(r.achieved)
+    # restarts is meaningless for the GA -> warn and ignore
+    with pytest.warns(UserWarning, match="restarts only applies"):
+        optimize(_film_atom(), Target.minimize("R", at=600e-9), n_orders=1,
+                 algorithm="ga", pop=6, n_gen=2, restarts=3, verbose=False)
+
+
 def test_result_exposes_engine():
     """OptimizeResult.algorithm names the engine that actually ran, so scripts
     can assert adjoint-vs-GA without scraping the log."""

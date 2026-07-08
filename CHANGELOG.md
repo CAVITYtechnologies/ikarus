@@ -4,6 +4,33 @@ All notable changes to Ikarus are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
+## 0.10.3
+
+Third first-user sanity check of the adjoint optimizer (it works -- a freeform
+Si beam deflector reached 65%+ into a single order). One correctness fix and two
+ergonomics wins.
+
+### Fixed
+- **Honest convergence reporting.** The packaged design was re-simulated with
+  the NumPy core but at the *same* `n_orders` the optimizer used, so
+  `result.achieved` could overstate a still-drifting high-contrast design (a
+  ~14% overestimate was reported), and the guide wrongly claimed it was
+  "re-verified at higher n_orders". Now `optimize()` runs a **convergence
+  check** on the final design and warns when the metric is still moving with
+  `n_orders`; the docs are corrected. Energy balance ~1 does not catch this --
+  only an `n_orders` sweep does, and now one runs automatically.
+
+### Added
+- **`optimize(..., verify_n_orders=...)`** -- report the final design's
+  `achieved`/`F` at a higher truncation than the optimization used (the cheap
+  "optimize modest, verify converged" pattern).
+- **`optimize(..., restarts=N)`** (adjoint) -- run N random-seeded restarts and
+  keep the best verified design, in one call. Steering/deflection landscapes
+  are multi-modal (single-seed results vary a lot), so this is effectively
+  required there; it was previously a hand-rolled loop.
+- **`optimize(n_orders=(Mx, My))`** is now documented/typed (it already
+  worked): pass `(M, 0)` for a 1-D structure to avoid the full 2-D `O(M^6)`.
+
 ## 0.10.2
 
 More papercuts from a second first-user sanity check of the adjoint optimizer
