@@ -109,7 +109,7 @@ print(result.R_phase)                                                  # zero-or
 - `theta_out_ref/trn`, `phi_out_ref/trn` — exit angles in degrees (`NaN` = evanescent).
 - `energy_balance` — `R_total + T_total`. `solution` — raw modal solution for fields.
 
-**Materials:** a shared `default_library` ships **Air, Au, GaN, GaP, Si, Si₃N₄,
+**Materials:** a shared `default_library` ships **Air, Ag, Au, GaN, GaP, Si, Si₃N₄,
 SiO₂, TiO₂, aSi**. Anywhere a material is wanted you may pass a name (`"Si"`), a
 bare number (`1.5`, `2.4+0.01j` = constant index), a JSON path, or a `Material`.
 `default_library.get("Si", 1.55e-6)` returns the complex index;

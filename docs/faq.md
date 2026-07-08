@@ -102,7 +102,7 @@
     Check the table's coverage before sweeping wide.
 
 ??? question "16 · Which materials ship in the box?"
-    Air, Au, GaN, GaP, Si, Si₃N₄, SiO₂, TiO₂, aSi —
+    Air, **Ag**, Au, GaN, GaP, Si, Si₃N₄, SiO₂, TiO₂, aSi —
     `default_library.available()` to confirm; `default_library.get("Si",
     1.55e-6)` for the index.
 

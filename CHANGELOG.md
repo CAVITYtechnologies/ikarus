@@ -8,7 +8,7 @@ semantic versioning.
 
 More papercuts from a second first-user sanity check of the adjoint optimizer
 (which passed -- the engine reproduced on the NumPy core to 4 decimals). All
-ergonomics, no physics.
+ergonomics + one new material, no physics changes to the core.
 
 ### Added
 - **Rectangular unit cells for `MetaAtom`**: `period=(period_x, period_y)` (a
@@ -17,6 +17,10 @@ ergonomics, no physics.
   works.
 - **`OptimizeResult.algorithm`** — the engine that actually ran (`'adjoint'`,
   `'ga'`, `'nsga3'`), for scripted checks; also shown in `report()`.
+- **Silver (`Ag`) added to the material library** — Johnson & Christy 1972
+  tabulated `n, k` (via refractiveindex.info, public domain / CC0), the
+  canonical noble-metal reference. A semi-infinite Ag mirror reflects 99.6 % at
+  1550 nm.
 
 ### Fixed
 - **`MetaAtom(period=...)` validates its argument at construction** with a clear
@@ -25,8 +29,7 @@ ergonomics, no physics.
   `float()` TypeError inside the optimizer.
 - **The unknown-material error now teaches the fix**: it lists the built-ins
   *and* points at the workarounds (a constant complex index, an (n,k) CSV/JSON
-  file, or `add_from_file`). (Silver `Ag` is still not bundled -- adding it
-  needs sourced optical constants, tracked separately.)
+  file, or `add_from_file`).
 
 ## 0.10.1
 

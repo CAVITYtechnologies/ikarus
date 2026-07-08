@@ -38,7 +38,21 @@ def test_period_validation_and_rectangular_cells():
 def test_unknown_material_error_hints_workaround():
     from ikarus import default_library
     with pytest.raises(KeyError, match="constant complex index"):
-        default_library.permittivity("Ag", 1550e-9)
+        default_library.permittivity("Unobtainium", 1550e-9)
+
+
+def test_silver_is_bundled_and_metallic():
+    """Ag (Johnson & Christy 1972) ships in the default library and behaves like
+    a low-loss NIR mirror."""
+    from ikarus import default_library, RCWA
+    assert "Ag" in default_library.available()
+    nk = default_library.get("Ag", 1550e-9)
+    assert nk.real < 0.5 and nk.imag > 8.0          # small n, large k
+    rc = RCWA(period_x=500e-9, period_y=500e-9, n_orders=0)
+    rc.add_uniform_layer(np.inf, "Air")
+    rc.add_uniform_layer(np.inf, "Ag")
+    rc.set_source(wavelength=1550e-9, theta=0, polarization="linear")
+    assert rc.simulate()[2].R_total > 0.98          # silver mirror
 
 
 def test_pixels_dof_enumeration_and_build():
