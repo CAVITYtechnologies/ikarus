@@ -438,7 +438,17 @@ class RCWA:
         (``plane='xy'``).  See :mod:`ikarus.visualization`."""
         from ..visualization import structure as _struct
         if plane == "xy":
-            return _struct.plot_topology(self, layer_index or 0, **kwargs)
+            if layer_index is None:
+                # Default to the first PATTERNED layer, not layer 0 (the uniform
+                # cover) -- mapping the cover raises "layer is uniform".
+                patterned = [i for i, lay in enumerate(self.layers)
+                             if not lay.is_uniform]
+                if not patterned:
+                    raise ValueError(
+                        "no patterned layer to map (the stack is all uniform "
+                        "layers); pass layer_index=... explicitly")
+                layer_index = patterned[0]
+            return _struct.plot_topology(self, layer_index, **kwargs)
         return _struct.plot_stack(self, **kwargs)
 
     def visualize_fields(self, field_map=None, component: str = "intensity", **kwargs):

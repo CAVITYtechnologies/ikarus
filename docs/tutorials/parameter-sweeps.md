@@ -29,11 +29,18 @@ R = res.R_total                       # array aligned to the sweep axis
 A 2-D grid is the same call with two axes — and still one bar:
 
 ```python
-res = Sweep(rcwa).over(theta=np.linspace(0, 60, 31),
-                       wavelength=np.linspace(400e-9, 800e-9, 81)).run()
-res.R_total.shape                     # (31, 81)
+res = Sweep(rcwa).over(theta=np.linspace(0, 60, 13),
+                       wavelength=np.linspace(400e-9, 800e-9, 41)).run()
+res.R_total.shape                     # (13, 41)
 res.order(1, 0, which="R")            # +1 reflected order across the grid
 ```
+
+!!! warning "Mind the solve count"
+    A 2-D sweep is `n_theta × n_wavelength` **full solves** — there is no
+    eigenmode caching, so each grid point costs a complete solve (~3 s here at
+    `n_orders=(9,9)`; see [Need for Speed](../performance.md)). The 13×41 grid
+    above is ~530 solves (minutes); a 31×81 grid is ~2,500 (a couple of hours).
+    Start coarse, and drop `n_orders`/`resolution` while you explore.
 
 ## The manual pattern (and your toggle)
 
@@ -51,8 +58,11 @@ for i, wl in enumerate(progress(wavelengths, desc="λ", enable=True)):
     R[i] = rcwa.simulate()[2].R_total
 ```
 
-Changing the *source* is cheap. Changing the *geometry* triggers a fresh
-eigensolve — unavoidable, that's the physics changing.
+Reuse **one** `RCWA` and change only the source between solves — it keeps the
+geometry fixed and is the correct, convenient pattern. Note it is not a *speed*
+win: there is no eigenmode caching yet, so **every** `set_source` re-solve costs
+a full solve (wavelength, angle *and* polarization alike). Budget one solve per
+sweep point — see the cost table in [Need for Speed](../performance.md).
 
 ## The convergence ritual { #convergence-study }
 
@@ -107,12 +117,15 @@ from ikarus import RCWA, shapes, Sweep, progress
 
 period, N = 450e-9, 96
 disk = shapes.circle(radius=0.3, grid_shape=(N, N))
-wavelengths = np.linspace(400e-9, 800e-9, 60)
-heights = np.linspace(100e-9, 400e-9, 40)
+# A design map is heights × wavelengths FULL solves. This 40×24 ≈ 960 at
+# n_orders=(7,7) (~0.4 s each) runs in minutes; the paper-quality 60×40 at
+# (9,9) is ~2 h. Coarsen while exploring, refine once.
+wavelengths = np.linspace(400e-9, 800e-9, 40)
+heights = np.linspace(100e-9, 400e-9, 24)
 
 Rmap = np.empty((heights.size, wavelengths.size))
 for j, h in enumerate(progress(heights, desc="height")):
-    rcwa = RCWA(period_x=period, period_y=period, resolution=(N, N), n_orders=(9, 9))
+    rcwa = RCWA(period_x=period, period_y=period, resolution=(N, N), n_orders=(7, 7))
     rcwa.add_uniform_layer(np.inf, "Air")
     rcwa.add_layer(h, disk, ["Air", "Si3N4"])
     rcwa.add_uniform_layer(np.inf, "SiO2")

@@ -55,7 +55,7 @@ for r in radii:
     phase.append(res.T_phase)             # zero-order phase, radians
 
 phase = np.unwrap(phase)
-print(f"phase coverage: {np.degrees(phase.ptp()):.0f} deg "
+print(f"phase coverage: {np.degrees(np.ptp(phase)):.0f} deg "
       f"(a full library wants >= 360)")
 
 # plot the phase library: transmittance and phase vs. radius (twin axes)

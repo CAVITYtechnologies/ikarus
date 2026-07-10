@@ -35,6 +35,27 @@ def test_period_validation_and_rectangular_cells():
         MetaAtom(period="nope", cover="Air", substrate="Si")
 
 
+def test_visualize_structure_defaults_to_patterned_layer():
+    """visualize_structure(plane='xy') with no layer_index must map the first
+    PATTERNED layer, not the uniform cover (which raised 'layer is uniform')."""
+    matplotlib = pytest.importorskip("matplotlib")
+    matplotlib.use("Agg")
+    from ikarus import RCWA, shapes
+    rc = RCWA(period_x=500e-9, period_y=500e-9, resolution=(32, 32), n_orders=(2, 2))
+    rc.add_uniform_layer(np.inf, "Air")                       # layer 0 (cover)
+    rc.add_layer(200e-9, shapes.circle(radius=0.3, grid_shape=(32, 32)),
+                 ["Air", "Si"])                               # layer 1 (patterned)
+    rc.add_uniform_layer(np.inf, "SiO2")
+    rc.visualize_structure(plane="xy")                        # must not raise
+    # an all-uniform stack has nothing to map -> clear error
+    rc2 = RCWA(period_x=500e-9, period_y=500e-9, n_orders=0)
+    rc2.add_uniform_layer(np.inf, "Air")
+    rc2.add_uniform_layer(200e-9, "Si")
+    rc2.add_uniform_layer(np.inf, "SiO2")
+    with pytest.raises(ValueError, match="no patterned layer"):
+        rc2.visualize_structure(plane="xy")
+
+
 def test_unknown_material_error_hints_workaround():
     from ikarus import default_library
     with pytest.raises(KeyError, match="constant complex index"):

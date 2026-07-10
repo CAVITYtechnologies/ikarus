@@ -25,6 +25,13 @@ def _require_pymoo():
             "inverse.optimize needs pymoo -- install with `pip install pymoo` "
             "(or `pip install ikarus-rcwa[inverse]`)."
         ) from exc
+    # Silence pymoo's "Compiled modules ... can not be used!" banner -- it looks
+    # like an error to newcomers and is the first optimizer output they see.
+    try:
+        from pymoo.config import Config
+        Config.warnings["not_compiled"] = False
+    except Exception:  # pragma: no cover - config layout is version-dependent
+        pass
 
 
 def _build_problem(atom, targets, n_orders):

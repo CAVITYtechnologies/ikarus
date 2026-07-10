@@ -88,11 +88,11 @@ the report as `shape__arm_length`, `shape__angle`, and so on, alongside the free
 
 ```text
 Inverse-design result:
-  objective = 0.016  (max(T))
-    height = 7.89e-07
-    shape__angle = 12.6
-    shape__arm_length = 0.85
-    shape__arm_width = 0.40
+  max(T):  T = 1.0002   (loss = -0.00021)  [ga]
+    height = 7.64e-07
+    shape__angle = 69.66
+    shape__arm_length = 0.4247
+    shape__arm_width = 0.1382
 ```
 
 <figure markdown="span">
@@ -149,7 +149,7 @@ best = optimize(atom, Target.maximize("R", at=1550e-9, order=(1, 0)),
                 verify_n_orders=16)               # report at a converged truncation
 print(best.report())                              # achieved R(+1,0), honest units
 best.plot()                                       # convergence curve, one line
-best.rcwa.visualize_structure(plane="xy")         # the invented topology
+best.rcwa.visualize_structure(plane="xy", layer_index=1)  # the invented topology
 ```
 
 Because the problem is differentiable, `optimize()` silently switches from the
@@ -210,7 +210,7 @@ print(best.report())
 "High reflectance at 1064 nm **and** 1550 nm, from the same atom" is *one*
 objective — the worst of the two wavelengths — not two separate ones. Say
 exactly that with `worst_case=True`, and it stays on the adjoint fast path
-(pixels **and** the free height are optimized together; expect a few minutes):
+(pixels **and** the free height are optimized together):
 
 ```python
 from ikarus.inverse import MetaAtom, Target, optimize, free, pixels
@@ -221,9 +221,18 @@ atom.add_pattern(topology=pixels(40, 40, symmetry="c4v"),
 
 target = Target.maximize("R", at=[1064e-9, 1550e-9], order=None,
                          worst_case=True)          # lift the WORST wavelength
-best = optimize(atom, target, n_orders=8, min_feature=80e-9)
+best = optimize(atom, target, n_orders=8, min_feature=80e-9,
+                init="random", restarts=3)         # symmetric start is a trap
 print(best.report())
+# -> worst-case R ≈ 0.92 (R@1064 ≈ 0.92, R@1550 ≈ 0.98); ~10 min for 3 restarts
 ```
+
+!!! warning "A uniform-gray start is a trap here — use `init="random"`"
+    From the default 50 %-everywhere density this symmetric objective has **zero
+    gradient** and the optimizer never moves (worst-case R frozen near 3 %). The
+    `init="random"` + `restarts=3` above breaks the symmetry and lands at
+    ~92 %. This is the same multi-modal-landscape lesson as the deflector:
+    whenever a run's loss is flat from step 0, restart from noise.
 
 Under the hood the adjoint engine uses a smoothed maximum so *both* wavelengths
 receive gradient every step (a hard max would starve the currently-better one) —
@@ -238,6 +247,10 @@ returns the Pareto front in a single run (this is the one thing gradients cannot
 do: one adjoint run yields one point on that front, not the curve):
 
 ```python
+atom = MetaAtom(period=900e-9, cover="Air", substrate="SiO2")
+atom.add_pattern(topology=pixels(24, 24, symmetry="c4v"),
+                 materials=["Air", "aSi"], height=free(300e-9, 800e-9))
+
 targets = [Target.maximize("R", at=1064e-9, order=None),
            Target.maximize("R", at=1550e-9, order=None)]
 front = optimize(atom, targets, n_orders=6, pop=60, n_gen=40)   # minutes
