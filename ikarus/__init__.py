@@ -35,7 +35,7 @@ from . import shapes
 from .sweep import Sweep, SweepResult
 from ._progress import progress
 
-__version__ = "0.10.3"
+__version__ = "0.10.4"
 
 
 def ai_guide() -> str:

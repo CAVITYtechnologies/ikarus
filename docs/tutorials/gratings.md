@@ -61,7 +61,7 @@ Propagating lanes get real angles; evanescent ghosts get `NaN`.
 
 <figure markdown="span">
   ![Grating diffraction-order efficiencies](../assets/grating_orders.png){ width="640" }
-  <figcaption>Power per transmitted diffraction order for the TiO₂ grating at 650&nbsp;nm; the label above each bar is that lane's exit angle.</figcaption>
+  <figcaption>Power per transmitted diffraction order for the TiO₂ grating at 550&nbsp;nm; the label above each bar is that lane's exit angle.</figcaption>
 </figure>
 
 ## Checking against the chalkboard
@@ -81,8 +81,10 @@ for m in (-1, 0, 1):
     i = res.order_index(m, 0)
     if np.isfinite(res.theta_out_trn[i]):
         predicted = np.degrees(np.arcsin(m * 550e-9 / (n_t * period)))
+        # theta_out_* is an unsigned polar magnitude (the +/- direction
+        # lives in phi_out_*), so compare against |predicted|.
         print(f"order {m:+d}: Ikarus {res.theta_out_trn[i]:6.2f} deg, "
-              f"grating eq {predicted:6.2f} deg")
+              f"grating eq {abs(predicted):6.2f} deg")
 ```
 
 They agree to numerical precision. (The *angles* come from geometry alone; the

@@ -97,7 +97,7 @@ print(f"R={res.R_total:.3f}  T={res.T_total:.3f}  A={A:.3f}")
 ## Expected results
 
 - **TiO₂/glass:** smooth interference fringes; `R+T ≈ 1` to ~10⁻⁹.
-- **Au film:** large `A`, `R+T` well below 1 — gold doing gold things.
+- **Au film:** a real `A` (≈0.27 here), `R+T` well below 1 — gold doing gold things.
 
 ## Pilot habits
 

@@ -92,7 +92,7 @@ def grating_orders():
     rcwa.add_uniform_layer(np.inf, "Air")
     rcwa.add_layer(300e-9, topo, ["TiO2", "Air"])
     rcwa.add_uniform_layer(np.inf, "SiO2")
-    rcwa.set_source(wavelength=650e-9, theta=0, polarization="linear",
+    rcwa.set_source(wavelength=550e-9, theta=0, polarization="linear",
                     linear_pol_angle=0.0)
     _, _, res = rcwa.simulate()
     p, q = res.orders
@@ -111,7 +111,7 @@ def grating_orders():
                     f"{a:.0f}°", ha="center", va="bottom", fontsize=9, color=DEEP)
     ax.set_xlabel("transmitted diffraction order $m$")
     ax.set_ylabel("efficiency (%)")
-    ax.set_title("TiO₂ grating @ 650 nm — power per exit lane (exit angle above)")
+    ax.set_title("TiO₂ grating @ 550 nm — power per exit lane (exit angle above)")
     ax.set_ylim(0, max(effs) * 100 * 1.2)
     ax.grid(axis="x")
     save(fig, "grating_orders.png")

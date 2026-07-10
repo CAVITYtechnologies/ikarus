@@ -4,6 +4,33 @@ All notable changes to Ikarus are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
+## 0.10.4
+
+A full end-to-end test of Flight School (Lessons 1-8, every code block run
+against the installed package) found two documented snippets that crashed and a
+set of doc/UX inaccuracies. All fixed.
+
+### Fixed
+- **`visualize_structure(plane="xy")` defaulted to layer 0 -- the uniform cover
+  -- and raised "layer is uniform".** It now defaults to the first *patterned*
+  layer (and gives a clear error if the stack is all-uniform), so the Lesson 7
+  freeform example runs as written.
+- **pymoo's "Compiled modules ... can not be used!" banner is silenced** (it
+  looked like an error on a newcomer's first optimizer run).
+- Docs, Lesson 3: `phase.ptp()` -> `np.ptp(phase)` (the method was removed in
+  NumPy 2.0; the package itself is NumPy-2 clean and CI runs it).
+- Docs, Lesson 4: corrected the "changing the source is cheap" claim -- there is
+  no eigenmode caching, so every `set_source` re-solve costs a full solve; added
+  solve-count/runtime callouts to the 2-D sweep and design-map examples (were
+  ~2 h, unflagged) and shrank their grids.
+- Docs, Lesson 7: the `worst_case` bispectral example converged to R ~ 0.03 from
+  the symmetric uniform-gray start; now uses `init="random", restarts=3` and
+  lands at worst-case R ~ 0.92. Refreshed the stale `report()` sample to the
+  current metric-units format; made the Pareto snippet self-contained.
+- Docs, Lesson 2: grating-equation check now compares `abs()` (`theta_out_*` is
+  an unsigned polar magnitude); figure/caption/code aligned to 550 nm.
+- Docs, Lesson 1: softened gold's "large A" to the measured ~0.27.
+
 ## 0.10.3
 
 Third first-user sanity check of the adjoint optimizer (it works -- a freeform
