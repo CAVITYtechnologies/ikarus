@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 
 from ikarus import RCWA
-from ikarus.tests.validation import grcwa_reference
+from ikarus.tests.validation import grcwa_reference, torcwa_reference
 from ikarus.tests.validation.fmmax_reference import (
     binary_grating_grid,
     stack_RT,
@@ -119,4 +119,36 @@ def test_grcwa_direct_rule_is_wrong_on_high_contrast_tm():
     # Ikarus's laurent mode is in the same wrong regime (it is the same rule),
     # while Ikarus's default faithful mode is not.
     assert _ikarus_grating_R("laurent", M=20) > 0.12
+    assert abs(_ikarus_grating_R("normal", M=16) - 0.100) < 5e-3
+
+
+def test_torcwa_harness_reproduces_fresnel():
+    """Sanity: the torcwa harness matches analytic Fresnel (validates conventions)."""
+    pytest.importorskip("torcwa")
+    R = torcwa_reference.slab_R0(2.5, 200e-9, 633e-9, pol="TM")
+    R_analytic = fresnel_stack([1.0, 2.5, 1.0], [200e-9], 633e-9, 0.0, "p")[0]
+    assert abs(R - R_analytic) < 1e-6
+
+
+def test_torcwa_matches_ikarus_laurent_and_misses_faithful():
+    """torcwa is the direct rule too, but 1-D-truncatable (order=[M,0]) so it lines
+    up exactly with Ikarus's ``laurent`` (M,0). Two results in one:
+
+    * Ikarus ``laurent`` reproduces torcwa to ~1e-3 at matched truncation -- Ikarus
+      is a strict superset of what a direct-rule tool computes;
+    * both stay off the faithful ~0.100 and only crawl down as O(1/M).
+    """
+    pytest.importorskip("torcwa")
+    R10 = torcwa_reference.grating_R0(N_HI, PERIOD, H, WL, order_m=10)
+    R20 = torcwa_reference.grating_R0(N_HI, PERIOD, H, WL, order_m=20)
+    R30 = torcwa_reference.grating_R0(N_HI, PERIOD, H, WL, order_m=30)
+
+    # direct-rule signature: far from faithful 0.100, decreasing toward it as O(1/M).
+    assert R10 > R20 > R30 > 0.11
+
+    # the superset proof: Ikarus laurent (M,0) == torcwa order=[M,0] (same rule).
+    assert abs(R20 - _ikarus_grating_R("laurent", M=20)) < 5e-3
+    assert abs(R30 - _ikarus_grating_R("laurent", M=30)) < 5e-3
+
+    # while Ikarus's default faithful mode is already at the true answer.
     assert abs(_ikarus_grating_R("normal", M=16) - 0.100) < 5e-3
