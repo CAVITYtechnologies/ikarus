@@ -139,3 +139,36 @@ independent solver on exactly the cases where the convenient tools fail.
 
 *Working on something in this regime? That is precisely the kind of problem
 [we build for](citation.md) — reach out.*
+
+## References
+
+**Cross-check solvers.** The independent, separately-implemented RCWA codes Ikarus
+is validated against on this page. If you use them, please cite their authors:
+
+- **FMMax** — M. F. Schubert and A. M. Hammond, "Fourier modal method for inverse
+  design of metasurface-enhanced micro-LEDs," *Optics Express* **31**, 42945 (2023).
+  [arXiv:2308.08573](https://arxiv.org/abs/2308.08573) ·
+  [github.com/invrs-io/fmmax](https://github.com/invrs-io/fmmax)
+- **grcwa** — W. Jin, W. Li, M. Orenstein, and S. Fan, "Inverse design of lightweight
+  broadband reflector for relativistic lightsail propulsion," *ACS Photonics* **7**,
+  2350 (2020). [github.com/weiliangjinca/grcwa](https://github.com/weiliangjinca/grcwa)
+- **torcwa** — C. Kim and B. Lee, "TORCWA: GPU-accelerated Fourier modal method and
+  gradient-based optimization for metasurface design," *Computer Physics
+  Communications* **282**, 108552 (2023).
+  [doi:10.1016/j.cpc.2022.108552](https://doi.org/10.1016/j.cpc.2022.108552) ·
+  [github.com/kch3782/torcwa](https://github.com/kch3782/torcwa)
+
+**Fourier factorization.** The theory behind the convergence behaviour shown above:
+
+- L. Li, "Use of Fourier series in the analysis of discontinuous periodic
+  structures," *J. Opt. Soc. Am. A* **13**, 1870 (1996).
+- P. Lalanne and G. M. Morris, "Highly improved convergence of the coupled-wave
+  method for TM polarization," *J. Opt. Soc. Am. A* **13**, 779 (1996).
+- G. Granet and B. Guizal, "Efficient implementation of the coupled-wave method for
+  metallic lamellar gratings in TM polarization," *J. Opt. Soc. Am. A* **13**, 1019
+  (1996).
+- T. Schuster *et al.*, "Normal vector method for convergence improvement using the
+  RCWA for crossed gratings," *J. Opt. Soc. Am. A* **24**, 2880 (2007) — the
+  normal-vector method Ikarus uses by default.
+
+To cite Ikarus itself, see [Citation](citation.md).

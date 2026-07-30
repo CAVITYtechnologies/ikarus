@@ -34,9 +34,18 @@ from ikarus.tests.validation import torcwa_reference as tw
 ASSETS = Path(__file__).resolve().parent.parent / "docs" / "assets"
 ASSETS.mkdir(parents=True, exist_ok=True)
 
-# -- shared style (matches gen_docs_figures.py) -----------------------------
-ORANGE, AMBER, DEEP, BLUE = "#f4511e", "#ffb300", "#bf360c", "#1565c0"
-GREEN, PURPLE, RED, GREY = "#2e7d32", "#6a1b9a", "#c62828", "#607d8b"
+# -- refined, brand-aligned palette -----------------------------------------
+# Warm (orange/gold/bronze) = Ikarus & faithful methods, the heroes; muted slate
+# = the other tools, which recede; charcoal for structure.  Data lines carry a
+# little transparency (+ solid/dashed pairing) so overlapping curves stay legible.
+ORANGE = "#e2570b"   # Ikarus normal-vector (default) — brand orange
+AMBER = "#eaa00c"    # Ikarus Li inverse rule — warm gold
+GREEN = "#a56a2b"    # FMMax reference — warm bronze
+DEEP = "#33404a"     # charcoal — text, annotations, tags
+BLUE = "#4f6b7a"     # Ikarus laurent / direct rule — muted slate
+PURPLE = "#88a0ac"   # torcwa — lighter steel
+RED = "#37505c"      # grcwa — dark slate
+GREY = "#5b6b75"     # true-value / reference lines
 plt.rcParams.update({
     "figure.facecolor": "white", "savefig.facecolor": "white",
     "axes.facecolor": "white", "font.size": 11, "axes.grid": True,
@@ -144,15 +153,15 @@ def tm_sweep():
 
 def fig_tm_convergence(Ms, data, R_true):
     fig, ax = plt.subplots(figsize=(7.4, 5.0))
-    ax.axhline(R_true * 100, color=GREY, ls="--", lw=1.6,
+    ax.axhline(R_true * 100, color=GREY, ls="--", lw=1.6, alpha=0.9,
                label=f"true value = {R_true*100:.1f}%  (FMMax, converged)")
-    ax.plot(Ms, data["normal"] * 100, "o-", color=ORANGE, lw=2.4, ms=7,
+    ax.plot(Ms, data["normal"] * 100, "o-", color=ORANGE, lw=2.6, ms=7, alpha=0.9,
             label="Ikarus — normal-vector (default)")
-    ax.plot(Ms, data["li"] * 100, "s-", color=AMBER, lw=2, ms=6,
+    ax.plot(Ms, data["li"] * 100, "s--", color=AMBER, lw=2, ms=6, alpha=0.9,
             label="Ikarus — Li inverse rule")
-    ax.plot(Ms, data["laurent"] * 100, "v-", color=BLUE, lw=2, ms=6,
+    ax.plot(Ms, data["laurent"] * 100, "v-", color=BLUE, lw=2.6, ms=6, alpha=0.8,
             label="Ikarus — direct (Laurent) rule")
-    ax.plot(Ms, data["torcwa"] * 100, "x--", color=PURPLE, lw=1.6, ms=8,
+    ax.plot(Ms, data["torcwa"] * 100, "x--", color=PURPLE, lw=1.8, ms=8, alpha=0.95,
             label="torcwa (direct rule)")
     ax.set_xlabel("Fourier orders retained  (M)")
     ax.set_ylabel("zeroth-order reflectance (%)")
@@ -163,21 +172,22 @@ def fig_tm_convergence(Ms, data, R_true):
                 arrowprops=dict(arrowstyle="->", color=DEEP, lw=1))
     ax.annotate("direct rule (grcwa/torcwa):\nstill wrong at M = 30",
                 xy=(30, data["laurent"][-1] * 100), xytext=(15.5, data["laurent"][-1] * 100 + 4),
-                fontsize=9, color=PURPLE,
-                arrowprops=dict(arrowstyle="->", color=PURPLE, lw=1))
+                fontsize=9, color=RED,
+                arrowprops=dict(arrowstyle="->", color=RED, lw=1))
     ax.legend(frameon=False, fontsize=9.5, loc="upper right")
     save(fig, "validation_tm_convergence.png")
 
 
 def fig_tm_error(Ms, data, R_true):
     fig, ax = plt.subplots(figsize=(7.4, 5.0))
-    for key, c, mk, lbl in [
-        ("li", ORANGE, "o", "Ikarus faithful (normal-vector = Li for 1-D)"),
-        ("laurent", BLUE, "v", "Ikarus direct rule"),
-        ("torcwa", PURPLE, "x", "torcwa (direct rule)"),
+    for key, c, mk, ls, lbl in [
+        ("li", ORANGE, "o", "-", "Ikarus faithful (normal-vector ≡ Li for 1-D)"),
+        ("laurent", BLUE, "v", "-", "Ikarus direct rule"),
+        ("torcwa", PURPLE, "x", "--", "torcwa (direct rule)"),
     ]:
         err = np.abs(data[key] - R_true)
-        ax.loglog(Ms, np.maximum(err, 1e-6), mk + "-", color=c, lw=2, ms=6, label=lbl)
+        ax.loglog(Ms, np.maximum(err, 1e-6), mk + ls, color=c, lw=2.2, ms=6.5,
+                  alpha=0.9, label=lbl)
     guide = 0.9 * (Ms.astype(float) / Ms[0]) ** -1.0 * np.abs(data["laurent"][0] - R_true)
     ax.loglog(Ms, guide, ":", color=GREY, lw=1.6, label="slope ∝ 1/M  (guide)")
     ax.set_xlabel("Fourier orders retained  (M)")
@@ -202,11 +212,11 @@ def fig_cylinder():
     R_true, _ = fm.stack_RT([air, cyl, air], [0.0, CYL_H, 0.0], PERIOD, WL, 500, "normal", "TE")
 
     fig, ax = plt.subplots(figsize=(7.4, 5.0))
-    ax.axhline(R_true * 100, color=GREY, ls="--", lw=1.6,
+    ax.axhline(R_true * 100, color=GREY, ls="--", lw=1.6, alpha=0.9,
                label=f"true value = {R_true*100:.1f}%  (FMMax NORMAL)")
-    ax.plot(Ms, R_n * 100, "o-", color=ORANGE, lw=2.4, ms=7,
+    ax.plot(Ms, R_n * 100, "o-", color=ORANGE, lw=2.6, ms=7, alpha=0.9,
             label="Ikarus — normal-vector (default)")
-    ax.plot(Ms, R_li * 100, "s-", color=AMBER, lw=2, ms=6,
+    ax.plot(Ms, R_li * 100, "s--", color=AMBER, lw=2, ms=6, alpha=0.9,
             label="Ikarus — Li inverse rule")
     ax.set_xlabel("Fourier orders per axis  (M)")
     ax.set_ylabel("reflectance (%)")
@@ -236,8 +246,8 @@ def fig_summary(R_true):
     colors = [GREEN, ORANGE, AMBER, BLUE, PURPLE, RED]
 
     fig, ax = plt.subplots(figsize=(7.6, 5.2))
-    ax.axvspan(-0.5, 2.5, color=GREEN, alpha=0.06)      # faithful group
-    ax.axvspan(2.5, 5.5, color=RED, alpha=0.06)         # direct-rule group
+    ax.axvspan(-0.5, 2.5, color=ORANGE, alpha=0.07)     # faithful group (warm)
+    ax.axvspan(2.5, 5.5, color=BLUE, alpha=0.09)        # direct-rule group (cool)
     bars = ax.bar(labels, vals, color=colors, edgecolor="white", width=0.7)
     ax.axhline(R_true * 100, color=GREY, ls="--", lw=1.6)
     ax.text(2.5, 12.3, f"true value = {R_true*100:.1f}%", color=DEEP,
@@ -249,10 +259,10 @@ def fig_summary(R_true):
                 va="bottom", fontsize=8.5, color=DEEP)
     ax.set_ylabel("zeroth-order reflectance (%)")
     ax.set_ylim(0, max(vals) * 1.30)
-    ax.text(1.0, max(vals) * 1.20, "faithful ✓", color=GREEN, ha="center",
-            fontsize=10.5, fontweight="bold")
+    ax.text(1.0, max(vals) * 1.20, "faithful  ✓", color=ORANGE, ha="center",
+            fontsize=11, fontweight="bold")
     ax.text(4.0, max(vals) * 1.20, "direct rule — wrong", color=RED, ha="center",
-            fontsize=10.5, fontweight="bold")
+            fontsize=11, fontweight="bold")
     ax.set_title("The bottom line — high-contrast TM grating at a practical truncation",
                  fontsize=11)
     save(fig, "validation_summary.png")
