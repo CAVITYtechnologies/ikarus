@@ -98,6 +98,7 @@ nav:
   - The Physics:
       - How RCWA Works: theory.md
       - Core Concepts: core-concepts.md
+      - Validation & Accuracy: validation.md
   - Flight School:
       - tutorials/index.md
       - "Lesson 1 · Spectra 101": tutorials/reflection-transmission.md
