@@ -6,7 +6,7 @@ open-source scientific software earns its keep.
 ## How to cite
 
 > Shelling Neto, L. *Ikarus: high-precision 2-D RCWA simulation for periodic
-> photonic structures* (version 0.2.0). CAVITY technologies UG, 2026.
+> photonic structures* (version 0.10.5). CAVITY technologies UG, 2026.
 > https://github.com/CAVITYtechnologies/ikarus
 
 ## BibTeX
@@ -17,7 +17,7 @@ open-source scientific software earns its keep.
   title   = {{Ikarus}: High-Precision 2-D RCWA Simulation for Periodic
              Photonic Structures},
   year    = {2026},
-  version = {0.2.0},
+  version = {0.10.5},
   publisher = {CAVITY technologies UG},
   url     = {https://github.com/CAVITYtechnologies/ikarus}
 }
