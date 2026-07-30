@@ -12,7 +12,7 @@ whole module is skipped where it is not installed (e.g. the publish CI).
 import numpy as np
 import pytest
 
-from ikarus import RCWA
+from ikarus import RCWA, shapes
 from ikarus.tests.validation import grcwa_reference, torcwa_reference
 from ikarus.tests.validation.fmmax_reference import (
     binary_grating_grid,
@@ -40,6 +40,27 @@ def _ikarus_grating_R(factorization, M, Nx=1024):
     rc.add_uniform_layer(np.inf, "Air")
     rc.set_source(wavelength=WL, theta=0, polarization="linear", linear_pol_angle=90)
     return rc.simulate()[2].R_total
+
+
+# 2-D curved cylinder (identical to test_normalvector.py): the case where the
+# normal-vector method is the real differentiator over even Li's separable rule.
+CYL_PERIOD, CYL_N, CYL_H, CYL_WL = 400e-9, 3.5, 200e-9, 700e-9
+
+
+def _ikarus_cylinder_R(factorization, M, N=96):
+    mask = shapes.circle(center=(0.5, 0.5), radius=0.30, grid_shape=(N, N))
+    rc = RCWA(period_x=CYL_PERIOD, period_y=CYL_PERIOD, resolution=(N, N),
+              n_orders=(M, M), factorization=factorization)
+    rc.add_uniform_layer(np.inf, "Air")
+    rc.add_layer(CYL_H, mask.astype(int), [1.0, CYL_N])
+    rc.add_uniform_layer(np.inf, "Air")
+    rc.set_source(wavelength=CYL_WL, theta=0, polarization="linear", linear_pol_angle=0)  # TE
+    return rc.simulate()[2].R_total
+
+
+def _fmmax_cylinder_grid(N):
+    mask = np.asarray(shapes.circle(center=(0.5, 0.5), radius=0.30, grid_shape=(N, N)))
+    return np.where(mask.astype(bool), complex(CYL_N) ** 2, 1.0)
 
 
 def test_fmmax_harness_reproduces_fresnel():
@@ -152,3 +173,26 @@ def test_torcwa_matches_ikarus_laurent_and_misses_faithful():
 
     # while Ikarus's default faithful mode is already at the true answer.
     assert abs(_ikarus_grating_R("normal", M=16) - 0.100) < 5e-3
+
+
+def test_ikarus_normal_matches_fmmax_on_2d_curved_cylinder():
+    """2-D forward-efficiency cross-check on a CURVED boundary -- where the
+    normal-vector method is the real differentiator (it beats even Li's separable
+    rule).  Ikarus ``normal`` must match FMMax's ``NORMAL`` (an independent
+    implementation of the same Fast Fourier Factorization), making the previously
+    hard-coded ``0.92 < R < 0.96`` window in test_normalvector.py a live check.
+    """
+    pytest.importorskip("fmmax")
+    N = 256
+    air = np.ones((N, N), dtype=complex)
+    eps = [air, _fmmax_cylinder_grid(N), air]
+    R_fmmax_normal, _ = stack_RT(eps, [0.0, CYL_H, 0.0], CYL_PERIOD, CYL_WL,
+                                 num_terms=500, formulation="normal", pol="TE")
+
+    # Two independent normal-vector implementations agree on the curved cylinder.
+    assert abs(_ikarus_cylinder_R("normal", M=14) - R_fmmax_normal) < 6e-3
+    assert 0.92 < R_fmmax_normal < 0.96      # the formerly hard-coded window, now live
+
+    # The separable li rule lags at low order on the curved boundary (the reason the
+    # normal-vector method exists): normal is already ahead of li at M=8.
+    assert _ikarus_cylinder_R("normal", M=8) - _ikarus_cylinder_R("li", M=8) > 0.02
