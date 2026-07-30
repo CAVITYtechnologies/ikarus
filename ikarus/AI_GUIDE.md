@@ -152,6 +152,8 @@ material boundaries. **Orientation (a real gotcha):** `xz`/`yz` cross-sections
 are drawn **stack-vertical — cover on top, light entering from the top** (z
 increases downward); axes auto-scale to nm/µm. `rcwa.visualize_structure(plane="xz")`
 draws the layer stack; `plane="xy"` draws the first *patterned* layer's topology.
+Shortcuts: `rcwa.visualize_fields(component=…)` does `get_fields`+`plot_field` in one
+call; `plot_field_xy(field_dict, component=…)` tiles an `xy` multi-`z` dict.
 
 ## Sweeps and progress bars
 
@@ -199,8 +201,18 @@ Two engines behind ONE call — the user never chooses:
 
 Anything exposing `variables()` + `build(params, n_orders)` is GA-optimizable —
 `MetaAtom`, `Structure`, or your own class (adjoint currently supports
-`MetaAtom`). The low-level differentiable solver is `ikarus.grad.solve` (mirrors
-`solve_stack`, pinned to ~1e-13; gradients cross-checked against FMMax to ~4e-7).
+`MetaAtom`).
+
+**Roll your own differentiable objective** (`[grad]` extra) when `optimize`
+doesn't fit your figure of merit: `from ikarus.grad import solve` mirrors
+`solve_stack` (pinned to ~1e-13; gradients cross-checked against FMMax to ~4e-7),
+so `jax.grad` of *any* FoM built on it **is** the adjoint method — the gradient
+w.r.t. every pixel costs ~one extra solve. Importing `ikarus.grad` **auto-enables
+JAX x64** (RCWA needs double precision). Also public: `GradSolution`,
+`tangent_fields_for`, and `eig` (the differentiable non-Hermitian eigensolver,
+custom VJP). Building blocks for a hand-rolled topology-opt loop live in
+`ikarus.grad.topology`: `conic_filter` (min-feature), `tanh_projection`
+(binarization), `beta_schedule`.
 
 **`MetaAtom(period, cover, substrate, polarization="linear", pol_angle=0.0)`**
 then `.add_pattern(topology, materials, height)`:
@@ -223,7 +235,8 @@ Constructors (all take `at=`/`band=`, `order=(0,0)`, `weight=`, `worst_case=`):
   multiple are aggregated by the **mean**, or the **worst case** if `worst_case=True`.
 
 **`optimize(atom, targets, n_orders=8, algorithm="auto", pop=100, n_gen=60, seed=0,
-verbose=True, progress=False, **adjoint_options) -> OptimizeResult`**.
+verbose=True, progress=False, verify_n_orders=None, restarts=1, **adjoint_options)
+-> OptimizeResult`**.
 `algorithm="auto"` picks adjoint or GA per the rules above (one differentiable
 `Target` → adjoint; a list → NSGA-III; `pop`/`n_gen` are GA-only).
 Result: `.achieved` (**metric units** — the number to quote; `.F` is the internal
@@ -231,6 +244,14 @@ minimization loss: for maximize targets `F = 1 − achieved`), `.plot()` (one-li
 convergence curve in metric units, both engines), `.algorithm` (which engine ran:
 'adjoint'/'ga'/'nsga3'), `.params` (best dict), `.metaatom`/`.rcwa` (a ready-to-simulate
 `RCWA`), `.report()`, `.X`, `.F`, `.history`.
+
+**Multi-objective / Pareto** (a list of ≥2 `Target`s → NSGA-III): `result.multi`
+is `True`; `.X` is the **Pareto set** (a *list* of param dicts) and `.F` the
+objective matrix (designs × objectives). `.achieved`/`.report()` give the best of
+each metric across the front, while `.params`/`.rcwa` are just the *first* front
+point — materialize any other design *i* with `atom.build(result.X[i],
+result.n_orders)`. `.plot()` is single-objective only; for the trade-off curve
+scatter `np.asarray(result.F)` yourself.
 
 **`Structure`** — multi-layer / shared-parameter inverse design. Subclass it,
 declare params as **class attributes** (`free(...)` = DOF, plain value = fixed;
@@ -300,6 +321,16 @@ to tune.
   only, and the cover/substrate must be isotropic.
 - **No GPU for the NumPy core** (the optional `ikarus.grad` JAX solver runs on
   GPU where JAX does; the default engine is CPU NumPy/SciPy).
+
+## Runnable examples
+
+Canonical, self-contained scripts ship in the package — run any with
+`python -m ikarus.examples.<name>`, or read the source for a copy-paste idiom:
+`feature_tour` (a guided tour of most features), `validation_fresnel` (checks
+Ikarus against analytic Fresnel — the credibility demo for a skeptic),
+`grating_diffraction` (1-D efficiencies vs wavelength), `metasurface_spectrum`
+(resonant dielectric-pillar spectrum), `inverse_metamirror` (inverse design in a
+few lines), `save_load` (HDF5 round-trip). A fuller gallery is in the docs.
 
 ## Read more
 
