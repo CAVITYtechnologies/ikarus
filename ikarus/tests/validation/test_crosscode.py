@@ -12,15 +12,19 @@ whole module is skipped where it is not installed (e.g. the publish CI).
 import numpy as np
 import pytest
 
-pytest.importorskip("fmmax")
-
 from ikarus import RCWA
+from ikarus.tests.validation import grcwa_reference
 from ikarus.tests.validation.fmmax_reference import (
     binary_grating_grid,
     stack_RT,
     uniform_grid,
 )
 from ikarus.tests.validation.fresnel_reference import fresnel_stack
+
+# fmmax / grcwa are optional cross-check deps (not Ikarus requirements); each test
+# importorskips the tool it needs, so they skip independently (and both skip in the
+# publish CI, which installs neither). The *_reference modules import their heavy
+# dep lazily, so importing them at module load is always safe.
 
 # Canonical high-contrast TM grating (identical to test_factorization.py).
 PERIOD, N_HI, H, WL = 400e-9, 3.5, 300e-9, 700e-9
@@ -44,6 +48,7 @@ def test_fmmax_harness_reproduces_fresnel():
     Uniform layers are factorization-independent, so this isolates the FMMax
     excitation / flux / S-matrix wiring from the physics under test.
     """
+    pytest.importorskip("fmmax")
     eps = [uniform_grid(1.0), uniform_grid(2.5), uniform_grid(1.0)]
     R, T = stack_RT(eps, [0.0, 200e-9, 0.0], period=500e-9, wavelength=633e-9,
                     num_terms=1, pol="TE")
@@ -57,6 +62,7 @@ def test_ikarus_faithful_matches_fmmax_high_contrast_tm():
     factorization agrees with FMMax's (an independent code), while the direct
     (Laurent) rule -- what grcwa/torcwa use -- lands on a different, wrong value.
     """
+    pytest.importorskip("fmmax")
     eps = [uniform_grid(1.0, (128, 128)),
            binary_grating_grid(N_HI, 0.5, (128, 128)),
            uniform_grid(1.0, (128, 128))]
@@ -82,3 +88,35 @@ def test_ikarus_faithful_matches_fmmax_high_contrast_tm():
     #    FMMax FFT still ~0.16-0.20 at this truncation -- converging only O(1/M)).
     assert abs(R_ik_laurent - R_fmmax_faithful) > 0.03
     assert abs(R_fmmax_direct - R_fmmax_faithful) > 0.03
+
+
+def test_grcwa_harness_reproduces_fresnel():
+    """Sanity: the grcwa harness matches analytic Fresnel (validates conventions)."""
+    pytest.importorskip("grcwa")
+    R, T = grcwa_reference.slab_RT(2.5, 200e-9, 633e-9, pol="TM")
+    R_analytic = fresnel_stack([1.0, 2.5, 1.0], [200e-9], 633e-9, 0.0, "p")[0]
+    assert abs(R - R_analytic) < 1e-6
+    assert abs((R + T) - 1.0) < 1e-9
+
+
+def test_grcwa_direct_rule_is_wrong_on_high_contrast_tm():
+    """grcwa uses the direct (Laurent) rule, so on the canonical high-contrast TM
+    grating it lands well above the faithful ~0.10 and only crawls down as O(1/M) --
+    still badly off even at 400 orders. This is the concrete "why switch to Ikarus"
+    result: a user's direct-rule tool needs far more orders to reach the truth.
+    Ikarus's own ``laurent`` mode sits in the same wrong regime (same rule).
+    """
+    pytest.importorskip("grcwa")
+    R100, _ = grcwa_reference.grating_RT(N_HI, PERIOD, H, WL, nG=100)
+    R200, _ = grcwa_reference.grating_RT(N_HI, PERIOD, H, WL, nG=200)
+    R400, _ = grcwa_reference.grating_RT(N_HI, PERIOD, H, WL, nG=400)
+
+    # far from the faithful answer, even at 400 orders...
+    assert R400 > 0.15                       # true value is ~0.100
+    # ...and monotonically decreasing toward it (the O(1/M) direct-rule signature).
+    assert R100 > R200 > R400
+
+    # Ikarus's laurent mode is in the same wrong regime (it is the same rule),
+    # while Ikarus's default faithful mode is not.
+    assert _ikarus_grating_R("laurent", M=20) > 0.12
+    assert abs(_ikarus_grating_R("normal", M=16) - 0.100) < 5e-3
