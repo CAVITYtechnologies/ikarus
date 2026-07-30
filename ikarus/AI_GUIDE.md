@@ -83,7 +83,7 @@ print(result.R_phase)                                                  # zero-or
 
 ## The API surface
 
-**`RCWA(period_x, period_y, resolution=32, n_orders=25, materials=None, convergence_tol=1e-6)`**
+**`RCWA(period_x, period_y, resolution=32, n_orders=25, materials=None, convergence_tol=1e-4, factorization="auto")`**
 - `.add_uniform_layer(height, material, name="")` — `height=np.inf` for cover/substrate.
 - `.add_layer(height, topology, materials, resolution=None, name="")` — `topology`
   is an integer array, a parametric `Shape`, or any object exposing an `.img` array.
@@ -107,13 +107,19 @@ print(result.R_phase)                                                  # zero-or
   arrays; `order_index(p, q)` → the array index of one order.
 - `T_phase`, `R_phase` — zero-order phase in radians (`np.angle` of the coeff).
 - `theta_out_ref/trn`, `phi_out_ref/trn` — exit angles in degrees (`NaN` = evanescent).
+  `theta_out_*` is an **unsigned polar magnitude**; the ± direction lives in `phi_out_*`
+  (compare a grating-equation angle against `abs(...)`).
 - `energy_balance` — `R_total + T_total`. `solution` — raw modal solution for fields.
 
 **Materials:** a shared `default_library` ships **Air, Ag, Au, GaN, GaP, Si, Si₃N₄,
 SiO₂, TiO₂, aSi**. Anywhere a material is wanted you may pass a name (`"Si"`), a
 bare number (`1.5`, `2.4+0.01j` = constant index), a JSON path, or a `Material`.
 `default_library.get("Si", 1.55e-6)` returns the complex index;
-`default_library.available()` lists names.
+`default_library.available()` lists names. Custom materials:
+`default_library.add_from_file(path, name=..., persist=False)` imports a CSV
+(`lambda_nm, n[, k]`) or JSON (`persist=True` writes it into the library for future
+sessions); `Material.constant(2.4+0.01j)` for non-dispersive; a JSON `lorentz` block
+for an oscillator model.
 
 **Anisotropic (birefringent) materials:** anywhere a material goes you may also
 pass a 3-tuple `(n_x, n_y, n_z)` (diagonal tensor; each element any scalar spec,
@@ -133,6 +139,20 @@ coords — `circle, rectangle, ring, ellipse, cross, polygon`, all taking
 `Circle, Ellipse, Rectangle, Ring, Cross, SplitRing` — any parameter may be
 `free(lo,hi)`, plus a rotation `angle`; `.to_grid(shape)` rasterizes.
 
+## Fields and real-space visualization
+
+`rcwa.get_fields(plane="xz"|"yz"|"xy", nx=…, ny=…, y_position=…, z_positions=[…])`
+→ a **dict of `FieldMap` keyed by plane** (`xy` returns one map per `z`). Each
+`FieldMap` carries `.E`/`.H` (complex, last axis = x,y,z components), `.intensity`
+(|E|²), `.coords`, and `.eps` (the structure on the same grid). Plot with
+`from ikarus.visualization import plot_field`:
+`plot_field(fmap, component="intensity"|"Ex".."Hz"|"Eyphase", overlay=True)` —
+a component magnitude, or `"<comp>phase"` for its phase; `overlay` outlines the
+material boundaries. **Orientation (a real gotcha):** `xz`/`yz` cross-sections
+are drawn **stack-vertical — cover on top, light entering from the top** (z
+increases downward); axes auto-scale to nm/µm. `rcwa.visualize_structure(plane="xz")`
+draws the layer stack; `plane="xy"` draws the first *patterned* layer's topology.
+
 ## Sweeps and progress bars
 
 ```python
@@ -145,8 +165,10 @@ sw.order(0, 0, "R")  # per-order efficiency across the grid; sw.axes, sw.results
 
 `Sweep.over(**axes)` sweeps **source** parameters only (`wavelength`/`theta`/
 `polarization`/…); geometry changes rebuild, so keep those in a manual loop wrapped
-in `progress(iterable, enable=True, desc=...)`. **Reuse one `RCWA`** across a sweep —
-only `set_source` changes; structural edits force a fresh eigensolve.
+in `progress(iterable, enable=True, desc=...)`. Reuse one `RCWA` across a sweep for
+convenience/correctness — **not** speed: there is *no* eigenmode caching, so every
+`set_source` re-solve is a full solve (wavelength, angle, polarization alike). Budget
+**one solve per sweep point** (see the cost table below).
 
 ## Inverse design (`from ikarus.inverse import …`)
 
@@ -242,6 +264,10 @@ to tune.
 
 ## Performance and accuracy
 
+- **Budget by this rough 2-D cost table** (one 96² patterned layer, 1 BLAS
+  thread): `n_orders=(4,4)`≈0.06 s, `(6,6)`≈0.4 s, `(9,9)`≈3 s, `(12,12)`≈15 s —
+  steeply `O(M⁶)`. A 40×60 design map at `(9,9)` is ~2 h; coarsen `n_orders`/grid
+  while exploring, refine once. (A 1-D `(M,0)` grating is far cheaper — linear.)
 - **Pin BLAS to one thread for GA/sweep loops** (many small solves): set
   `OMP_NUM_THREADS`/`OPENBLAS_NUM_THREADS`/`MKL_NUM_THREADS`/`VECLIB_MAXIMUM_THREADS`
   to `"1"` **before** importing numpy — often ~10× faster on many-core machines.
@@ -253,6 +279,9 @@ to tune.
   **warns** if it's still moving. **Do not trust `R+T≈1` as convergence** — a
   lossless structure conserves energy at every `n_orders` while R/phase still
   drift (the classic high-contrast-TM trap that has cost real optimization runs).
+  Manual study: `from ikarus.tools.convergence import convergence_curve; orders, vals =
+  convergence_curve(rcwa, range(4,21,2), metric="R"|"R_phase"|"T_phase")` (it restores
+  your `n_orders` afterward).
 - **Fourier factorization:** the default `factorization="auto"` applies the
   normal-vector (Fast Fourier Factorization) method, giving fast TM /
   high-contrast convergence on sharp *and* curved boundaries — high-contrast TM
