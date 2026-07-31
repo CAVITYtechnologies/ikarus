@@ -87,14 +87,22 @@ wins at large M** where the `2*(2M+1)²` complex eig dominates. Read off:
 - the **crossover M** (where GPU first beats CPU), and
 - the **speedup at M = 26** (the large end).
 
+**If the GPU is already winning at M = 26, push further** — the A6000's 48 GB can
+handle much bigger matrices, and that's where the speedup gets dramatic. Just edit
+the `ORDERS` list at the top of `benchmark_device.py` (e.g. add `30, 35, 40`) and
+re-run.
+
 ---
 
 ## What to report back
 
-1. Does `jax.devices()` show the A6000? (paste it)
+1. **Environment** (paste): output of `python -c "import jax, jaxlib; print(jax.__version__, jaxlib.__version__)"`,
+   `python -c "import jax; print(jax.devices())"`, and the first line of `nvidia-smi`
+   (driver + CUDA version). Version mismatches are the usual reason JAX can't see the GPU.
 2. Does the CUDA parity check pass (`|diff| < 1e-8`)? Any error — especially around
    complex `eig` on CUDA — paste it verbatim.
-3. The benchmark table: the crossover M and the speedup at the large end.
+3. The benchmark table: the crossover M and the speedup at the large end (and at the
+   bigger M values if you extended the sweep).
 
 ## Known caveats / future work
 - The adapter currently calls the JAX solver **un-jitted**, so every `simulate()`
