@@ -90,6 +90,7 @@ class RCWA:
         materials: Optional[MaterialLibrary] = None,
         convergence_tol: float = 1e-4,
         factorization: str = "auto",
+        device: str = "cpu",
     ):
         if period_x <= 0 or period_y <= 0:
             raise ValueError("periods must be positive (meters)")
@@ -110,6 +111,11 @@ class RCWA:
         self.dtype = dtype
         self.convergence_tol = convergence_tol
         self.factorization = factorization
+        # Compute device: 'cpu' (NumPy core, the default) or an accelerator
+        # ('gpu'/'cuda'/'metal'/'auto', or 'cpu-jax' to force the JAX path onto the
+        # CPU for parity testing). The whole API is identical either way.
+        from . import _device as _dev
+        self.device = _dev.normalize_device(device)
 
         self.materials = materials or default_library
         self.layers: list[Layer] = []
@@ -234,7 +240,7 @@ class RCWA:
             heights.append(lay.height)
 
         pol = self.source.polarization_vector()
-        solution = solve_stack(
+        inputs = dict(
             eps_grids=eps_grids, heights=heights,
             eps_ref=eps_ref, eps_trn=eps_trn, grid=grid,
             kx0=kx0, ky0=ky0,
@@ -242,6 +248,13 @@ class RCWA:
             polarization_xy=(pol[0], pol[1]),
             factorization=self.factorization,
         )
+        if self.device == "cpu":
+            solution = solve_stack(**inputs)
+        else:
+            # Accelerated forward path (JAX on GPU/Metal/CPU) -- returns a
+            # core-compatible solution so _package() is unchanged.
+            from . import _device as _dev
+            solution = _dev.jax_forward(device=self.device, **inputs)
         self._last_solution = solution
         return solution
 
@@ -371,6 +384,10 @@ class RCWA:
         """
         if self._last_solution is None:
             self._solve()
+        if getattr(self._last_solution, "_accelerated", False):
+            raise NotImplementedError(
+                "real-space field reconstruction is CPU-only for now; construct "
+                "the RCWA with device='cpu' (the default) to use get_fields().")
         from .fields import reconstruct
         if z_positions is None:
             z_positions = [0.0]
