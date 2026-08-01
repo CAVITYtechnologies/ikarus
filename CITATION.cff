@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use Ikarus in your research, please cite it as below."
+type: software
+title: "Ikarus: High-Precision 2-D RCWA Simulation for Periodic Photonic Structures"
+abstract: >-
+  Ikarus is a high-precision 2-D rigorous coupled-wave analysis (RCWA / Fourier
+  Modal Method) solver for periodic photonic structures -- metasurfaces, gratings,
+  photonic-crystal slabs, thin-film stacks and metamirrors. It uses faithful
+  Fourier factorization (the normal-vector / Fast-Fourier-Factorization method by
+  default) for correct high-index-contrast TM convergence, with full vectorial
+  polarization, anisotropic media, real-space field reconstruction and
+  gradient-based inverse design.
+authors:
+  - family-names: "Shelling Neto"
+    given-names: "Liam"
+    affiliation: "CAVITY technologies UG"
+version: "0.10.5"
+date-released: "2026-07-30"
+license: MIT
+repository-code: "https://github.com/CAVITYtechnologies/ikarus"
+url: "https://cavitytechnologies.github.io/ikarus/"
+keywords:
+  - rigorous coupled-wave analysis
+  - RCWA
+  - Fourier modal method
+  - photonics
+  - metasurface
+  - diffraction grating
+  - electromagnetics
+  - inverse design
