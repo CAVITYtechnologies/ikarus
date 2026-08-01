@@ -59,9 +59,37 @@ def test_jax_cpu_matches_core_2d_cylinder_oblique():
 
 
 def test_auto_device_runs_everywhere():
-    """device='auto' picks whatever is present (CPU at worst) and still matches."""
+    """device='auto' picks whatever is present (CPU at worst) and still matches --
+    the graceful, never-errors path."""
     c, a = _grating("cpu"), _grating("auto")
     assert abs(c.R_total - a.R_total) < 1e-9
+
+
+def _bare(device):
+    rc = RCWA(period_x=400e-9, period_y=400e-9, resolution=(64, 4),
+              n_orders=(8, 0), device=device)
+    rc.add_uniform_layer(np.inf, "Air")
+    rc.add_layer(200e-9, np.zeros((64, 4), dtype=int), ["Air"])
+    rc.add_uniform_layer(np.inf, "Air")
+    rc.set_source(wavelength=700e-9, theta=0, polarization="linear")
+    return rc
+
+
+def test_explicit_gpu_raises_when_unavailable():
+    """An explicit accelerator request that can't be honored must ERROR, not
+    silently run on CPU (the native-Windows footgun the A6000 report caught)."""
+    import jax
+    if any(d.platform != "cpu" for d in jax.devices()):
+        pytest.skip("an accelerator is present; can't exercise the 'unavailable' path")
+    with pytest.raises(RuntimeError, match="no usable GPU"):
+        _bare("cuda").simulate()
+
+
+def test_metal_raises_clear_error():
+    """Metal can't do float64/complex eig, so device='metal' errors clearly rather
+    than pretending (or crashing later with an opaque XLA message)."""
+    with pytest.raises(RuntimeError, match="Metal"):
+        _bare("metal").simulate()
 
 
 def test_default_device_is_cpu():

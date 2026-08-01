@@ -286,13 +286,17 @@ to tune.
 ## Performance and accuracy
 
 - **GPU/accelerator (opt-in, experimental): `RCWA(..., device=…)`.** `"cpu"` (default)
-  is the NumPy core; `"cuda"`/`"gpu"` routes the *forward* solve through the JAX
-  mirror on a GPU, `"auto"` picks what's present, `"cpu-jax"` forces JAX onto the CPU.
-  Same API, same `SimulationResult` — only the device changes. Verified to match the
-  CPU core to ~1e-13 (incl. phase/angles). Scope: forward efficiencies, isotropic,
-  all factorizations; anisotropy and `get_fields()` are CPU-only (clear error). GPU
-  wins only for **large 2-D** (big `n_orders`); small/1-D are faster on CPU. Apple
-  **Metal is not usable** (jax-metal lacks float64/complex-eig) → auto-falls back to CPU.
+  is the NumPy core; `"cuda"`/`"gpu"` routes the *forward* solve through the JAX mirror
+  on a GPU; `"auto"` uses the best available and **quietly falls back to CPU**;
+  `"cpu-jax"` forces JAX onto the CPU (parity testing). Same API, same
+  `SimulationResult` — only the device changes; matches the CPU core to ~1e-13 (incl.
+  phase/angles). An **explicit** accelerator that isn't available **raises** (so you
+  never benchmark the CPU thinking it's the GPU) — use `"auto"` for a quiet fallback.
+  Scope: forward + isotropic + all factorizations; anisotropy and `get_fields()` are
+  CPU-only (clear error). GPU wins only for **large 2-D** (big `n_orders`); small/1-D
+  are faster on CPU. **JAX GPU builds are Linux/WSL2-only** (native Windows & macOS
+  jaxlib are CPU-only); Apple **Metal can't run RCWA** (jax-metal lacks
+  float64/complex-eig) → `device="metal"` errors.
 - **Budget by this rough 2-D cost table** (one 96² patterned layer, 1 BLAS
   thread): `n_orders=(4,4)`≈0.06 s, `(6,6)`≈0.4 s, `(9,9)`≈3 s, `(12,12)`≈15 s —
   steeply `O(M⁶)`. A 40×60 design map at `(9,9)` is ~2 h; coarsen `n_orders`/grid

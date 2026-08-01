@@ -20,7 +20,6 @@ kernel-launch and host<->device transfer dominate.
 
 from __future__ import annotations
 
-import warnings
 from types import SimpleNamespace
 
 import numpy as np
@@ -46,37 +45,42 @@ def normalize_device(device) -> str:
 
 
 def _pick_jax_device(requested: str):
-    """Resolve a concrete JAX device, falling back to CPU with a clear warning.
+    """Resolve a concrete JAX device.
+
+    ``"auto"`` gracefully uses the best available accelerator (CPU if none, no
+    error).  An **explicit** accelerator request (``"cuda"``/``"gpu"``/``"tpu"``/
+    ``"metal"``) that cannot be honored **raises** -- so you never silently
+    benchmark the CPU while believing you are on the GPU (the native-Windows trap,
+    where JAX has no CUDA build).  Want a quiet fallback? use ``"auto"`` or ``"cpu"``.
 
     Platform names differ across plugins (CUDA registers ``'gpu'``, Apple's plugin
-    ``'METAL'``), so rather than hard-code them we simply take the first
-    non-CPU device JAX can see -- which is whatever accelerator plugin is installed.
+    ``'METAL'``), so we select by "first non-CPU, non-Metal device JAX can see".
     """
     import jax
 
     if requested == "cpu-jax":
         return jax.devices("cpu")[0]
-    accel = [d for d in jax.devices() if d.platform != "cpu"]
-    # Apple Metal (jax-metal) can't do float64 or complex eigendecomposition yet --
-    # the two operations RCWA depends on -- so it cannot accelerate this solver.
-    # Drop it here so we fall back cleanly instead of crashing mid-solve with an
-    # XLA "UNIMPLEMENTED" error. (Revisit if a future jax-metal gains f64/complex.)
-    metal = [d for d in accel if d.platform.lower() == "metal"]
-    usable = [d for d in accel if d.platform.lower() != "metal"]
+    devs = jax.devices()
+    # Apple Metal (jax-metal) can't do float64 or complex eig -- the two operations
+    # RCWA depends on -- so it is never "usable" for this solver.
+    usable = [d for d in devs
+              if d.platform != "cpu" and d.platform.lower() != "metal"]
+    if requested == "auto":
+        return usable[0] if usable else jax.devices("cpu")[0]
+    if requested == "metal":
+        raise RuntimeError(
+            "device='metal': Apple Metal (jax-metal) does not support float64 or "
+            "complex eigendecomposition -- the operations RCWA needs -- so it cannot "
+            "run this solver. Use device='cpu', or a CUDA GPU on Linux/WSL2.")
+    # explicit 'cuda' / 'gpu' / 'tpu'
     if usable:
         return usable[0]
-    if metal:
-        warnings.warn(
-            "an Apple Metal GPU is present, but jax-metal does not yet support "
-            "float64 or complex eigendecomposition -- the operations RCWA needs -- "
-            "so it cannot accelerate this solver. Running on JAX-CPU instead; use an "
-            "NVIDIA CUDA GPU for acceleration.", RuntimeWarning, stacklevel=3)
-    elif requested != "auto":
-        warnings.warn(
-            f"device={requested!r} requested but JAX sees no usable accelerator. "
-            f"Install the matching plugin (jax[cuda12] for NVIDIA); running on "
-            f"JAX-CPU for now.", RuntimeWarning, stacklevel=3)
-    return jax.devices("cpu")[0]
+    raise RuntimeError(
+        f"device={requested!r} requested but JAX sees no usable GPU "
+        f"(jax.devices() = {devs}). JAX GPU builds are Linux/WSL2-only -- native "
+        f"Windows and macOS jaxlib are CPU-only. Install \"jax[cuda12]\" on "
+        f"Linux/WSL2 for the NVIDIA GPU, or use device='cpu' (or device='auto' to "
+        f"fall back to CPU without error).")
 
 
 def jax_forward(*, eps_grids, heights, eps_ref, eps_trn, grid, kx0, ky0,
