@@ -3,6 +3,11 @@
 If Ikarus carried your results somewhere good, please cite it — it's how
 open-source scientific software earns its keep.
 
+!!! tip "GitHub's *Cite this repository* button"
+    The repo ships a machine-readable [`CITATION.cff`](https://github.com/CAVITYtechnologies/ikarus/blob/main/CITATION.cff),
+    so GitHub shows a **Cite this repository** button (right sidebar) that exports
+    BibTeX/APA for you. The entries below are the same information.
+
 ## How to cite
 
 > Shelling Neto, L. *Ikarus: high-precision 2-D RCWA simulation for periodic

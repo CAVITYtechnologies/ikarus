@@ -99,6 +99,7 @@ nav:
       - How RCWA Works: theory.md
       - Core Concepts: core-concepts.md
       - Validation & Accuracy: validation.md
+      - What Ikarus Is (and Isn't): scope.md
   - Flight School:
       - tutorials/index.md
       - "Lesson 1 · Spectra 101": tutorials/reflection-transmission.md
