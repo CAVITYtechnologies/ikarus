@@ -12,7 +12,7 @@ open-source scientific software earns its keep.
 
 > Shelling Neto, L. *Ikarus: high-precision 2-D RCWA simulation for periodic
 > photonic structures* (version 0.10.5). CAVITY technologies UG, 2026.
-> https://github.com/CAVITYtechnologies/ikarus
+> DOI: [10.5281/zenodo.21744163](https://doi.org/10.5281/zenodo.21744163)
 
 ## BibTeX
 
@@ -23,6 +23,7 @@ open-source scientific software earns its keep.
              Photonic Structures},
   year    = {2026},
   version = {0.10.5},
+  doi     = {10.5281/zenodo.21744163},
   publisher = {CAVITY technologies UG},
   url     = {https://github.com/CAVITYtechnologies/ikarus}
 }
@@ -31,10 +32,12 @@ open-source scientific software earns its keep.
 Set `version` to the release you actually used —
 `python -c "import ikarus; print(ikarus.__version__)"`.
 
-!!! tip "Want a DOI?"
-    For a permanently archived, versioned reference, connect the GitHub repo to
-    [Zenodo](https://zenodo.org/) — each release then mints a DOI you can drop
-    into the entry above.
+!!! tip "DOI (Zenodo)"
+    Ikarus is permanently archived on Zenodo. Cite the **concept DOI**
+    [10.5281/zenodo.21744163](https://doi.org/10.5281/zenodo.21744163) for *the
+    software* — it always resolves to the latest release — or the **version DOI** to
+    pin a specific release (v0.10.5 →
+    [10.5281/zenodo.21744164](https://doi.org/10.5281/zenodo.21744164)).
 
 ## Background references { #background-references }
 
