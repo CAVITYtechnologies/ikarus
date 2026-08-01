@@ -19,6 +19,14 @@ date-released: "2026-07-30"
 license: MIT
 repository-code: "https://github.com/CAVITYtechnologies/ikarus"
 url: "https://cavitytechnologies.github.io/ikarus/"
+doi: 10.5281/zenodo.21744163
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.21744163
+    description: "Concept DOI (all versions; always resolves to the latest release)"
+  - type: doi
+    value: 10.5281/zenodo.21744164
+    description: "Version DOI for v0.10.5"
 keywords:
   - rigorous coupled-wave analysis
   - RCWA

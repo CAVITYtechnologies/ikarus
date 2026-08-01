@@ -11,6 +11,7 @@
   <a href="https://pypi.org/project/ikarus-rcwa/"><img src="https://img.shields.io/pypi/v/ikarus-rcwa" alt="PyPI version"></a>
   <a href="https://pypi.org/project/ikarus-rcwa/"><img src="https://img.shields.io/pypi/pyversions/ikarus-rcwa" alt="Python versions"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"></a>
+  <a href="https://doi.org/10.5281/zenodo.21744163"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.21744163.svg" alt="DOI"></a>
 </p>
 
 <p align="center">📖 <strong><a href="https://cavitytechnologies.github.io/ikarus/">Read the documentation →</a></strong></p>
