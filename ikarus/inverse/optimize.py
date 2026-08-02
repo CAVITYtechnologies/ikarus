@@ -127,6 +127,8 @@ class OptimizeResult:
         return self.targets[0].achieved(float(np.ravel(self.F)[0]))
 
     def report(self) -> str:
+        """Return a human-readable multi-line summary: the achieved metric (in
+        metric units), the engine that ran, and the best parameters."""
         lines = ["Inverse-design result:"]
         if self.multi:
             lines.append(f"  {len(self.X)} Pareto-optimal designs")

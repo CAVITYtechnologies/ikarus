@@ -214,6 +214,8 @@ class MaterialLibrary:
         return sorted(files | set(self._cache))
 
     def register(self, material: Material) -> None:
+        """Add a :class:`Material` to the library under ``material.name`` (in memory
+        for this session; use ``add_from_file(..., persist=True)`` to save it)."""
         self._cache[material.name] = material
 
     # -- anisotropy ---------------------------------------------------------
@@ -231,6 +233,8 @@ class MaterialLibrary:
         return None
 
     def is_anisotropic(self, spec) -> bool:
+        """True if ``spec`` denotes an anisotropic material (an
+        :class:`AnisotropicMaterial` or an ``(n_x, n_y, n_z)`` tuple/list)."""
         return self._coerce_anisotropic(spec) is not None
 
     def permittivity_tensor(
@@ -285,6 +289,8 @@ class MaterialLibrary:
         return self.resolve(spec).index(wavelength)
 
     def permittivity(self, spec, wavelength: float) -> complex:
+        """Relative permittivity ``eps = (n + ik)**2`` of any isotropic material
+        ``spec`` (name, number, path or :class:`Material`) at ``wavelength`` (m)."""
         return self.resolve(spec).permittivity(wavelength)
 
     def add_from_file(self, path: str | Path, name: str | None = None,
