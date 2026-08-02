@@ -4,6 +4,47 @@ All notable changes to Ikarus are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
+## Unreleased
+
+### Added
+- **Reproducible cross-code validation** (`ikarus/tests/validation/test_crosscode.py`).
+  Ikarus's Fourier factorization is now checked *live* against independent solvers: it
+  agrees with **FMMax** (faithful) to ~2×10⁻⁴ on the canonical high-contrast TM grating
+  and ~2.5×10⁻³ on a 2-D curved cylinder, while **grcwa** and **torcwa** (direct rule)
+  reproduce the expected `O(1/M)` high-contrast-TM error. The cross-check solvers are
+  optional dependencies; the tests skip when they are not installed.
+- **`CITATION.cff` and a Zenodo DOI.** The repository now shows a "Cite this
+  repository" button and has a permanent archival DOI (concept DOI
+  `10.5281/zenodo.21744163`, always resolving to the latest release); a `.zenodo.json`
+  keeps future-release metadata correct.
+
+### Docs
+- **New "Validation & Accuracy" page** — the cross-code results written up with
+  figures: exact agreement with analytic Fresnel, the faithful-vs-direct convergence
+  race on a high-contrast TM grating (FMMax as the independent reference), and where
+  direct-rule tools land 60–75 % off at a practical truncation.
+- **New "What Ikarus Is (and Isn't)" page** — states the faithful CPU-reference
+  identity and the honest scope boundaries (non-periodic and time-domain out of scope;
+  anisotropy = in-plane tensor + `εzz`; CPU-only by design; `O(M⁶)` 2-D cost).
+
+### Changed
+- Legal entity name updated **UG → GmbH** (CAVITY technologies GmbH) across the
+  license, copyright notices and citation metadata.
+
+## 0.10.5
+
+### Docs
+- **Comprehensive audit of the bundled AI reference (`ikarus.ai_guide()`)**, so a
+  fresh AI session is expert from the first call. Added: the fields / real-space
+  visualization workflow (`get_fields`, `plot_field`, the xz/yz orientation gotcha),
+  multi-objective / Pareto-front extraction, the low-level differentiable
+  `ikarus.grad` API and topology primitives, the runnable `ikarus.examples` package, a
+  concrete 2-D cost table, and `convergence_curve` / custom-material-import notes.
+  Fixed two stale facts: the `convergence_tol` default (`1e-6` → `1e-4`, correct since
+  0.7.0) and the wrong "changing the source is cheap" implication (there is no
+  eigenmode caching, so every `set_source` re-solve is a full solve). Docs-only, no
+  API changes — but the reference ships in the package, so `ai_guide()` reflects it.
+
 ## 0.10.4
 
 A full end-to-end test of Flight School (Lessons 1-8, every code block run
