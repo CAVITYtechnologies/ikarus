@@ -6,7 +6,7 @@ commercially or academically. Just keep the notice attached.
 ```text
 MIT License
 
-Copyright (c) 2026 CAVITY technologies UG
+Copyright (c) 2026 CAVITY technologies GmbH
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
