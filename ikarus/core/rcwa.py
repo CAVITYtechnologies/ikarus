@@ -53,6 +53,8 @@ class SimulationResult:
     solution: FieldSolution
 
     def order_index(self, p: int, q: int) -> int:
+        """Array index of diffraction order ``(p, q)`` in the per-order arrays;
+        raises ``KeyError`` if that order is outside the retained truncation."""
         ps, qs = self.orders
         match = np.where((ps == p) & (qs == q))[0]
         if match.size == 0:
@@ -80,6 +82,15 @@ class SimulationResult:
 
 
 class RCWA:
+    """The user-facing RCWA solver.
+
+    Collect a layer stack (:meth:`add_uniform_layer` / :meth:`add_layer`), set the
+    illumination (:meth:`set_source`), then :meth:`simulate` to get diffraction
+    efficiencies, complex reflection/transmission coefficients, phase, exit angles
+    and (via :meth:`get_fields`) real-space fields — for a structure periodic in x
+    and y and layered along z.
+    """
+
     def __init__(
         self,
         period_x: float,
