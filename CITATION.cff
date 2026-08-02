@@ -13,7 +13,7 @@ abstract: >-
 authors:
   - family-names: "Shelling Neto"
     given-names: "Liam"
-    affiliation: "CAVITY technologies UG"
+    affiliation: "CAVITY technologies GmbH"
 version: "0.10.5"
 date-released: "2026-07-30"
 license: MIT

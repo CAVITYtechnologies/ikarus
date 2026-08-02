@@ -9,7 +9,7 @@ repo_name: CAVITYtechnologies/ikarus
 repo_url: https://github.com/CAVITYtechnologies/ikarus
 edit_uri: edit/main/docs/
 
-copyright: Copyright &copy; 2026 CAVITY technologies UG — MIT License
+copyright: Copyright &copy; 2026 CAVITY technologies GmbH — MIT License
 
 theme:
   name: material
