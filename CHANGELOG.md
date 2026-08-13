@@ -4,7 +4,18 @@ All notable changes to Ikarus are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 semantic versioning.
 
-## Unreleased
+## 1.0.0
+
+**Ikarus is stable.** This is the first release under semantic-versioning's stability
+promise: after a soak period the public API — `RCWA`, `Source`, `SimulationResult`,
+the material/shape helpers, `Sweep`, and the `ikarus.inverse` design stack — is frozen
+for the 1.x series and will not change incompatibly. Ikarus is a faithful CPU
+reference solver: correct Fourier factorization by default (the normal-vector method),
+honest convergence reporting, and now validated *live* against independent solvers.
+
+There are **no behavior changes since 0.10.5** — the code was stable throughout the
+soak. This release adds the validation evidence, provenance and documentation that
+back the 1.0 promise, and flips the maturity classifier to Production/Stable.
 
 ### Added
 - **Reproducible cross-code validation** (`ikarus/tests/validation/test_crosscode.py`).
@@ -26,8 +37,10 @@ semantic versioning.
 - **New "What Ikarus Is (and Isn't)" page** — states the faithful CPU-reference
   identity and the honest scope boundaries (non-periodic and time-domain out of scope;
   anisotropy = in-plane tensor + `εzz`; CPU-only by design; `O(M⁶)` 2-D cost).
+- **100% docstring coverage** on the public API.
 
 ### Changed
+- Maturity classifier **Beta → Production/Stable**.
 - Legal entity name updated **UG → GmbH** (CAVITY technologies GmbH) across the
   license, copyright notices and citation metadata.
 

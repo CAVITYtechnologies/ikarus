@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ikarus-rcwa"
-version = "0.10.5"
+version = "1.0.0"
 description = "High-precision 2D RCWA simulation for periodic photonic structures"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -12,7 +12,7 @@ license = { text = "MIT" }
 authors = [{ name = "Liam Shelling Neto", email = "liam.shelling-neto@cavity-technologies.com" }]
 keywords = ["rcwa", "photonics", "metasurface", "grating", "electromagnetics", "diffraction"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
