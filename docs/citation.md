@@ -39,6 +39,31 @@ Set `version` to the release you actually used —
     pin a specific release (v0.10.5 →
     [10.5281/zenodo.21744164](https://doi.org/10.5281/zenodo.21744164)).
 
+## The white paper { #white-paper }
+
+Ikarus has a companion **white paper** — *Ikarus: High-fidelity RCWA simulation and
+inverse design for metasurfaces* — that walks through the design, the faithfulness
+guarantees and worked forward- and inverse-design examples. To cite the paper itself
+(rather than the software):
+
+> Shelling Neto, L. *Ikarus: high-fidelity RCWA simulation and inverse design for
+> metasurfaces* (white paper). CAVITY technologies GmbH, 2026.
+> DOI: [10.5281/zenodo.21966455](https://doi.org/10.5281/zenodo.21966455)
+
+```bibtex
+@techreport{shellingneto2026ikarus,
+  author      = {Shelling Neto, Liam},
+  title       = {Ikarus: High-fidelity RCWA simulation and inverse design for metasurfaces},
+  institution = {CAVITY technologies GmbH},
+  year        = {2026},
+  type        = {White paper},
+  doi         = {10.5281/zenodo.21966455}
+}
+```
+
+Cite the **software** entry above for the tool; cite the **white paper** here for the
+write-up and the design rationale.
+
 ## Background references { #background-references }
 
 The method itself stands on classic shoulders. If you discuss RCWA in your

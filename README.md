@@ -16,6 +16,8 @@
 
 <p align="center">📖 <strong><a href="https://cavitytechnologies.github.io/ikarus/">Read the documentation →</a></strong></p>
 
+<p align="center">📄 <strong><a href="https://doi.org/10.5281/zenodo.21966455">Read the white paper →</a></strong> &nbsp;·&nbsp; <em>Ikarus: High-fidelity RCWA simulation and inverse design for metasurfaces</em></p>
+
 Ikarus is a rigorous coupled-wave analysis (RCWA / Fourier modal method) solver
 for 2-D periodic photonic structures — metasurfaces, gratings and photonic
 crystals. It uses a numerically stable scattering-matrix formulation, supports

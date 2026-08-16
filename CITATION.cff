@@ -36,3 +36,13 @@ keywords:
   - diffraction grating
   - electromagnetics
   - inverse design
+references:
+  - type: report
+    title: "Ikarus: High-fidelity RCWA simulation and inverse design for metasurfaces"
+    authors:
+      - family-names: "Shelling Neto"
+        given-names: "Liam"
+        affiliation: "CAVITY technologies GmbH"
+    year: 2026
+    doi: 10.5281/zenodo.21966455
+    notes: "Companion white paper describing Ikarus."
