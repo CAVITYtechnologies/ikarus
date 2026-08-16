@@ -11,6 +11,11 @@ semantic versioning.
   inverse design for metasurfaces* (DOI [`10.5281/zenodo.21966455`](https://doi.org/10.5281/zenodo.21966455)) —
   from the README, `CITATION.cff`, the docs and `.zenodo.json`.
 
+### Fixed
+- Citation metadata (`CITATION.cff` and the docs) now reflects the 1.0.0 release —
+  version, release date and the version DOI (`10.5281/zenodo.21918680`) had lagged at
+  0.10.5.
+
 ## 1.0.0
 
 **Ikarus is stable.** This is the first release under semantic-versioning's stability

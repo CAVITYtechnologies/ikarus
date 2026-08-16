@@ -11,7 +11,7 @@ open-source scientific software earns its keep.
 ## How to cite
 
 > Shelling Neto, L. *Ikarus: high-precision 2-D RCWA simulation for periodic
-> photonic structures* (version 0.10.5). CAVITY technologies GmbH, 2026.
+> photonic structures* (version 1.0.0). CAVITY technologies GmbH, 2026.
 > DOI: [10.5281/zenodo.21744163](https://doi.org/10.5281/zenodo.21744163)
 
 ## BibTeX
@@ -22,7 +22,7 @@ open-source scientific software earns its keep.
   title   = {{Ikarus}: High-Precision 2-D RCWA Simulation for Periodic
              Photonic Structures},
   year    = {2026},
-  version = {0.10.5},
+  version = {1.0.0},
   doi     = {10.5281/zenodo.21744163},
   publisher = {CAVITY technologies GmbH},
   url     = {https://github.com/CAVITYtechnologies/ikarus}
@@ -36,8 +36,8 @@ Set `version` to the release you actually used —
     Ikarus is permanently archived on Zenodo. Cite the **concept DOI**
     [10.5281/zenodo.21744163](https://doi.org/10.5281/zenodo.21744163) for *the
     software* — it always resolves to the latest release — or the **version DOI** to
-    pin a specific release (v0.10.5 →
-    [10.5281/zenodo.21744164](https://doi.org/10.5281/zenodo.21744164)).
+    pin a specific release (v1.0.0 →
+    [10.5281/zenodo.21918680](https://doi.org/10.5281/zenodo.21918680)).
 
 ## The white paper { #white-paper }
 
