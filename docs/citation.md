@@ -11,7 +11,7 @@ open-source scientific software earns its keep.
 ## How to cite
 
 > Shelling Neto, L. *Ikarus: high-precision 2-D RCWA simulation for periodic
-> photonic structures* (version 0.10.5). CAVITY technologies GmbH, 2026.
+> photonic structures* (version 1.0.0). CAVITY technologies GmbH, 2026.
 > DOI: [10.5281/zenodo.21744163](https://doi.org/10.5281/zenodo.21744163)
 
 ## BibTeX
@@ -22,7 +22,7 @@ open-source scientific software earns its keep.
   title   = {{Ikarus}: High-Precision 2-D RCWA Simulation for Periodic
              Photonic Structures},
   year    = {2026},
-  version = {0.10.5},
+  version = {1.0.0},
   doi     = {10.5281/zenodo.21744163},
   publisher = {CAVITY technologies GmbH},
   url     = {https://github.com/CAVITYtechnologies/ikarus}
@@ -36,8 +36,33 @@ Set `version` to the release you actually used —
     Ikarus is permanently archived on Zenodo. Cite the **concept DOI**
     [10.5281/zenodo.21744163](https://doi.org/10.5281/zenodo.21744163) for *the
     software* — it always resolves to the latest release — or the **version DOI** to
-    pin a specific release (v0.10.5 →
-    [10.5281/zenodo.21744164](https://doi.org/10.5281/zenodo.21744164)).
+    pin a specific release (v1.0.0 →
+    [10.5281/zenodo.21918680](https://doi.org/10.5281/zenodo.21918680)).
+
+## The white paper { #white-paper }
+
+Ikarus has a companion **white paper** — *Ikarus: High-fidelity RCWA simulation and
+inverse design for metasurfaces* — that walks through the design, the faithfulness
+guarantees and worked forward- and inverse-design examples. To cite the paper itself
+(rather than the software):
+
+> Shelling Neto, L. *Ikarus: high-fidelity RCWA simulation and inverse design for
+> metasurfaces* (white paper). CAVITY technologies GmbH, 2026.
+> DOI: [10.5281/zenodo.21966455](https://doi.org/10.5281/zenodo.21966455)
+
+```bibtex
+@techreport{shellingneto2026ikarus,
+  author      = {Shelling Neto, Liam},
+  title       = {Ikarus: High-fidelity RCWA simulation and inverse design for metasurfaces},
+  institution = {CAVITY technologies GmbH},
+  year        = {2026},
+  type        = {White paper},
+  doi         = {10.5281/zenodo.21966455}
+}
+```
+
+Cite the **software** entry above for the tool; cite the **white paper** here for the
+write-up and the design rationale.
 
 ## Background references { #background-references }
 

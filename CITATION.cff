@@ -14,8 +14,8 @@ authors:
   - family-names: "Shelling Neto"
     given-names: "Liam"
     affiliation: "CAVITY technologies GmbH"
-version: "0.10.5"
-date-released: "2026-07-30"
+version: "1.0.0"
+date-released: "2026-08-13"
 license: MIT
 repository-code: "https://github.com/CAVITYtechnologies/ikarus"
 url: "https://cavitytechnologies.github.io/ikarus/"
@@ -25,8 +25,8 @@ identifiers:
     value: 10.5281/zenodo.21744163
     description: "Concept DOI (all versions; always resolves to the latest release)"
   - type: doi
-    value: 10.5281/zenodo.21744164
-    description: "Version DOI for v0.10.5"
+    value: 10.5281/zenodo.21918680
+    description: "Version DOI for v1.0.0"
 keywords:
   - rigorous coupled-wave analysis
   - RCWA
@@ -36,3 +36,13 @@ keywords:
   - diffraction grating
   - electromagnetics
   - inverse design
+references:
+  - type: report
+    title: "Ikarus: High-fidelity RCWA simulation and inverse design for metasurfaces"
+    authors:
+      - family-names: "Shelling Neto"
+        given-names: "Liam"
+        affiliation: "CAVITY technologies GmbH"
+    year: 2026
+    doi: 10.5281/zenodo.21966455
+    notes: "Companion white paper describing Ikarus."
