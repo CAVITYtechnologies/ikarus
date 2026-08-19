@@ -74,6 +74,19 @@ def test_img_property():
     assert set(np.unique(c.img)) <= {0, 1}
 
 
+def test_rectangle_width_height_alias():
+    # functional rectangle accepts the parametric class's width/height vocabulary
+    a = shapes.rectangle(width=0.6, height=0.4, grid_shape=(64, 64))
+    b = shapes.rectangle(size=(0.6, 0.4), grid_shape=(64, 64))
+    assert np.array_equal(a, b)
+
+
+def test_ellipse_rxry_alias():
+    a = shapes.ellipse(rx=0.3, ry=0.2, grid_shape=(64, 64))
+    b = shapes.ellipse(radii=(0.3, 0.2), grid_shape=(64, 64))
+    assert np.array_equal(a, b)
+
+
 def test_free_parameters_and_resolve():
     from ikarus.shapes import Cross
     from ikarus.inverse import free
