@@ -25,8 +25,15 @@ def circle(center=(0.5, 0.5), radius=0.25, grid_shape=(32, 32), value=1,
 
 
 def ellipse(center=(0.5, 0.5), radii=(0.25, 0.15), grid_shape=(32, 32),
-            angle=0.0, value=1, background=0) -> np.ndarray:
-    """Filled (optionally rotated) ellipse.  ``angle`` in degrees."""
+            angle=0.0, value=1, background=0, *, rx=None, ry=None) -> np.ndarray:
+    """Filled (optionally rotated) ellipse.  ``angle`` in degrees.
+
+    ``rx`` / ``ry`` may be given in place of ``radii``, matching the parametric
+    :class:`~ikarus.shapes.Ellipse`.
+    """
+    if rx is not None or ry is not None:
+        rx0, ry0 = radii
+        radii = (rx0 if rx is None else rx, ry0 if ry is None else ry)
     xx, yy = _coords(grid_shape)
     cx, cy = center
     rx, ry = radii
@@ -41,8 +48,15 @@ def ellipse(center=(0.5, 0.5), radii=(0.25, 0.15), grid_shape=(32, 32),
 
 
 def rectangle(center=(0.5, 0.5), size=(0.5, 0.5), grid_shape=(32, 32), value=1,
-              background=0) -> np.ndarray:
-    """Axis-aligned filled rectangle of fractional ``size = (width, height)``."""
+              background=0, *, width=None, height=None) -> np.ndarray:
+    """Axis-aligned filled rectangle of fractional ``size = (width, height)``.
+
+    ``width`` / ``height`` may be given in place of ``size``, matching the
+    parametric :class:`~ikarus.shapes.Rectangle`.
+    """
+    if width is not None or height is not None:
+        w0, h0 = size
+        size = (w0 if width is None else width, h0 if height is None else height)
     xx, yy = _coords(grid_shape)
     cx, cy = center
     w, h = size

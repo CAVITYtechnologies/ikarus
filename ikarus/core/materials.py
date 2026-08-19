@@ -105,7 +105,13 @@ class Material:
             return nk if nk.ndim else complex(nk)
         self._ensure_interpolators()
         n = self._interp_n(wl_nm)
-        k = self._interp_k(wl_nm)
+        # A cubic spline through tabulated k can under/overshoot between points.  An
+        # undershoot below the tabulated minimum invents index the data never had --
+        # for the usual passive (k >= 0) case that is unphysical negative k, i.e.
+        # gain under the exp(-i w t) convention.  Clamp the interpolant to the
+        # tabulated floor: this removes the artifact while preserving any gain the
+        # data itself specifies (e.g. a constant complex index with Im < 0).
+        k = np.maximum(self._interp_k(wl_nm), float(np.min(self.k)))
         out = n + 1j * k
         return out if out.ndim else complex(out)
 
@@ -329,17 +335,43 @@ class MaterialLibrary:
 
 
 def _material_from_csv(path: Path, name: str) -> Material:
-    """Parse a whitespace/comma-delimited file with columns ``lambda_nm n k``."""
-    data = np.genfromtxt(path, delimiter=None, comments="#")
-    if data.ndim == 1:
-        data = data[None, :]
-    if data.shape[1] < 2:
+    """Parse a comma- or whitespace-delimited file with columns ``lambda_nm n [k]``.
+
+    The delimiter is auto-detected from the first data line (a comma selects CSV,
+    otherwise whitespace).  A single non-numeric header line and ``#`` comments are
+    allowed.  Raises :class:`ValueError` on unparseable data rather than silently
+    returning a NaN-filled material.
+    """
+    rows: list[list[float]] = []
+    delimiter: str | None = None
+    with open(path, "r") as fh:
+        for raw in fh:
+            s = raw.strip()
+            if not s or s.startswith("#"):
+                continue
+            if delimiter is None:                       # sniff on first content line
+                delimiter = "," if "," in s else None   # None -> any whitespace
+            parts = [p for p in s.split(delimiter) if p != ""]
+            try:
+                rows.append([float(p) for p in parts])
+            except ValueError:
+                if rows:                                # a header is fine; junk isn't
+                    raise ValueError(
+                        f"{path}: could not parse row {s!r} as numbers. Expected "
+                        f"'wavelength_nm n [k]', comma- or whitespace-separated, "
+                        f"with '#' comments."
+                    )
+                continue                                # skip a leading header line
+    if not rows:
+        raise ValueError(f"{path}: no numeric data rows found.")
+    ncol = min(len(r) for r in rows)
+    if ncol < 2:
         raise ValueError(
-            f"{path}: expected at least 2 columns (wavelength_nm, n[, k])"
+            f"{path}: expected at least 2 columns (wavelength_nm, n[, k])."
         )
-    wl = data[:, 0]
-    n = data[:, 1]
-    k = data[:, 2] if data.shape[1] >= 3 else np.zeros_like(n)
+    data = np.array([r[:ncol] for r in rows], dtype=float)
+    wl, n = data[:, 0], data[:, 1]
+    k = data[:, 2] if ncol >= 3 else np.zeros_like(n)
     order = np.argsort(wl)
     return Material(name=name, wavelength_nm=wl[order], n=n[order], k=k[order],
                     comment=f"imported from {path.name}")

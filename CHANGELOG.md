@@ -10,11 +10,27 @@ semantic versioning.
 - Links to the companion **white paper** — *Ikarus: High-fidelity RCWA simulation and
   inverse design for metasurfaces* (DOI [`10.5281/zenodo.21966455`](https://doi.org/10.5281/zenodo.21966455)) —
   from the README, `CITATION.cff`, the docs and `.zenodo.json`.
+- `ikarus.shapes.rectangle` / `ellipse` also accept `width`/`height` and `rx`/`ry`
+  (matching the parametric `Rectangle`/`Ellipse` classes), not only `size`/`radii`.
+- The materials API is re-exported from `ikarus.materials`, so
+  `from ikarus.materials import default_library` works (as `from ikarus` already did).
 
 ### Fixed
 - Citation metadata (`CITATION.cff` and the docs) now reflects the 1.0.0 release —
   version, release date and the version DOI (`10.5281/zenodo.21918680`) had lagged at
   0.10.5.
+- Tabulated-material `k` no longer undershoots below the tabulated minimum when
+  interpolated (a cubic-spline artifact that produced unphysical negative `k` / gain,
+  e.g. `aSi` near 1550 nm, silently pushing `R+T` above 1). Gain that a material
+  explicitly specifies is preserved.
+- `add_from_file` now parses comma-separated CSVs (auto-detecting the delimiter and
+  skipping an optional header) instead of silently returning an all-NaN material, and
+  raises `ValueError` on unparseable data.
+- `AI_GUIDE.md`: reworked the "efficiency + a target phase" idiom (metamirror *and*
+  metalens). A single unit-modulus `match("r_co"/"t_co", ...)` collapses to zero
+  efficiency when the target phase is unreachable; the idiom now keeps efficiency and
+  phase as separate objectives (a one-knob `Sweep`, a Pareto pair, or a scalar FoM on
+  `ikarus.grad`, chosen by degrees of freedom).
 
 ## 1.0.0
 

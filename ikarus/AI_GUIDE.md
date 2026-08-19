@@ -277,11 +277,28 @@ optimizer. One patterned layer with a few meaningful knobs → `MetaAtom` + a
 parametric `Shape`. Freeform topology, no shape prior → `MetaAtom` + `pixels`.
 Multiple layers or parameters shared/derived across layers → `Structure`.
 
-**Idiom — phase-controlled high-reflectivity mirror.** To maximize R *and* hit a
-target reflected phase with one objective, match the complex coefficient to a
-unit-modulus target: `Target.match("r_co", value=np.exp(1j*phi), at=lam)` drives
-`|r| → 1` (R → 100%) and `arg(r) → phi` simultaneously — no R-vs-phase weighting
-to tune.
+**Idiom — efficiency *and* a target phase (metamirror or metalens).** An atom that is
+both efficient (`|r| → 1` or `|t| → 1`) *and* imparts a chosen phase is the core
+metasurface move. **Do not fold it into a single unit-modulus match**
+(`Target.match("r_co"/"t_co", np.exp(1j*phi))`): that minimizes `|coeff - e^(i*phi)|`,
+so when the phase is out of reach at high efficiency (the reachable high-`|coeff|`
+phase is more than ~90° from `phi`), the lowest-loss point is `|coeff| → 0` -- the
+optimizer switches the atom *off* and the run collapses to `R ≈ 0` / `T ≈ 0`. It
+looks like an optimizer/DoF failure but is really the objective preferring nothing to
+a wrong-phase design. Keep **efficiency and phase as separate objectives** so
+efficiency is never traded to zero. Choose by degrees of freedom:
+
+- **One knob** (e.g. a pillar whose radius sweeps `0..2*pi` at high `T`): skip the
+  optimizer -- `Sweep` the parameter and look up the geometry per target phase. This
+  is the standard metalens/metamirror-library route and cannot collapse.
+- **A few parametric knobs**: pass a **Pareto pair** and pick the knee ->
+  `optimize(atom, [Target.maximize("R", at=lam), Target.match("r_phase", value=phi, at=lam)])`
+  (use `T` / `t_phase` for a lens). With efficiency as its own objective, `R = 0`
+  sits at a dominated corner of the front and never masks a good design.
+- **Freeform / many pixels** (where only the gradient engine scales): write the
+  scalar figure of merit yourself on the differentiable core,
+  `loss = (1 - R) + w*|wrap(arg(r) - phi)|/pi` (phase weight `w`), via
+  `ikarus.grad.solve` + `jax.grad`. `R = 0` costs a full 1.0 there and can never win.
 
 ## Performance and accuracy
 

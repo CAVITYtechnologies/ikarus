@@ -59,3 +59,58 @@ def test_lorentz_model():
     })
     eps = lor.permittivity(500e-9)
     assert np.imag(eps) > 0  # absorbing under exp(-i w t)
+
+
+def test_tabulated_k_never_negative():
+    # A cubic spline through tabulated k that decays to zero can undershoot below
+    # zero between points -- unphysical gain under exp(-i w t); it must be clamped.
+    lib = default_library
+    wls = np.linspace(1200e-9, 2000e-9, 200)
+    k = np.array([lib.get("aSi", w).imag for w in wls])
+    assert (k >= 0).all(), f"negative k (gain) at {wls[k < 0] * 1e9} nm"
+
+
+def test_synthetic_tabulated_k_clamped():
+    m = Material(name="syn", n=np.full(4, 3.5),
+                 wavelength_nm=np.array([1000.0, 1200.0, 1400.0, 1600.0]),
+                 k=np.array([1e-3, 0.0, 0.0, 0.0]))
+    wls = np.linspace(1000e-9, 1600e-9, 300)
+    k = np.array([m.index(w).imag for w in wls])
+    assert (k >= 0).all()
+
+
+def test_csv_import_comma(tmp_path):
+    # A genuine comma-separated file (with header) imports correctly, rather than
+    # silently becoming an all-NaN Material.
+    csv = tmp_path / "comma.csv"
+    csv.write_text("lambda_nm,n,k\n400,2.0,0.1\n800,1.8,0.05\n1200,1.7,0.0\n")
+    lib = MaterialLibrary(tmp_path)
+    mat = lib.add_from_file(csv, name="Comma")
+    assert not np.isnan(mat.n).any()
+    n = lib.get("Comma", 800e-9)
+    assert abs(n.real - 1.8) < 1e-6 and abs(n.imag - 0.05) < 1e-6
+
+
+def test_csv_import_two_columns_no_k(tmp_path):
+    csv = tmp_path / "nk.csv"
+    csv.write_text("1064,3.66\n1550,3.48\n")
+    lib = MaterialLibrary(tmp_path)
+    mat = lib.add_from_file(csv, name="NK")
+    assert not np.isnan(mat.n).any() and np.allclose(mat.k, 0.0)
+
+
+def test_csv_import_raises_on_unparseable(tmp_path):
+    # Unparseable data raises instead of silently poisoning the Material with NaN.
+    bad = tmp_path / "bad.csv"
+    bad.write_text("400,2.0,0.1\nfoo,bar,baz\n")
+    lib = MaterialLibrary(tmp_path)
+    with pytest.raises(ValueError):
+        lib.add_from_file(bad, name="Bad")
+
+
+def test_materials_subpackage_reexports():
+    # `from ikarus.materials import default_library` works, matching `from ikarus`.
+    from ikarus.materials import (Material as M2, MaterialLibrary as ML2,
+                                  default_library as dl2)
+    assert "Si" in dl2.available()
+    assert M2 is Material and ML2 is MaterialLibrary
