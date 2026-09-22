@@ -84,6 +84,31 @@ Warnings are real signals, not noise. If one fires, fix the input rather than
 suppressing it — each marks a case that otherwise produces a plausible wrong
 answer.
 
+### Never report a number without its confidence
+
+The checks above stop bad *input*. They cannot tell you whether a perfectly
+valid run is *converged*. A truncation that is too low returns a clean,
+confident, entirely wrong efficiency, and nothing about the number itself
+reveals it.
+
+So when you report any result to the scientist, report these alongside it:
+
+```python
+T, R, result = rcwa.simulate()
+print(f"R = {result.R_total:.4f}  "
+      f"(n_orders={rcwa.n_orders}, energy balance {result.energy_balance:.4f})")
+```
+
+- `energy_balance` ≈ 1 for a lossless stack means converged; `< 1` means
+  absorption; `> 1` means not converged (see convention #7 for the detail).
+- Quoting `n_orders` makes the result reproducible and shows what it cost.
+- If you changed `n_orders` and the answer moved, it was **not** converged —
+  say so, rather than reporting the last value you happened to compute.
+
+A number without this context is not a result, it is a guess with four decimal
+places. Reporting it bare is the single easiest way to mislead someone who is
+trusting you to have checked.
+
 ## Minimal forward simulation
 
 ```python
