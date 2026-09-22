@@ -36,8 +36,8 @@ Set `version` to the release you actually used —
     Ikarus is permanently archived on Zenodo. Cite the **concept DOI**
     [10.5281/zenodo.21744163](https://doi.org/10.5281/zenodo.21744163) for *the
     software* — it always resolves to the latest release — or the **version DOI** to
-    pin a specific release (v1.0.0 →
-    [10.5281/zenodo.21918680](https://doi.org/10.5281/zenodo.21918680)).
+    pin a specific release (v1.1.0 →
+    [10.5281/zenodo.22894315](https://doi.org/10.5281/zenodo.22894315)).
 
 ## The white paper { #white-paper }
 
