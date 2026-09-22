@@ -6,6 +6,25 @@ semantic versioning.
 
 ## Unreleased
 
+### Added
+- **Input hardening.** Bad-but-plausible input now fails loudly instead of running
+  to completion and returning a confident wrong number:
+  - a length at or above 1 mm (`wavelength=1550`, `period_x=500`, `height=200`)
+    warns that nanometres were probably passed where metres are meant. It warns
+    rather than raises, since THz/mm-wave work is legitimately millimetric;
+    `height=np.inf` is exempt.
+  - a truncation that implies minutes-to-hours of solving warns before the run.
+    A bare `n_orders=200` applies to *both* axes (160801 harmonics), which is the
+    trap this catches; `n_orders=(M, 0)` is 1-D and stays silent.
+  - `n_orders` below zero and `resolution` below one raise `ValueError`.
+    `n_orders=(M, 0)` remains valid — it is how a 1-D grating is expressed.
+  - `theta` outside `(-90, 90)` degrees raises `ValueError`.
+  - a `topology` with non-integer or negative entries raises `ValueError`. A
+    negative index previously wrapped around the `materials` list and silently
+    selected the wrong material.
+- `AI_GUIDE.md` documents which conventions the code enforces and which remain the
+  caller's responsibility.
+
 ## 1.1.0 — 2026-09-22
 
 ### Added

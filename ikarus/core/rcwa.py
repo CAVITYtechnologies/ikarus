@@ -23,6 +23,7 @@ from typing import Optional
 
 import numpy as np
 
+from . import _validate
 from .fourier import HarmonicGrid
 from .layer import Layer
 from .materials import MaterialLibrary, default_library
@@ -104,6 +105,16 @@ class RCWA:
     ):
         if period_x <= 0 or period_y <= 0:
             raise ValueError("periods must be positive (meters)")
+        _validate.check_count(
+            resolution, "resolution", 1,
+            "A resolution of 0 means a grid with no pixels.")
+        _validate.check_count(
+            n_orders, "n_orders", 0,
+            "0 is fine (a 1-D grating uses n_orders=(N, 0)); negative is not.")
+        _validate.warn_if_not_metres(period_x, "period_x")
+        _validate.warn_if_not_metres(period_y, "period_y")
+        _mx, _my = self._as_pair(n_orders)
+        _validate.warn_if_expensive((2 * _mx + 1) * (2 * _my + 1), n_orders)
         # "auto" (default) applies the normal-vector method to every patterned
         # layer: it follows the true boundary normal, so it gives Fast-Fourier-
         # Factorization convergence on curved/oblique high-contrast structures and
