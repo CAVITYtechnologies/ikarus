@@ -6,7 +6,14 @@ semantic versioning.
 
 ## Unreleased
 
+## 1.1.0 — 2026-09-22
+
 ### Added
+- The convergence and I/O helpers are re-exported from `ikarus.tools`, so
+  `from ikarus.tools import check_convergence` works alongside the longer
+  `from ikarus.tools.convergence import check_convergence`. Affects
+  `auto_converge_orders`, `check_convergence`, `convergence_curve`,
+  `save_results` and `load_results`.
 - Links to the companion **white paper** — *Ikarus: High-fidelity RCWA simulation and
   inverse design for metasurfaces* (DOI [`10.5281/zenodo.21966455`](https://doi.org/10.5281/zenodo.21966455)) —
   from the README, `CITATION.cff`, the docs and `.zenodo.json`.
@@ -31,6 +38,12 @@ semantic versioning.
   efficiency when the target phase is unreachable; the idiom now keeps efficiency and
   phase as separate objectives (a one-knob `Sweep`, a Pareto pair, or a scalar FoM on
   `ikarus.grad`, chosen by degrees of freedom).
+
+### Internal
+- The public API surface is now pinned by `ikarus/tests/test_public_api.py` against
+  `ikarus/tests/public_api.txt`. Adding an exported symbol requires regenerating the
+  file deliberately; removing or renaming one fails the suite, which is the 1.0
+  stability promise made executable.
 
 ## 1.0.0
 
