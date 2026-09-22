@@ -63,6 +63,27 @@ domain. (Anisotropic/birefringent media **are** supported — see Materials.)
    to the classic inverse rule on axis-aligned geometry. Users never need to choose.
    `"li"`, `"laurent"`, `"normal"` remain as explicit overrides for benchmarking.
 
+### What the code checks for you
+
+Most of the rules above are enforced at construction time, so a slip fails loudly
+instead of returning a confident wrong number. You still have to get #1 right
+yourself — `T` and `R` are both plain floats in `[0, 1]`, so no check can tell a
+swapped unpack from a correct one.
+
+| you write | what happens |
+|---|---|
+| `wavelength=1550`, `period_x=500`, `height=200` | **warns**: looks like nm passed as m (`>= 1 mm`). Legitimate for THz/mm-wave, so it warns rather than raises. `height=np.inf` never warns. |
+| `n_orders=-5`, `resolution=0` | `ValueError`. Note `n_orders=(M, 0)` is *valid* — that is a 1-D grating. |
+| `n_orders=(25, 25)`, or a bare `n_orders=200` | **warns**: too expensive. A scalar applies to *both* axes, so `200` means 160801 harmonics, not 200. |
+| `theta=90` or more | `ValueError` — `theta` is from the normal, so `\|theta\| >= 90` is not an incident wave. |
+| non-integer or negative `topology` | `ValueError`. A negative index would silently wrap and select the wrong material; a greyscale map belongs in `ikarus.inverse.pixels`. |
+| cover/substrate not `np.inf`, or `np.inf` in the middle | `ValueError` — stack must be cover → interior → substrate. |
+| unknown material name | `KeyError` listing every built-in. |
+
+Warnings are real signals, not noise. If one fires, fix the input rather than
+suppressing it — each marks a case that otherwise produces a plausible wrong
+answer.
+
 ## Minimal forward simulation
 
 ```python
