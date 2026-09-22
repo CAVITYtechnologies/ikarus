@@ -33,6 +33,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from . import _validate
+
 _VALID_POL = ("linear", "RCP", "LCP")
 
 
@@ -55,6 +57,13 @@ class Source:
             )
         if self.wavelength <= 0:
             raise ValueError("wavelength must be positive (meters)")
+        if not -90.0 < float(self.theta) < 90.0:
+            raise ValueError(
+                f"theta must be in (-90, 90) degrees, got {self.theta}. theta is "
+                f"measured from the surface normal (+z), so |theta| >= 90 is not "
+                f"an incident wave -- it is parallel to, or behind, the surface."
+            )
+        _validate.warn_if_not_metres(self.wavelength, "wavelength")
 
     # -- derived quantities ------------------------------------------------
     @property

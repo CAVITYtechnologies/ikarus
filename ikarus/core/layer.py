@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from . import _validate
 from .materials import MaterialLibrary
 
 
@@ -40,10 +41,32 @@ class Layer:
             raise ValueError("layer height must be non-negative (or inf)")
         if self.material is None and self.topology is None:
             raise ValueError("layer needs either `material` or `topology`")
+        _validate.warn_if_not_metres(self.height, "layer height")
         if self.topology is not None:
             self.topology = np.asarray(self.topology)
             if self.materials is None:
                 raise ValueError("patterned layer requires a `materials` list")
+            if not np.issubdtype(self.topology.dtype, np.integer):
+                # A float map is almost always a density/greyscale array meant for
+                # inverse design, not a material-index map. Truncating it silently
+                # would map 0.9 -> material 0 and quietly change the geometry.
+                if not np.all(self.topology == np.rint(self.topology)):
+                    raise ValueError(
+                        f"topology must be integer material indices, got dtype "
+                        f"{self.topology.dtype} with non-integer values. For a "
+                        f"continuous density map use the inverse-design API "
+                        f"(ikarus.inverse.pixels), or round/cast this to int."
+                    )
+                self.topology = self.topology.astype(int)
+            if self.topology.min() < 0:
+                # Negative indices would silently wrap around the materials list
+                # and select the wrong material with no error at all.
+                raise ValueError(
+                    f"topology contains negative indices (min "
+                    f"{int(self.topology.min())}); they would wrap around the "
+                    f"`materials` list and silently select the wrong material. "
+                    f"Indices must be 0..len(materials)-1."
+                )
             n_mat = int(self.topology.max()) + 1
             if len(self.materials) < n_mat:
                 raise ValueError(
