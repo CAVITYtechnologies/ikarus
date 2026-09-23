@@ -242,7 +242,25 @@ def adjoint_optimize(atom, targets, n_orders: int = 8, steps: int = 150,
     if min_feature is None:
         radius_px = 2.0
     else:
-        radius_px = 0.5 * min_feature / (period0_x / nx)
+        pitch = period0_x / nx
+        radius_px = 0.5 * min_feature / pitch
+        if radius_px <= 1.0:
+            # The conic kernel weights a neighbour at distance 1 px by
+            # max(0, 1 - 1/radius_px), which is exactly 0 here: the filter is
+            # provably an identity and enforces nothing.  Silently accepting
+            # the argument is the worst outcome -- the caller believes the rule
+            # is being applied and stops checking, and the mask comes out with
+            # single-pixel features.  Fail before the optimisation, not after.
+            need_nx = int(np.ceil(4.0 * period0_x / min_feature))
+            raise ValueError(
+                f"min_feature={min_feature:.3g} m cannot be enforced on this "
+                f"pixel grid: the DOF pitch is {pitch:.3g} m ({nx} pixels across "
+                f"a {period0_x:.3g} m period), so the conic filter radius is "
+                f"{radius_px:.2f} px and does nothing at or below 1 px. "
+                f"Either use at least ~{need_nx} pixels per axis (a few pixels "
+                f"per min_feature are needed for the rule to bind), or ask for "
+                f"min_feature > {2 * pitch:.3g} m."
+            )
     kfft = jnp.asarray(conic_kernel_fft((nx, ny), radius_px)) if is_pixels else None
     index_map = topo._index if is_pixels else None
     fixed_topo = None if is_pixels else np.asarray(topo).astype(int)
