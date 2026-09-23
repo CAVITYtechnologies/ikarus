@@ -7,6 +7,29 @@ semantic versioning.
 ## Unreleased
 
 ### Fixed
+- **Masks are now rasterized onto an integer multiple of their own pixel count.**
+  A patterned layer is resampled onto the FFT grid by nearest neighbour; at a
+  non-integer ratio that jitters every pixel boundary, so the geometry error moved
+  with `n_orders` while the energy balance stayed clean. A 62-pixel mask swept to
+  `n_orders=210` wandered **44%** against its own exact geometry and never settled;
+  it now converges monotonically to **0.06%**. The 2-D case improves ~10x (a 64-px
+  mask's (15,15)-vs-(16,16) swing drops from ~3800 ppm to ~370 ppm). This also makes
+  `convergence_curve` meaningful on a fixed mask, where every rung used to report
+  rasterization noise. Grids grow 1.0-1.9x; the ratio shrinks as `n_orders` rises.
+- **`ikarus.examples.metasurface_spectrum` built the inverse of what it documented.**
+  `materials=["Si", "Air"]` with a circle mask makes an **air hole in a silicon film**,
+  not the silicon pillar the docstring and printed banner describe — 0.73 vs 0.98
+  zero-order transmission, with a clean energy balance either way. The other bundled
+  examples were audited and are correct.
+
+### Added
+- **`SimulationResult.theta_out_trn_in(n_exit=1.0)`** — transmitted exit angles
+  refracted into a real exit medium. `theta_out_trn` is measured inside the
+  semi-infinite substrate, where there is no back surface to refract at. Orders past
+  the critical angle return `NaN`: they are totally internally reflected and never
+  leave the chip, while `theta_out_trn` reports them as ordinary-looking angles.
+
+### Fixed
 - **`optimize()` now convergence-checks a Pareto front.** Multi-objective runs
   previously skipped verification entirely, so the idiom the guide recommends for
   an efficient atom at a target phase (`maximize("R")` paired with

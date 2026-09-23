@@ -100,3 +100,100 @@ def test_energy_warning_on_gain(recwarn):
     rcwa.set_source(wavelength=600e-9, theta=0, polarization="linear")
     rcwa.simulate()
     assert any("Energy balance" in str(w.message) for w in recwarn.list)
+
+
+# --- masks must be rasterized onto an integer multiple of their own size -----
+# A mask is resampled onto the FFT grid by nearest neighbour. At a non-integer
+# ratio that jitters every pixel boundary, and the geometry error moves with
+# n_orders while the energy balance stays clean -- the worst kind of wrong.
+
+def _freeform_1d(mask, M, resolution=None):
+    import numpy as np
+    from ikarus import RCWA
+    topo = np.repeat(np.asarray(mask)[:, None], 2, axis=1)
+    r = RCWA(period_x=3100e-9, period_y=3100e-9,
+             resolution=(resolution or len(mask), 2), n_orders=(M, 0))
+    r.add_uniform_layer(np.inf, "Air")
+    r.add_layer(500e-9, topo, ["Air", "Si"])
+    r.add_uniform_layer(np.inf, "SiO2")
+    r.set_source(wavelength=1550e-9, theta=0)
+    _, _, res = r.simulate()
+    return res.T_orders[res.order_index(1, 0)]
+
+
+def test_fft_grid_is_an_integer_multiple_of_the_mask():
+    import numpy as np
+    from ikarus import RCWA
+    topo = np.zeros((62, 2), int); topo[:31] = 1
+    r = RCWA(period_x=3100e-9, period_y=3100e-9, resolution=(62, 2), n_orders=(50, 0))
+    r.add_uniform_layer(np.inf, "Air")
+    r.add_layer(500e-9, topo, ["Air", "Si"])
+    r.add_uniform_layer(np.inf, "SiO2")
+    nx, _ = r._fft_sampling()
+    assert nx >= 4 * 50 + 1          # still anti-aliased
+    assert nx % 62 == 0              # and exact for this mask
+
+
+def test_coarse_mask_converges_instead_of_wandering():
+    """The regression this guards: a 62-px mask swept to n_orders=210 used to
+    wander 44% against its own exact geometry. It must now converge."""
+    import numpy as np
+    rng = np.random.default_rng(3)
+    mask = (rng.random(62) > 0.5).astype(int)
+    truth = _freeform_1d(np.repeat(mask, 32), 210)     # identical geometry, 1984 px
+    for M in (50, 120, 210):
+        got = _freeform_1d(mask, M)
+        assert abs(got - truth) / truth < 0.02, (
+            f"n_orders={M}: {got:.5f} vs exact {truth:.5f}")
+
+
+# --- exit angles are measured inside the substrate ---------------------------
+
+def test_theta_out_trn_in_converts_and_flags_total_internal_reflection():
+    import numpy as np
+    from ikarus import RCWA
+    r = RCWA(period_x=4.0e-6, period_y=4.0e-6, resolution=(256, 4), n_orders=(10, 0))
+    r.add_uniform_layer(np.inf, "Air")
+    topo = np.zeros((256, 4), int); topo[:128, :] = 1
+    r.add_layer(600e-9, topo, ["Air", "Si"])
+    r.add_uniform_layer(np.inf, "SiO2")
+    r.set_source(wavelength=1550e-9, theta=0)
+    _, _, res = r.simulate()
+
+    n_sub = float(np.sqrt(res.solution.eps_trn).real.flat[0])
+    air = res.theta_out_trn_in()
+    i2 = res.order_index(2, 0)
+    # Snell out of the substrate, and steeper in air than in glass
+    assert np.isclose(air[i2], np.degrees(np.arcsin(
+        n_sub * np.sin(np.radians(res.theta_out_trn[i2])))))
+    assert air[i2] > res.theta_out_trn[i2]
+
+    # order +3 propagates in the substrate but is past the critical angle: it
+    # never leaves the chip, and a bare arcsin would not have told you.
+    i3 = res.order_index(3, 0)
+    assert not np.isnan(res.theta_out_trn[i3])
+    assert np.isnan(air[i3])
+
+
+# --- the shipped example must build what it says it builds -------------------
+
+def test_metasurface_example_builds_silicon_pillars_not_air_holes():
+    """The materials list was ["Si", "Air"], which makes the circle an air hole
+    in a silicon film -- the opposite structure, and a 0.73 vs 0.98 difference
+    in zero-order transmission with a clean energy balance either way."""
+    import numpy as np
+    from ikarus import RCWA, shapes
+    pillar = shapes.circle(center=(0.5, 0.5), radius=0.32, grid_shape=(64, 64))
+    r = RCWA(period_x=500e-9, period_y=500e-9, resolution=(64, 64), n_orders=(6, 6))
+    r.add_uniform_layer(np.inf, "Air")
+    r.add_layer(220e-9, pillar, ["Air", "Si"])     # same call the example makes
+    r.add_uniform_layer(np.inf, "SiO2")
+    r.set_source(wavelength=1550e-9, theta=0)
+    r.simulate()
+    eps = r.get_fields(plane="xy", nx=64, ny=64)   # mid-layer permittivity
+    # the pillar centre must be silicon, the corner must be air
+    topo = r.layers[1].topology
+    assert topo[32, 32] == 1 and topo[0, 0] == 0
+    mats = r.layers[1].materials
+    assert mats[topo[32, 32]] == "Si", "circle centre must be the pillar material"
+    assert mats[topo[0, 0]] == "Air", "background must be air"

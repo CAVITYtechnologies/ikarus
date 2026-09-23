@@ -97,6 +97,29 @@ class SimulationResult:
         """Phase (radians) of the zero-order reflection coefficient."""
         return self._phase(self.R)
 
+    def theta_out_trn_in(self, n_exit: float = 1.0) -> np.ndarray:
+        """Transmitted exit angles (deg) refracted into a medium of index
+        ``n_exit`` -- by default air.
+
+        :attr:`theta_out_trn` is measured **inside the semi-infinite
+        substrate**.  A real chip is diced, so the light crosses a back surface
+        the simulation does not model.  This applies Snell there::
+
+            res.theta_out_trn[i]        # 29.73 deg, inside SiO2
+            res.theta_out_trn_in()[i]   # 46.24 deg, what you would measure
+
+        Orders past the critical angle are **totally internally reflected** and
+        come back ``NaN``: they never leave the substrate at all, which is the
+        failure a hand-rolled ``arcsin`` quietly turns into a domain error or a
+        nonsense number.  Evanescent orders stay ``NaN`` as they already were.
+        """
+        n_sub = float(np.sqrt(np.asarray(self.solution.eps_trn)).real.flat[0])
+        with np.errstate(invalid="ignore"):
+            sin_exit = (n_sub / float(n_exit)) * np.sin(
+                np.radians(self.theta_out_trn))
+            sin_exit = np.where(np.abs(sin_exit) > 1.0, np.nan, sin_exit)
+            return np.degrees(np.arcsin(sin_exit))
+
 
 class RCWA:
     """The user-facing RCWA solver.
@@ -236,13 +259,62 @@ class RCWA:
             if lay.is_semi_infinite:
                 raise ValueError("interior layers must have finite thickness")
 
+    # Rounding the sampling grid up to a common multiple of the mask sizes can
+    # only inflate it so far before the FFTs cost more than the exactness is
+    # worth (pathological case: masks of 61 and 62 pixels, whose LCM is 3782).
+    _EXACT_SAMPLING_BUDGET = 8
+
     def _fft_sampling(self) -> tuple[int, int]:
-        """Real-space sampling for the convolution matrices (avoids aliasing of
-        the required difference orders ±2*M)."""
+        """Real-space sampling for the convolution matrices.
+
+        Must be at least ``4*M+1`` per axis to avoid aliasing the difference
+        orders ``±2*M``.  It is then rounded **up to an integer multiple of the
+        patterned masks' own pixel counts**, because the masks are resampled
+        onto this grid by nearest neighbour: at a non-integer ratio that jitters
+        every pixel boundary, and the resulting geometry error moves with
+        ``n_orders`` while the energy balance stays clean.  A 62-pixel mask
+        swept to ``n_orders=210`` wandered 44% and never settled; sampling at a
+        multiple of 62 instead converges monotonically to 0.06%.
+
+        Integer multiples matter only when upsampling.  A mask finer than the
+        grid is left to downsample as before -- that is the caller explicitly
+        asking for a coarser rasterization.
+        """
         mx, my = self._n_orders
         nx = max(self.resolution[0], 4 * mx + 1)
         ny = max(self.resolution[1], 4 * my + 1)
-        return nx, ny
+
+        sizes_x, sizes_y = set(), set()
+        for lay in self.layers:
+            if lay.topology is None:
+                continue
+            tnx, tny = np.asarray(lay.topology).shape
+            sizes_x.add(int(tnx))
+            sizes_y.add(int(tny))
+        return (self._round_to_multiple(nx, sizes_x, "x"),
+                self._round_to_multiple(ny, sizes_y, "y"))
+
+    def _round_to_multiple(self, n: int, sizes: set, axis: str) -> int:
+        """Smallest multiple of ``lcm(sizes)`` that is >= ``n``, within budget."""
+        import math
+        sizes = {s for s in sizes if s and s <= n}   # only when upsampling
+        if not sizes:
+            return n
+        step = math.lcm(*sizes) if len(sizes) > 1 else sizes.pop()
+        exact = int(math.ceil(n / step) * step)
+        if exact > self._EXACT_SAMPLING_BUDGET * n:
+            # Mask sizes are mutually awkward; an exact grid would cost more
+            # than the accuracy is worth. Fall back and say so -- silently
+            # returning the jittered grid is what caused the original bug.
+            warnings.warn(
+                f"patterned layers have pixel counts on {axis} whose common "
+                f"multiple ({step}) would need a {exact}-sample grid; falling "
+                f"back to {n}, where nearest-neighbour resampling jitters the "
+                f"pixel boundaries and results drift with n_orders. Give the "
+                f"patterned layers a common pixel count to avoid this.",
+                stacklevel=3)
+            return n
+        return exact
 
     def _solve(self) -> FieldSolution:
         if self.source is None:
