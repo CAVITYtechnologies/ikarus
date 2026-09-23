@@ -103,14 +103,30 @@ class OptimizeResult:
 
     @property
     def metaatom(self):
-        """The optimized structure as a ready-to-simulate :class:`~ikarus.RCWA`."""
-        return self.atom.build(self.params, self.n_orders)
+        """The optimized structure as a ready-to-simulate :class:`~ikarus.RCWA`.
+
+        The source the optimization actually used is attached, so
+        ``result.metaatom.simulate()`` works directly and reproduces the
+        reported objective.  When the targets span **several wavelengths**
+        there is no single right source, so none is set and ``simulate()``
+        will ask you to call :meth:`~ikarus.RCWA.set_source` first -- pick the
+        wavelength you mean.
+        """
+        rcwa = self.atom.build(self.params, self.n_orders)
+        wavelengths = sorted({wl for t in self.targets for wl in t.wavelengths})
+        if len(wavelengths) == 1:
+            # Exactly the source the objective was evaluated with (see
+            # _objective_of / _build_problem), so the numbers agree.
+            rcwa.set_source(wavelength=wavelengths[0], theta=0.0,
+                            polarization=self.atom.polarization,
+                            linear_pol_angle=self.atom.pol_angle)
+        return rcwa
 
     @property
     def rcwa(self):
         """Alias of :attr:`metaatom` -- the optimized design as a ready
         :class:`~ikarus.RCWA` (clearer when the design is a ``Structure``)."""
-        return self.atom.build(self.params, self.n_orders)
+        return self.metaatom
 
     @property
     def achieved(self):
@@ -346,7 +362,14 @@ def _verify_convergence(result, verify_n_orders):
     ``verify_n_orders`` is given, report ``achieved``/``F`` there; always warn
     when the metric is still moving with ``n_orders`` (the packaged number is
     honest for its truncation but may not be converged -- exactly what an
-    energy-balance check cannot catch)."""
+    energy-balance check cannot catch).
+
+    This compares **two** truncations, so it is a smoke test rather than proof:
+    silence means those two points agreed, which a design that oscillates with
+    ``n_orders`` can manage by luck.  For a freeform or high-contrast design,
+    sweep a real ladder (:func:`ikarus.tools.convergence_curve`) and require the
+    curve to be visibly flat.
+    """
     if result.multi:
         return                       # Pareto-front verification is out of scope
     import warnings

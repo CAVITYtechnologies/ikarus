@@ -6,6 +6,26 @@ semantic versioning.
 
 ## Unreleased
 
+### Fixed
+- **`OptimizeResult.rcwa` / `.metaatom` are now actually ready to simulate**, as the
+  guide has always claimed. They returned a structure with no source attached, so
+  `.simulate()` raised `call set_source(...) before simulating`. The source the
+  optimization used is now attached, and the result reproduces `.achieved` exactly.
+  When the targets span several wavelengths there is no single right source, so none
+  is set and the caller is asked to pick one.
+
+### Docs
+- **`theta_out_trn` is measured inside the semi-infinite substrate**, not in the
+  medium the light eventually reaches — now documented on `SimulationResult` and in
+  `AI_GUIDE.md`, with the Snell conversion. A grating steering +1 to 50.8 deg in air
+  reports 32.5 deg on an n=1.444 substrate; both numbers look plausible, which is what
+  made the omission dangerous. `theta_out_ref` needs no correction.
+- **A two-point convergence check is a smoke test, not proof** — stated plainly in
+  `AI_GUIDE.md` and on `_verify_convergence`. Silence means two truncations agreed,
+  which an oscillating design can manage by luck: a field test found a freeform
+  grating swinging between 0.78 and 0.89 out to `n_orders=210`. Freeform and
+  high-contrast designs need a real ladder (`convergence_curve`).
+
 ### Added
 - **Input hardening.** Bad-but-plausible input now fails loudly instead of running
   to completion and returning a confident wrong number:
