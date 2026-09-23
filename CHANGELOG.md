@@ -7,6 +7,20 @@ semantic versioning.
 ## Unreleased
 
 ### Fixed
+- **`optimize()` now convergence-checks a Pareto front.** Multi-objective runs
+  previously skipped verification entirely, so the idiom the guide recommends for
+  an efficient atom at a target phase (`maximize("R")` paired with
+  `match("r_phase", ...)`) could return an artifact-mined design with no warning
+  at all. Each metric's champion on the front is now re-evaluated at a higher
+  truncation, matching what `.achieved` reports; verification can never turn a
+  finished optimisation into an exception.
+- **`min_feature=` now raises when it cannot bind.** With fewer than two DOF
+  pixels per `min_feature` the conic filter radius falls to <= 1 px, where it is
+  provably an identity and enforces nothing -- a field test asked for 100 nm on a
+  77.5 nm pitch and got a mask whose narrowest feature was one 78 nm pixel, with
+  no warning. A fab filter that silently does nothing is worse than no filter,
+  because the caller stops checking. The error names the pitch and the pixel
+  count needed.
 - **`OptimizeResult.rcwa` / `.metaatom` are now actually ready to simulate**, as the
   guide has always claimed. They returned a structure with no source attached, so
   `.simulate()` raised `call set_source(...) before simulating`. The source the
