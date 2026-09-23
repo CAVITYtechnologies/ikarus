@@ -83,3 +83,98 @@ def test_auto_converge_handles_absorbing_structure():
         Mx, _ = auto_converge_orders(rc, mode="once", tol=1e-3, max_orders=60)
     assert Mx < 60                                        # converged before the ceiling
     assert rc.simulate()[2].energy_balance < 1.0         # genuinely absorbing
+
+
+# --- the Pareto path gets the same safety net ------------------------------
+# A multi-objective run used to skip verification entirely, so the recommended
+# metamirror idiom -- maximize(R) paired with match(r_phase) -- could hand back
+# an artifact-mined design with no warning at all. These guard the fix.
+
+def _front(atom, params_list, n_orders):
+    """A Pareto result whose F is the REAL objective at ``n_orders``.
+
+    Inventing F by hand would make the check compare a made-up number against a
+    computed one, and warn for the wrong reason.
+    """
+    from ikarus.inverse import Target
+    from ikarus.inverse.optimize import OptimizeResult, _objective_of
+
+    targets = [Target.maximize("R", at=1550e-9),
+               Target.match("r_phase", value=0.0, at=1550e-9)]
+    result = OptimizeResult(atom, targets, n_orders, list(params_list),
+                            np.zeros((len(params_list), 2)), None, algorithm="ga")
+    result.F = np.array(
+        [[float(np.ravel(np.asarray(o))[0]) for o in _objective_of(result, p, n_orders)]
+         for p in params_list], dtype=float)
+    return result
+
+
+def _hard_atom():
+    """High-contrast silicon: badly under-resolved at a small truncation."""
+    from ikarus.inverse import MetaAtom, free
+    from ikarus.shapes import Rectangle
+    atom = MetaAtom(period=900e-9, cover="Air", substrate="SiO2",
+                    polarization="linear", pol_angle=90.0)
+    atom.add_pattern(Rectangle(width=free(0.15, 0.85), height=1.0),
+                     ["Air", "Si"], height=free(300e-9, 900e-9))
+    return atom, {"shape__width": 0.25, "height": 400e-9}
+
+
+def test_pareto_front_is_convergence_checked():
+    """An under-resolved front must warn, exactly as a single design does."""
+    from ikarus.inverse.optimize import _verify_convergence
+
+    atom, params = _hard_atom()
+    result = _front(atom, [params], n_orders=3)
+    assert result.multi
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        _verify_convergence(result, None)
+    msgs = [str(w.message) for w in caught if "converged" in str(w.message)]
+    assert msgs, "an under-resolved Pareto front produced no warning"
+    assert "Pareto" in msgs[0]
+
+
+def test_pareto_checks_every_metrics_champion():
+    """``.achieved`` reports the best of EACH metric, so each champion is
+    checked -- not merely the first point on the front."""
+    from ikarus.inverse.optimize import _verify_convergence
+
+    atom, bad = _hard_atom()
+    good = {"shape__width": 0.55, "height": 700e-9}
+    # the under-resolved design is second, so a first-point-only check misses it
+    result = _front(atom, [good, bad], n_orders=3)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        _verify_convergence(result, None)
+    assert [w for w in caught if "converged" in str(w.message)]
+
+
+def test_pareto_check_is_quiet_when_resolved():
+    """No false alarm: a converged front must not warn."""
+    from ikarus.inverse import MetaAtom, free
+    from ikarus.inverse.optimize import _verify_convergence
+    from ikarus.shapes import Rectangle
+
+    atom = MetaAtom(period=400e-9, cover="Air", substrate="Air",
+                    polarization="linear", pol_angle=0.0)
+    atom.add_pattern(Rectangle(width=free(0.2, 0.8), height=1.0),
+                     ["Air", 1.5], height=free(100e-9, 300e-9))
+    result = _front(atom, [{"shape__width": 0.5, "height": 200e-9}], n_orders=6)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        _verify_convergence(result, None)
+    assert not [w for w in caught if "converged" in str(w.message)]
+
+
+def test_pareto_check_never_breaks_a_finished_run():
+    """Verification is a courtesy on an optimisation that already finished; if
+    re-evaluating a front point fails, the result must still come back."""
+    from ikarus.inverse.optimize import _verify_convergence
+
+    atom, params = _hard_atom()
+    result = _front(atom, [params], n_orders=3)
+    result.X = [{"shape__width": 0.25}]          # missing 'height' -> build fails
+    with warnings.catch_warnings(record=True):
+        warnings.simplefilter("always")
+        _verify_convergence(result, None)        # must not raise
