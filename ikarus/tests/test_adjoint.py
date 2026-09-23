@@ -205,3 +205,50 @@ def test_ga_path_rejects_adjoint_kwargs():
     with pytest.raises(TypeError, match="adjoint-only"):
         optimize(_film_atom(), Target.minimize("R", at=600e-9),
                  algorithm="ga", steps=10)
+
+
+# --- min_feature must actually bind ----------------------------------------
+# A fab filter that silently does nothing is worse than no filter, because the
+# caller believes the rule is applied and stops checking. The conic kernel
+# weights a neighbour at 1 px by max(0, 1 - 1/radius_px), which is exactly 0
+# when radius_px <= 1 -- provably an identity.
+
+def _pixel_atom(nx, period=2.48e-6):
+    from ikarus.inverse import MetaAtom, pixels
+    atom = MetaAtom(period=period, cover="Air", substrate="SiO2")
+    atom.add_pattern(pixels(nx, 1), ["Air", "Si"], height=400e-9)
+    return atom
+
+
+def _run(nx, min_feature):
+    from ikarus.inverse import Target, optimize
+    return optimize(_pixel_atom(nx), Target.maximize("R", at=1550e-9),
+                    n_orders=(4, 0), steps=1, min_feature=min_feature,
+                    algorithm="adjoint")
+
+
+def test_min_feature_below_two_pixels_raises():
+    """The field-test case: 2.48 um over 32 px = 77.5 nm pitch, min_feature
+    100 nm -> filter radius 0.65 px, which enforces nothing. It used to run
+    happily and return a mask whose narrowest feature was one pixel."""
+    with pytest.raises(ValueError, match="cannot be enforced"):
+        _run(32, 100e-9)
+
+
+def test_min_feature_at_exactly_two_pixels_raises():
+    """radius_px == 1.0 is the boundary and is still provably an identity."""
+    with pytest.raises(ValueError, match="cannot be enforced"):
+        _run(32, 2 * 2.48e-6 / 32)
+
+
+def test_min_feature_that_binds_is_accepted():
+    _run(32, 200e-9)                       # radius 1.29 px
+
+
+def test_finer_grid_accepts_the_same_min_feature():
+    """The remedy the error message recommends must actually work."""
+    _run(128, 100e-9)                      # radius 2.58 px
+
+
+def test_no_min_feature_is_unaffected():
+    _run(32, None)
