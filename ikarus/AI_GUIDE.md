@@ -109,6 +109,21 @@ A number without this context is not a result, it is a guess with four decimal
 places. Reporting it bare is the single easiest way to mislead someone who is
 trusting you to have checked.
 
+**Two points can agree by luck.** `optimize()`'s built-in check, and any
+hand-rolled "compare `M` against `M+4`", is a **smoke test, not proof**. Silence
+from it does not mean converged — it means those two truncations happened to
+land close. A field test found a 62-pixel freeform grating whose specular
+efficiency oscillated between **0.78 and 0.89 out to `n_orders=210`**, never
+settling; any two-point check that happened to straddle the oscillation would
+have blessed it. The honest number (78.4 %) only emerged from sweeping eight
+truncations and requiring the curve to be visibly flat.
+
+So: a two-point check is enough for a simple, well-conditioned structure. A
+freeform or high-contrast design needs a **real ladder** — sweep several
+`n_orders` and look at the curve (`ikarus.tools.convergence_curve`). This is
+convention #7 one level up: energy balance is not convergence, and neither is a
+single pair of agreeing points.
+
 ## Minimal forward simulation
 
 ```python
@@ -155,6 +170,13 @@ print(result.R_phase)                                                  # zero-or
 - `theta_out_ref/trn`, `phi_out_ref/trn` — exit angles in degrees (`NaN` = evanescent).
   `theta_out_*` is an **unsigned polar magnitude**; the ± direction lives in `phi_out_*`
   (compare a grating-equation angle against `abs(...)`).
+  **`theta_out_trn` is the angle _inside the substrate_, not in air.** The substrate is
+  semi-infinite, so there is no back surface to refract at. If the chip is diced and the
+  light exits into air, apply Snell yourself:
+  `np.degrees(np.arcsin(n_sub * np.sin(np.radians(res.theta_out_trn[i]))))`.
+  A grating steering +1 to 50.8° in air reports `32.5` on an `n=1.444` substrate — both
+  numbers look plausible, so state which medium you mean whenever you quote an exit
+  angle. `theta_out_ref` needs no correction: the cover *is* the reflected light's medium.
 - `energy_balance` — `R_total + T_total`. `solution` — raw modal solution for fields.
 
 **Materials:** a shared `default_library` ships **Air, Ag, Au, GaN, GaP, Si, Si₃N₄,

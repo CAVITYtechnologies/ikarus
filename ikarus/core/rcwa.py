@@ -37,6 +37,22 @@ class SimulationResult:
 
     Holds the full per-order data and a back-reference to the solver solution so
     that field reconstruction and order-resolved analysis remain available.
+
+    .. warning::
+       ``theta_out_trn`` is measured **inside the semi-infinite substrate**, not
+       in whatever medium the light eventually reaches.  RCWA simulates the
+       substrate as unbounded, so there is no back surface to refract at.  If
+       your chip is later diced and the light exits into air, convert with
+       Snell's law::
+
+           theta_air = np.degrees(np.arcsin(n_sub * np.sin(np.radians(
+               result.theta_out_trn[i]))))
+
+       A grating designed to send +1 into 50.8 deg in air reports
+       ``theta_out_trn = 32.5`` on an ``n=1.444`` substrate.  The number looks
+       plausible either way, which is what makes it dangerous: check which
+       medium you mean before quoting an exit angle.  ``theta_out_ref`` needs no
+       such correction -- the cover *is* the medium the reflected light is in.
     """
 
     T: object  # scalar complex (linear) or {'co','cross'} (circular)

@@ -137,3 +137,46 @@ def test_shape_used_directly_in_add_layer():
     rcwa.set_source(wavelength=600e-9, theta=0, polarization="linear")
     _, _, res = rcwa.simulate()
     assert 0.0 <= res.energy_balance <= 1.0001
+
+
+# --- .rcwa / .metaatom must be what the guide promises: ready to simulate ---
+
+def test_result_rcwa_is_ready_to_simulate_and_reproduces_achieved():
+    """The guide calls `.rcwa` "a ready-to-simulate RCWA". It used to raise
+    `call set_source(...) before simulating`. The source the optimisation used
+    is now attached, so the number it gives back is the reported one."""
+    import warnings
+    from ikarus.inverse import MetaAtom, Target, free, optimize
+    from ikarus.shapes import Rectangle
+
+    atom = MetaAtom(period=900e-9, cover="Air", substrate="SiO2")
+    atom.add_pattern(Rectangle(width=free(0.2, 0.8), height=1.0),
+                     ["Air", "Si"], height=400e-9)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        res = optimize(atom, Target.maximize("R", at=1550e-9), n_orders=(4, 0),
+                       pop=4, n_gen=2, algorithm="ga", verbose=False)
+        _, _, sim = res.rcwa.simulate()          # must not raise
+    assert abs(sim.R_total - res.achieved) < 1e-9
+    assert res.metaatom is not res.rcwa          # fresh object each access
+
+
+def test_multi_wavelength_result_leaves_the_source_unset():
+    """With targets at several wavelengths there is no single right source, so
+    none is attached and the caller is told to pick one."""
+    import warnings
+    import pytest
+    from ikarus.inverse import MetaAtom, Target, free, optimize
+    from ikarus.shapes import Rectangle
+
+    atom = MetaAtom(period=900e-9, cover="Air", substrate="SiO2")
+    atom.add_pattern(Rectangle(width=free(0.2, 0.8), height=1.0),
+                     ["Air", "Si"], height=400e-9)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        res = optimize(atom, [Target.maximize("R", at=1550e-9),
+                              Target.maximize("R", at=1064e-9)],
+                       n_orders=(4, 0), pop=16, n_gen=2, algorithm="nsga3",
+                       verbose=False)
+        with pytest.raises(ValueError, match="set_source"):
+            res.rcwa.simulate()
