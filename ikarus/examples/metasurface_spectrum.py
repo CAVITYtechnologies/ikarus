@@ -18,7 +18,10 @@ def main():
 
     rcwa = RCWA(period_x=period, period_y=period, resolution=(64, 64), n_orders=(8, 8))
     rcwa.add_uniform_layer(np.inf, "Air")
-    rcwa.add_layer(220e-9, pillar, ["Si", "Air"])
+    # topology value 1 (inside the circle) -> Si; value 0 (background) -> Air.
+    # The order matters: ["Si", "Air"] would build an air hole in a silicon
+    # film, which is the opposite structure and transmits ~0.73 instead of ~0.98.
+    rcwa.add_layer(220e-9, pillar, ["Air", "Si"])
     rcwa.add_uniform_layer(np.inf, "SiO2")
 
     wavelengths = np.linspace(600e-9, 1000e-9, 41)

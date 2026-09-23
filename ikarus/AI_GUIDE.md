@@ -171,12 +171,14 @@ print(result.R_phase)                                                  # zero-or
   `theta_out_*` is an **unsigned polar magnitude**; the ± direction lives in `phi_out_*`
   (compare a grating-equation angle against `abs(...)`).
   **`theta_out_trn` is the angle _inside the substrate_, not in air.** The substrate is
-  semi-infinite, so there is no back surface to refract at. If the chip is diced and the
-  light exits into air, apply Snell yourself:
-  `np.degrees(np.arcsin(n_sub * np.sin(np.radians(res.theta_out_trn[i]))))`.
-  A grating steering +1 to 50.8° in air reports `32.5` on an `n=1.444` substrate — both
-  numbers look plausible, so state which medium you mean whenever you quote an exit
-  angle. `theta_out_ref` needs no correction: the cover *is* the reflected light's medium.
+  semi-infinite, so there is no back surface to refract at. A grating steering +1 to
+  50.8° in air reports `32.5` on an `n=1.444` substrate — both look plausible.
+  **Use `res.theta_out_trn_in(n_exit=1.0)`** rather than doing the Snell yourself: it
+  returns `NaN` for orders past the critical angle, which are totally internally
+  reflected and *never leave the chip*. Those read as perfectly ordinary deflection
+  angles in `theta_out_trn` (e.g. 53.6°), and a hand-rolled `arcsin` turns them into a
+  domain error or a nonsense number instead of telling you the design is dead.
+  `theta_out_ref` needs no correction: the cover *is* the reflected light's medium.
 - `energy_balance` — `R_total + T_total`. `solution` — raw modal solution for fields.
 
 **Materials:** a shared `default_library` ships **Air, Ag, Au, GaN, GaP, Si, Si₃N₄,
