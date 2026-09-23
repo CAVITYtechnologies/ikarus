@@ -328,10 +328,13 @@ def _bump_orders(n):
     return max(int(n) + 4, int(np.ceil(1.5 * n)))
 
 
-def _design_objective_at(result, n_orders):
-    """Evaluate the packaged design's objective(s) at a given truncation
-    (single-objective returns a scalar loss)."""
-    rcwa = result.atom.build(result.params, n_orders)
+def _objective_of(result, params, n_orders):
+    """Evaluate *one* design's objective(s) at a given truncation.
+
+    Taking ``params`` explicitly lets the Pareto check re-evaluate any point on
+    the front, not only the packaged one.
+    """
+    rcwa = result.atom.build(params, n_orders)
     per_wl = {}
     for wl in sorted({w for t in result.targets for w in t.wavelengths}):
         rcwa.set_source(wavelength=wl, theta=0.0,
@@ -341,6 +344,53 @@ def _design_objective_at(result, n_orders):
     return [t.objective(per_wl) for t in result.targets]
 
 
+def _design_objective_at(result, n_orders):
+    """Evaluate the packaged design's objective(s) at a given truncation
+    (single-objective returns a scalar loss)."""
+    return _objective_of(result, result.params, n_orders)
+
+
+def _verify_front(result):
+    """The convergence check, applied to a Pareto result.
+
+    ``.achieved`` reports the best of *each* metric across the front, so those
+    champions are the numbers a reader quotes and acts on -- and so those are
+    the designs worth re-checking.  Verifying only ``X[0]`` would miss exactly
+    the case that matters: a headline figure coming from an under-resolved
+    corner of design space.
+    """
+    import warnings
+    opt_orders = result.n_orders
+    check_orders = _bump_orders(opt_orders)
+    if check_orders == opt_orders:
+        return
+    F = np.atleast_2d(np.asarray(result.F, dtype=float))
+    moved = []
+    for k, t in enumerate(result.targets):
+        if k >= F.shape[1]:
+            break
+        i = int(np.argmin(F[:, k]))                  # this metric's champion
+        a_here = t.achieved(float(F[i, k]))
+        try:
+            obj = _objective_of(result, result.X[i], check_orders)
+        except Exception:
+            # Verification is a courtesy on an optimisation that already
+            # finished; it must never turn a usable result into an exception.
+            return
+        a_high = t.achieved(float(np.ravel(np.asarray(obj[k]))[0]))
+        if abs(a_high - a_here) > 0.02:
+            moved.append(f"{t.achieved_label} = {a_here:.3f} at "
+                         f"n_orders={opt_orders} but {a_high:.3f} at "
+                         f"n_orders={check_orders}")
+    if moved:
+        warnings.warn(
+            "the Pareto front may not be converged in n_orders: "
+            + "; ".join(moved) +
+            ". The reported values are honest for their truncation; raise "
+            "n_orders and re-run before trusting the front. Energy balance "
+            "cannot catch this.", stacklevel=4)
+
+
 def _verify_convergence(result, verify_n_orders):
     """Re-evaluate the final design at a higher truncation.  If
     ``verify_n_orders`` is given, report ``achieved``/``F`` there; always warn
@@ -348,7 +398,8 @@ def _verify_convergence(result, verify_n_orders):
     honest for its truncation but may not be converged -- exactly what an
     energy-balance check cannot catch)."""
     if result.multi:
-        return                       # Pareto-front verification is out of scope
+        _verify_front(result)        # the front's headline designs, same check
+        return
     import warnings
     opt_orders = result.n_orders
     t = result.targets[0]
