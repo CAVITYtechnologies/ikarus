@@ -6,6 +6,17 @@ semantic versioning.
 
 ## Unreleased
 
+### Internal
+- **Semantic contract tests** (`ikarus/tests/test_semantics.py`). `test_public_api.py`
+  pins *which* symbols exist; this pins *what they mean* — units, reference frame,
+  amplitude vs power, and which attribute each `convergence_curve` metric maps to,
+  checked against analytic Fresnel and the grating equation rather than against the
+  documentation. Three independent users have now reported the same class of bug (the
+  code runs, returns a plausible number, and the number means something else), and
+  documentation did not prevent it: in two cases the author of the documentation got it
+  wrong afterwards. Each contract names the mistake it prevents, and each was verified
+  to fail when that behaviour is mutated.
+
 ### Fixed
 - **`convergence_curve` now raises on an unrecognized `metric`** instead of silently
   computing the energy defect. `metric="T_total"` is the plausible typo — `T_total` is
