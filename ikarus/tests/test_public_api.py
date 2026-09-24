@@ -99,3 +99,12 @@ if __name__ == "__main__":
         )
     SURFACE_FILE.write_text("\n".join(_surface()) + "\n")
     print(f"wrote {SURFACE_FILE} ({len(_surface())} symbols)")
+
+
+def test_version_is_valid_pep440():
+    """A malformed version string breaks packaging at release time, which is the
+    worst moment to find out. `main` carries a `.devN` suffix between releases so
+    that reading `__version__` cannot suggest you are on the published package."""
+    from packaging.version import Version
+    import ikarus
+    Version(ikarus.__version__)          # raises InvalidVersion if malformed
