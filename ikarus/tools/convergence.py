@@ -140,6 +140,9 @@ def check_convergence(rcwa, baseline=None, tol: float = 1e-3, step: int = 4
     return converged, delta
 
 
+_CURVE_METRICS = ("T0", "R", "T", "R_phase", "T_phase", "energy")
+
+
 def convergence_curve(rcwa, orders, metric: str = "T0") -> tuple[np.ndarray, np.ndarray]:
     """Evaluate a convergence metric over a list of harmonic-order counts.
 
@@ -148,7 +151,25 @@ def convergence_curve(rcwa, orders, metric: str = "T0") -> tuple[np.ndarray, np.
     ``'T_phase'`` (zeroth-order phase, **degrees** -- the one to watch for
     phase-sensitive design), or ``'energy'`` (``|R+T-1|``).  Restores the original
     ``n_orders`` afterwards.
+
+    .. note::
+       The phase metrics are in **degrees**, unlike
+       :attr:`~ikarus.SimulationResult.T_phase` and ``Target.match("r_phase",
+       ...)``, which are radians.  A tolerance carried over from those without
+       converting is wrong by a factor of 57.3.
+
+    An unrecognized ``metric`` raises rather than falling back: the old fallback
+    computed the energy defect, which is ~0 for any well-converged structure and
+    so looked exactly like a clean convergence result for a metric that was never
+    evaluated.
     """
+    if metric not in _CURVE_METRICS:
+        raise ValueError(
+            f"unknown metric {metric!r}; valid metrics are "
+            f"{', '.join(repr(m) for m in _CURVE_METRICS)}. "
+            f"(Note 'T'/'R' are the totals -- the SimulationResult attributes "
+            f"are named T_total/R_total, but this function uses the short names.)"
+        )
     original = rcwa.n_orders
     orders = list(orders)
     values = []
@@ -166,7 +187,7 @@ def convergence_curve(rcwa, orders, metric: str = "T0") -> tuple[np.ndarray, np.
             values.append(np.degrees(np.angle(rcwa._linear_coeff(sol, "ref", i0))))
         elif metric == "T_phase":
             values.append(np.degrees(np.angle(rcwa._linear_coeff(sol, "trn", i0))))
-        else:  # energy defect
+        else:  # 'energy' -- validated above, so this is never a fallthrough
             values.append(abs(sol.R_total + sol.T_total - 1.0))
     rcwa.n_orders = original
     return np.array(orders), np.array(values)
