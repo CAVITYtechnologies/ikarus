@@ -14,6 +14,11 @@ authoritative cheat-sheet so you can use it like an expert without rediscovering
 its API or its sharp edges. When in doubt, prefer these facts over guesses.
 
 - **PyPI:** `ikarus-rcwa` · **import:** `import ikarus` (the names differ on purpose).
+- **Check what you are actually running:** a `__version__` ending in `.devN`
+  (e.g. `1.2.0.dev0`) means an **unreleased checkout**, not the published package —
+  it has fixes PyPI does not. `python -c "import ikarus; print(ikarus.__file__)"`
+  from *outside* the repo tells you which copy you have (inside it, the working
+  directory shadows the installed package and the answer is always the repo).
 - **Docs:** <https://cavitytechnologies.github.io/ikarus/> · **GitHub:** `CAVITYtechnologies/ikarus`.
 - **Extras:** `pip install "ikarus-rcwa[inverse]"` (pymoo, GA `optimize`),
   `[grad]` (JAX+optax, adjoint `optimize` + `ikarus.grad`), `[io]` (h5py),

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ikarus-rcwa"
-version = "1.1.0"
+version = "1.2.0.dev0"
 description = "High-precision 2D RCWA simulation for periodic photonic structures"
 readme = "README.md"
 requires-python = ">=3.9"
