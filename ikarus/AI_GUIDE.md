@@ -67,8 +67,16 @@ domain. (Anisotropic/birefringent media **are** supported — see Materials.)
 
 Most of the rules above are enforced at construction time, so a slip fails loudly
 instead of returning a confident wrong number. You still have to get #1 right
-yourself — `T` and `R` are both plain floats in `[0, 1]`, so no check can tell a
-swapped unpack from a correct one.
+yourself: the first two elements are both complex scalars of the same kind, so no
+check can tell a swapped unpack from a correct one.
+
+**And note what they are.** `T` and `R` from the tuple are the **zero-order
+complex amplitude** coefficients — the same objects as `result.T` / `result.R`,
+*not* power. For transmitted/reflected **power** use `result.T_total` /
+`result.R_total` (or `abs(T)**2` for the zero order alone). Writing
+`power = T` is wrong and quietly optimistic: on a bare Air/SiO2 interface
+`T = 0.9827` while the actual transmittance is `0.9657`, and the two diverge
+further on lossy or strongly patterned structures.
 
 | you write | what happens |
 |---|---|
@@ -388,7 +396,10 @@ efficiency is never traded to zero. Choose by degrees of freedom:
   lossless structure conserves energy at every `n_orders` while R/phase still
   drift (the classic high-contrast-TM trap that has cost real optimization runs).
   Manual study: `from ikarus.tools.convergence import convergence_curve; orders, vals =
-  convergence_curve(rcwa, range(4,21,2), metric="R"|"R_phase"|"T_phase")` (it restores
+  convergence_curve(rcwa, range(4,21,2), metric="R"|"R_phase"|"T_phase")` — **its phase
+  metrics are in DEGREES**, unlike `result.T_phase`/`R_phase` and `Target.match("r_phase",
+  ...)` which are radians, so a tolerance carried across without converting is off by
+  57.3x. An unrecognized `metric` raises and lists the valid names. (it restores
   your `n_orders` afterward).
 - **Fourier factorization:** the default `factorization="auto"` applies the
   normal-vector (Fast Fourier Factorization) method, giving fast TM /

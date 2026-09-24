@@ -197,3 +197,20 @@ def test_metasurface_example_builds_silicon_pillars_not_air_holes():
     mats = r.layers[1].materials
     assert mats[topo[32, 32]] == "Si", "circle centre must be the pillar material"
     assert mats[topo[0, 0]] == "Air", "background must be air"
+
+
+def test_simulate_tuple_is_complex_amplitude_not_power():
+    """The guide claimed T/R were "plain floats in [0,1]". They are the
+    zero-order complex AMPLITUDE coefficients, and abs(.)**2 is the power --
+    a caller doing `power = T` overstates transmission."""
+    import numpy as np
+    from ikarus import RCWA
+    r = RCWA(period_x=200e-9, period_y=200e-9, resolution=8, n_orders=0)
+    r.add_uniform_layer(np.inf, "Air")
+    r.add_uniform_layer(np.inf, "SiO2")
+    r.set_source(wavelength=729e-9, theta=0, polarization="linear")
+    T, R, res = r.simulate()
+    assert not isinstance(T, float)                 # it is complex, not a float
+    assert T is res.T and R is res.R                # same objects as on the result
+    assert np.isclose(abs(T) ** 2, res.T_total)     # power is the squared modulus
+    assert not np.isclose(abs(T), res.T_total)      # ...and differs from the amplitude

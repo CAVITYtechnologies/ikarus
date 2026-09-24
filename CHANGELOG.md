@@ -7,6 +7,28 @@ semantic versioning.
 ## Unreleased
 
 ### Fixed
+- **`convergence_curve` now raises on an unrecognized `metric`** instead of silently
+  computing the energy defect. `metric="T_total"` is the plausible typo — `T_total` is
+  the attribute name used everywhere else in the API — and the old fallback returned
+  `|R+T-1|`, which is ~0 for any converged structure. It looked exactly like a clean
+  convergence result for a metric that was never evaluated, in the one tool whose job
+  is checking whether you can trust a number.
+
+### Docs
+- **`AI_GUIDE.md` misdescribed the `simulate()` tuple.** It claimed `T` and `R` were
+  "plain floats in `[0, 1]`"; they are the **zero-order complex amplitude**
+  coefficients, the same objects as `result.T`/`result.R`. Power is `result.T_total` /
+  `result.R_total`, or `abs(T)**2` for the zero order. Writing `power = T` overstates
+  transmission (0.9827 vs 0.9657 on a bare Air/SiO2 interface, and further apart on
+  lossy or patterned structures). The guide's own API-surface section already said this
+  correctly, so it contradicted itself.
+- **`convergence_curve`'s phase metrics are in degrees**, unlike `result.T_phase` and
+  `Target.match("r_phase", ...)` which are radians — now called out in `AI_GUIDE.md`
+  beside the example, and pinned by a test. The unit is *not* being changed: existing
+  callers would keep running while their tolerance shifted by 57.3x, which is worse
+  than the inconsistency.
+
+### Fixed
 - **Masks are now rasterized onto an integer multiple of their own pixel count.**
   A patterned layer is resampled onto the FFT grid by nearest neighbour; at a
   non-integer ratio that jitters every pixel boundary, so the geometry error moved
