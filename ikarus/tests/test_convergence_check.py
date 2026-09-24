@@ -178,3 +178,54 @@ def test_pareto_check_never_breaks_a_finished_run():
     with warnings.catch_warnings(record=True):
         warnings.simplefilter("always")
         _verify_convergence(result, None)        # must not raise
+
+
+# --- an unrecognized metric must raise, not quietly become the energy defect --
+
+def test_convergence_curve_rejects_unknown_metric():
+    """`metric="T_total"` is the plausible typo: T_total is the attribute name
+    used everywhere else in the API. It used to fall through to the energy
+    defect, which is ~0 for any converged structure -- so it looked like a
+    clean convergence result for a metric that was never evaluated."""
+    from ikarus import RCWA
+    from ikarus.tools import convergence_curve
+
+    rc = RCWA(period_x=500e-9, period_y=500e-9, resolution=(32, 32), n_orders=(3, 3))
+    rc.add_uniform_layer(np.inf, "Air")
+    rc.add_uniform_layer(220e-9, "Si")
+    rc.add_uniform_layer(np.inf, "SiO2")
+    rc.set_source(wavelength=729e-9, theta=0)
+    with pytest.raises(ValueError, match="unknown metric"):
+        convergence_curve(rc, [3, 5], metric="T_total")
+
+
+def test_convergence_curve_accepts_every_documented_metric():
+    from ikarus import RCWA
+    from ikarus.tools import convergence_curve
+    from ikarus.tools.convergence import _CURVE_METRICS
+
+    rc = RCWA(period_x=500e-9, period_y=500e-9, resolution=(32, 32), n_orders=(3, 3))
+    rc.add_uniform_layer(np.inf, "Air")
+    rc.add_uniform_layer(220e-9, "Si")
+    rc.add_uniform_layer(np.inf, "SiO2")
+    rc.set_source(wavelength=729e-9, theta=0)
+    for m in _CURVE_METRICS:
+        _, vals = convergence_curve(rc, [3, 5], metric=m)
+        assert len(vals) == 2 and np.isfinite(vals).all(), m
+
+
+def test_convergence_curve_phase_is_degrees_not_radians():
+    """Pinning the inconsistency rather than silently changing it: switching the
+    unit would keep every caller running while shifting their tolerance by 57x,
+    which is the worst kind of breaking change."""
+    from ikarus import RCWA
+    from ikarus.tools import convergence_curve
+
+    rc = RCWA(period_x=500e-9, period_y=500e-9, resolution=(32, 32), n_orders=(3, 3))
+    rc.add_uniform_layer(np.inf, "Air")
+    rc.add_uniform_layer(220e-9, "Si")
+    rc.add_uniform_layer(np.inf, "SiO2")
+    rc.set_source(wavelength=729e-9, theta=0)
+    _, ph = convergence_curve(rc, [3], metric="T_phase")
+    _, _, res = rc.simulate()
+    assert np.isclose(ph[0], np.degrees(res.T_phase), atol=1e-6)
