@@ -6,6 +6,16 @@ semantic versioning.
 
 ## Unreleased
 
+### Changed
+- **`main` now carries a PEP 440 development version** (`1.2.0.dev0`). Between
+  releases the version string used to read as the last *released* number, so anyone
+  on an editable checkout — which is everyone working in `ikarus-dev`, including the
+  other projects using Ikarus — was told "1.1.0" while running thirteen unreleased
+  fixes. One external report was filed against "v1.1.0" on exactly that basis. A
+  `.devN` suffix cannot be mistaken for the published package, and `pip` treats it as
+  a prerelease so it is never installed by accident. The release flow strips it in the
+  same commit that tags the release.
+
 ### Internal
 - **Semantic contract tests** (`ikarus/tests/test_semantics.py`). `test_public_api.py`
   pins *which* symbols exist; this pins *what they mean* — units, reference frame,
