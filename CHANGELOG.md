@@ -6,6 +6,27 @@ semantic versioning.
 
 ## Unreleased
 
+### Fixed
+- **NSGA-III reference directions now track the population.** They were fixed at
+  `n_partitions=12` regardless of `pop`, which gives 13 directions for two
+  objectives and 1820 for five. Below the population the reported front is
+  truncated; above it pymoo warns and the niching degrades. Two objectives now use
+  Das-Dennis (exactly uniform, free to build), three or more the energy method.
+- **`algorithm="nsga2"` now actually uses NSGA-II's binary tournament.** pymoo's
+  `MixedVariableMating` defaults to `RandomSelection`, so the selection step was
+  missing.
+
+### Changed
+- **A multi-objective `optimize()` now returns every non-dominated design in the
+  final population**, not pymoo's one-per-reference-direction pick. A 100-member
+  two-objective run that found 22 non-dominated designs previously reported 7,
+  discarding 15 it had already paid to simulate; choosing among trade-offs is the
+  point of a Pareto run. `result.X`/`result.F` are therefore **longer than before**.
+  They are sorted ascending by the first objective, so the order is reproducible and
+  `result.params`/`.rcwa` land on that target's champion (and so `.rcwa.simulate()`
+  now reproduces `achieved[0]`) rather than an arbitrary front member.
+  `.achieved` is unchanged in value: the extreme points were already being kept.
+
 ### Changed
 - **`main` now carries a PEP 440 development version** (`1.2.0.dev0`). Between
   releases the version string used to read as the last *released* number, so anyone
