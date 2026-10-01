@@ -63,7 +63,26 @@ def _build_problem(atom, targets, n_orders):
     return _MetaProblem()
 
 
-def _make_algorithm(name, pop, n_obj):
+def _reference_directions(n_obj: int, pop: int, seed: int):
+    """``pop`` reference directions for any number of objectives.
+
+    NSGA-III niches the population onto these, so their count must track the
+    population rather than be fixed.  A hard ``n_partitions=12`` gives 13
+    directions for 2 objectives (so a 100-member run reports a handful of
+    designs) and 1820 for 5 (so the niching degrades and pymoo warns).
+
+    Two objectives use Das-Dennis, which is exactly uniform on a 1-simplex and
+    free to build; three or more use the energy method, the pymoo-recommended
+    way to request an arbitrary count, at ~0.5 s.
+    """
+    from pymoo.util.ref_dirs import get_reference_directions
+    n_points = max(int(pop), int(n_obj))
+    if n_obj == 2:
+        return get_reference_directions("das-dennis", 2, n_partitions=n_points - 1)
+    return get_reference_directions("energy", n_obj, n_points, seed=seed)
+
+
+def _make_algorithm(name, pop, n_obj, seed: int = 0):
     from pymoo.core.mixed import (MixedVariableGA, MixedVariableMating,
                                   MixedVariableSampling,
                                   MixedVariableDuplicateElimination)
@@ -75,12 +94,17 @@ def _make_algorithm(name, pop, n_obj):
               mating=MixedVariableMating(eliminate_duplicates=dedup),
               eliminate_duplicates=dedup)
     if name in ("nsga2",):
-        from pymoo.algorithms.moo.nsga2 import NSGA2
+        from pymoo.algorithms.moo.nsga2 import NSGA2, binary_tournament
+        from pymoo.operators.selection.tournament import TournamentSelection
+        # MixedVariableMating defaults to RandomSelection, which would leave
+        # `algorithm="nsga2"` running without the binary tournament that is part
+        # of NSGA-II -- i.e. not actually NSGA-II.
+        kw["mating"] = MixedVariableMating(
+            selection=TournamentSelection(func_comp=binary_tournament),
+            eliminate_duplicates=dedup)
         return NSGA2(**kw)
     from pymoo.algorithms.moo.nsga3 import NSGA3
-    from pymoo.util.ref_dirs import get_reference_directions
-    ref_dirs = get_reference_directions("das-dennis", n_obj, n_partitions=12)
-    return NSGA3(ref_dirs=ref_dirs, **kw)
+    return NSGA3(ref_dirs=_reference_directions(n_obj, pop, seed), **kw)
 
 
 class OptimizeResult:
@@ -299,7 +323,7 @@ def optimize(atom, targets, n_orders=8, algorithm: str = "auto",
     from pymoo.optimize import minimize as pymoo_minimize
 
     problem = _build_problem(atom, targets, n_orders)
-    algo = _make_algorithm(algorithm, pop, len(targets))
+    algo = _make_algorithm(algorithm, pop, len(targets), seed=seed)
 
     # Only pass a callback when one exists -- pymoo's default is a no-op Callback,
     # and explicitly handing it ``callback=None`` makes it crash.
@@ -326,10 +350,39 @@ def optimize(atom, targets, n_orders=8, algorithm: str = "auto",
                          callback=_TrackCallback())
     if bar is not None:
         bar.close()
-    result = OptimizeResult(atom, targets, n_orders, res.X, res.F,
+    X, F = (res.X, res.F) if single else _final_front(res)
+    result = OptimizeResult(atom, targets, n_orders, X, F,
                             ga_history if single else None, algorithm=algorithm)
     _verify_convergence(result, verify_n_orders)
     return result
+
+
+def _final_front(res):
+    """Every non-dominated design in the final population, not pymoo's niched pick.
+
+    pymoo's ``res.X``/``res.F`` come from ``ReferenceDirectionSurvival``, which
+    keeps the single closest individual per occupied reference direction.  That
+    is the right set for *driving* the search and the wrong set for *reporting*
+    it: a 100-member two-objective run that found 22 non-dominated designs
+    returned 7, discarding 15 the run had already paid to simulate.  Choosing
+    among trade-offs is the entire point of a Pareto run, so hand back all of
+    them.
+
+    Sorted by the first objective so the order is reproducible and
+    ``.params``/``.rcwa`` (which take ``X[0]``) land on that target's best
+    design rather than an arbitrary front member.
+    """
+    from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting
+    pop = getattr(res, "algorithm", None)
+    pop = getattr(pop, "pop", None)
+    if pop is None:                       # pragma: no cover - defensive
+        return res.X, res.F
+    X_all, F_all = pop.get("X"), np.asarray(pop.get("F"), dtype=float)
+    if X_all is None or F_all.size == 0:  # pragma: no cover - defensive
+        return res.X, res.F
+    front = NonDominatedSorting().do(F_all, only_non_dominated_front=True)
+    order = front[np.argsort(F_all[front, 0], kind="stable")]
+    return list(X_all[order]), F_all[order]
 
 
 def _total_loss(F) -> float:

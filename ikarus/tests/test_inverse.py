@@ -180,3 +180,57 @@ def test_multi_wavelength_result_leaves_the_source_unset():
                        verbose=False)
         with pytest.raises(ValueError, match="set_source"):
             res.rcwa.simulate()
+
+
+# --- NSGA-III sizing and what a Pareto run reports ---------------------------
+# Reference directions used to be fixed at n_partitions=12 regardless of the
+# population: 13 for two objectives (so a 100-member run reported a handful of
+# designs) and 1820 for five (so pymoo warned and the niching degraded).
+
+@pytest.mark.parametrize("n_obj", [2, 3, 4, 5])
+@pytest.mark.parametrize("pop", [20, 100])
+def test_reference_directions_track_the_population(n_obj, pop):
+    """pymoo warns and niches badly when pop_size < len(ref_dirs), and truncates
+    the reported front when len(ref_dirs) < pop. Matching them avoids both."""
+    from ikarus.inverse.optimize import _reference_directions
+    dirs = _reference_directions(n_obj, pop, seed=0)
+    assert len(dirs) == pop
+    assert dirs.shape[1] == n_obj
+    assert np.allclose(dirs.sum(axis=1), 1.0)
+
+
+def test_pareto_run_reports_every_non_dominated_design():
+    """pymoo's res.X keeps one individual per occupied reference direction --
+    right for driving the search, wrong for reporting it. Choosing among
+    trade-offs is the point of a Pareto run, so every non-dominated design the
+    run already paid to simulate must come back, sorted reproducibly."""
+    import warnings
+    from pymoo.util.nds.non_dominated_sorting import NonDominatedSorting
+    from ikarus.inverse import MetaAtom, Target, free, optimize
+    from ikarus.shapes import Rectangle
+
+    atom = MetaAtom(period=900e-9, cover="Air", substrate="SiO2")
+    atom.add_pattern(Rectangle(width=free(0.15, 0.85), height=1.0),
+                     ["Air", "Si"], height=free(300e-9, 900e-9))
+    targets = [Target.maximize("R", at=1550e-9),
+               Target.match("r_phase", value=0.0, at=1550e-9)]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        res = optimize(atom, targets, n_orders=(3, 0), pop=40, n_gen=8, seed=1,
+                       algorithm="nsga3", verbose=False)
+
+    F = np.atleast_2d(np.asarray(res.F, dtype=float))
+    assert len(res.X) == F.shape[0] > 1
+    # every returned design is non-dominated
+    front = NonDominatedSorting().do(F, only_non_dominated_front=True)
+    assert len(front) == len(F)
+    # reproducible order: ascending in the first objective
+    assert np.all(np.diff(F[:, 0]) >= -1e-12)
+    # so X[0] is that target's champion, and .achieved agrees with it
+    assert F[0, 0] == pytest.approx(min(F[:, 0]))
+    assert res.achieved[0] == pytest.approx(targets[0].achieved(float(F[0, 0])))
+    # _verify_front must still work over the longer front
+    from ikarus.inverse.optimize import _verify_front
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        _verify_front(res)               # must not raise
