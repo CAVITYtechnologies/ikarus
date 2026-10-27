@@ -6,6 +6,18 @@ semantic versioning.
 
 ## Unreleased
 
+### Internal
+- **Conical incidence (`phi != 0`) is now tested.** `phi` is wired through `Source`
+  and used by the solver, but the whole suite previously contained one mention of
+  it, `phi=0.0` -- the conical path was unexercised. 24 new tests pin symmetries
+  derived from the geometry rather than from any reference tool: an unpatterned
+  stack is azimuthally isotropic, a circular pillar on a square lattice is
+  invariant under a quarter turn, `phi=180` mirrors the diffraction orders, and a
+  1-D grating at `phi=90` (in-plane `k` along its invariant axis) has symmetric
+  +/-m orders. Each is paired with the case where the symmetry must *fail*, so
+  none can pass by phi being ignored. The solver was found **correct** -- all
+  symmetries held to 1e-14 or better; the gap was coverage, not behaviour.
+
 ### Fixed
 - **NSGA-III reference directions now track the population.** They were fixed at
   `n_partitions=12` regardless of `pop`, which gives 13 directions for two
