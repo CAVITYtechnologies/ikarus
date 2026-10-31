@@ -21,8 +21,12 @@ def test_sweep_1d_shapes_and_energy():
     res = Sweep(rcwa).over(wavelength=wl).run(progress=False)
     assert res.R_total.shape == (11,)
     assert res.T_total.shape == (11,)
-    # TiO2/glass is lossless here
-    assert np.all(np.abs(res.energy_balance - 1.0) < 1e-6)
+    # TiO2 absorbs towards its band edge -- the shipped data (Siefke 2016, an
+    # ALD film) carries real k below ~450 nm -- so R+T may fall short of 1, but
+    # never exceed it, and the film is transparent by the red end of the sweep.
+    assert np.all(res.energy_balance <= 1.0 + 1e-6)
+    assert res.energy_balance[0] < 1.0 - 1e-6            # blue end: absorbing
+    assert abs(res.energy_balance[-1] - 1.0) < 1e-6      # red end: transparent
     # axis is retained
     assert np.allclose(res.axes["wavelength"], wl)
 

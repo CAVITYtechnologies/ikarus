@@ -61,7 +61,9 @@ class SimulationResult:
     R_total: float
     T_orders: np.ndarray
     R_orders: np.ndarray
-    orders: tuple[np.ndarray, np.ndarray]  # (p, q) integer order arrays
+    # (p, q) diffraction orders of the grating equation kx_p = kx0 + p*2pi/P,
+    # so +1 is deflected towards +x. See HarmonicGrid.diffraction_orders.
+    orders: tuple[np.ndarray, np.ndarray]
     theta_out_trn: np.ndarray  # exit polar angle per order (deg), NaN if evanescent
     phi_out_trn: np.ndarray
     theta_out_ref: np.ndarray
@@ -404,7 +406,7 @@ class RCWA:
             T=T, R=R,
             T_total=sol.T_total, R_total=sol.R_total,
             T_orders=sol.T_orders, R_orders=sol.R_orders,
-            orders=(p, q),
+            orders=grid.diffraction_orders(),
             theta_out_trn=theta_t, phi_out_trn=phi_t,
             theta_out_ref=theta_r, phi_out_ref=phi_r,
             energy_balance=sol.R_total + sol.T_total,

@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Iterable
 
 import numpy as np
-from scipy.interpolate import interp1d
+from scipy.interpolate import PchipInterpolator, interp1d
 
 # Directory holding the shipped JSON material files.
 _DB_DIR = Path(__file__).resolve().parent.parent / "materials"
@@ -46,6 +46,9 @@ class Material:
     #     (w0_j^2 - w^2 - i gamma_j w), with w = angular frequency in rad/s.
     lorentz: dict | None = None
     comment: str = ""
+    # Where the numbers came from: the refractiveindex.info shelf/book/page
+    # coordinates, the literature reference, and why that entry was chosen.
+    source: dict | None = None
 
     _interp_n = None
     _interp_k = None
@@ -63,13 +66,15 @@ class Material:
     def from_dict(cls, data: dict) -> "Material":
         if "lorentz" in data:
             return cls(name=data["name"], lorentz=data["lorentz"],
-                       comment=data.get("comment", ""))
+                       comment=data.get("comment", ""),
+                       source=data.get("source"))
         return cls(
             name=data["name"],
             wavelength_nm=np.asarray(data["wavelength_nm"], dtype=float),
             n=np.asarray(data["n"], dtype=float),
             k=np.asarray(data.get("k", np.zeros_like(data["n"])), dtype=float),
             comment=data.get("comment", ""),
+            source=data.get("source"),
         )
 
     @classmethod
@@ -82,17 +87,27 @@ class Material:
         if self.lorentz is not None or self._interp_n is not None:
             return
         wl = self.wavelength_nm
-        # Cubic where we have enough points, else linear; always extrapolate by
-        # clamping to the nearest tabulated value (bounds_error=False, fill).
-        kind = "cubic" if wl.size >= 4 else "linear"
-        self._interp_n = interp1d(
-            wl, self.n, kind=kind, bounds_error=False,
-            fill_value=(self.n[0], self.n[-1]),
-        )
-        self._interp_k = interp1d(
-            wl, self.k, kind=kind, bounds_error=False,
-            fill_value=(self.k[0], self.k[-1]),
-        )
+        # Shape-preserving (monotone cubic) interpolation, not a natural cubic
+        # spline: a plain cubic through a coarse, strongly curved n/k table
+        # overshoots between samples and invents index the data never had.  The
+        # shipped Si table used to return k(650 nm) = 0.0079 -- *below* both
+        # bracketing samples (0.024 and 0.011) -- which is how that showed up.
+        # PCHIP stays inside each sample pair's bracket while remaining smooth.
+        # Out of range we clamp to the end samples, as before.
+        if wl.size >= 3:
+            # PCHIP's slope limiter takes a harmonic mean of the secant slopes,
+            # which divides by them.  A flat run -- a transparent material whose
+            # k is 0 over a whole band -- makes that 0/0 or 1/0 and warns, while
+            # still producing the right (flat) interpolant.  Not the user's
+            # problem, so don't make it their warning.
+            with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+                self._interp_n = PchipInterpolator(wl, self.n, extrapolate=False)
+                self._interp_k = PchipInterpolator(wl, self.k, extrapolate=False)
+        else:
+            self._interp_n = interp1d(wl, self.n, kind="linear", bounds_error=False,
+                                      fill_value=(self.n[0], self.n[-1]))
+            self._interp_k = interp1d(wl, self.k, kind="linear", bounds_error=False,
+                                      fill_value=(self.k[0], self.k[-1]))
 
     def index(self, wavelength: float | np.ndarray) -> np.ndarray | complex:
         """Complex refractive index ``n + i k`` at ``wavelength`` (meters)."""
@@ -104,13 +119,13 @@ class Material:
             nk = np.where(nk.imag < 0, np.conj(nk), nk)
             return nk if nk.ndim else complex(nk)
         self._ensure_interpolators()
+        wl_nm = np.clip(wl_nm, self.wavelength_nm[0], self.wavelength_nm[-1])
         n = self._interp_n(wl_nm)
-        # A cubic spline through tabulated k can under/overshoot between points.  An
-        # undershoot below the tabulated minimum invents index the data never had --
-        # for the usual passive (k >= 0) case that is unphysical negative k, i.e.
-        # gain under the exp(-i w t) convention.  Clamp the interpolant to the
-        # tabulated floor: this removes the artifact while preserving any gain the
-        # data itself specifies (e.g. a constant complex index with Im < 0).
+        # Belt-and-braces floor on k.  PCHIP above cannot undershoot a bracket, but
+        # the 2-point linear branch and round-off still can; a k below the tabulated
+        # minimum is unphysical gain under the exp(-i w t) convention.  Clamping to
+        # the tabulated floor preserves any gain the data itself specifies (e.g. a
+        # constant complex index with Im < 0).
         k = np.maximum(self._interp_k(wl_nm), float(np.min(self.k)))
         out = n + 1j * k
         return out if out.ndim else complex(out)
@@ -329,6 +344,8 @@ class MaterialLibrary:
             "n": np.asarray(material.n).tolist(),
             "k": np.asarray(material.k).tolist(),
         }
+        if material.source is not None:
+            payload["source"] = material.source
         with open(out, "w") as fh:
             json.dump(payload, fh, indent=2)
         return out
