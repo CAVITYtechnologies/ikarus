@@ -43,17 +43,26 @@ domain. (Anisotropic/birefringent media **are** supported — see Materials.)
 3. **Time/sign convention is physics `exp(-iωt)`:** absorbers have `k > 0`,
    `Im(ε) > 0`. If you feed gain-signed (negative-k) data the energy balance
    exceeds 1 — that is the tell.
-4. **`n_orders` ≠ `resolution`.** `n_orders` is the number of Fourier harmonics
+4. **Diffraction orders follow the grating equation `kx_p = kx0 + p·2π/P`,**
+   so **order `+1` is deflected towards `+x`** and `-1` towards `-x`. Check it
+   against `phi_out_trn` (0° = +x, 180° = -x) whenever the *direction* matters,
+   as it does for beam steering, blazed gratings and off-axis metalenses: the
+   sign of `order=(p, q)` decides which way a fabricated device throws its
+   beam, and getting it backwards is invisible in every efficiency number.
+   Note a mirror-symmetric grating at normal incidence makes `±1` degenerate,
+   so a symmetric test can never catch a sign error — use oblique incidence,
+   where the grating equation alone decides which orders propagate at all.
+5. **`n_orders` ≠ `resolution`.** `n_orders` is the number of Fourier harmonics
    that resolve the *field* — the accuracy/cost dial. `resolution` only *draws*
    the geometry (real-space pixels) and is auto-raised to ≥ `4*M+1`. You almost
    always tune only `n_orders`.
-5. **Stack order is cover → … → substrate** (sky to ground). The first and last
+6. **Stack order is cover → … → substrate** (sky to ground). The first and last
    layers must be **uniform and semi-infinite** (`height=np.inf`); the cover's
    index sets the incident wavevector. Interior layers are finite.
-6. **Cost is `O(M⁶)` in 2-D** (`M` = orders per axis). Doubling `M` ≈ 64× the time.
+7. **Cost is `O(M⁶)` in 2-D** (`M` = orders per axis). Doubling `M` ≈ 64× the time.
    A 1-D grating should use `n_orders=(M, 0)` with an `(Nx, 2)` topology — linear,
    not quadratic. A uniform thin-film stack runs at `n_orders=0` (instant).
-7. **Energy balance is the universal smoke test.** `R_total + T_total` (`result.energy_balance`):
+8. **Energy balance is the universal smoke test.** `R_total + T_total` (`result.energy_balance`):
    `≈1` lossless & converged; `<1` absorption (physics); slightly `>1`
    unconverged → raise `n_orders`; wildly `>1` numerical breakdown → *lower*
    `n_orders` or raise `resolution`. Note the default factorization (`"auto"`, the
@@ -62,7 +71,7 @@ domain. (Anisotropic/birefringent media **are** supported — see Materials.)
    `n_orders` grows; it is a *more* honest convergence signal than the classic
    inverse rule, which can report `R_total+T_total==1` while still being a percent
    off the true answer on curved boundaries.
-8. **Factorization is automatic — don't set it.** The default `factorization="auto"`
+9. **Factorization is automatic — don't set it.** The default `factorization="auto"`
    applies the normal-vector (Fast Fourier Factorization) method to every patterned
    layer: full accuracy on curved/oblique high-contrast boundaries, reducing exactly
    to the classic inverse rule on axis-aligned geometry. Users never need to choose.
@@ -203,6 +212,43 @@ bare number (`1.5`, `2.4+0.01j` = constant index), a JSON path, or a `Material`.
 (`lambda_nm, n[, k]`) or JSON (`persist=True` writes it into the library for future
 sessions); `Material.constant(2.4+0.01j)` for non-dispersive; a JSON `lorentz` block
 for an oscillator model.
+
+**Never write an `n, k` table from memory.** Optical constants belong to a
+source you can cite. Every shipped material is a
+[refractiveindex.info](https://refractiveindex.info) entry (public domain, CC0)
+and carries its shelf/book/page coordinates, the literature reference, the
+sample note (film or bulk, thickness, temperature) and the reason that entry was
+chosen in `Material.source`:
+
+```python
+import ikarus
+si = ikarus.default_library.resolve("Si")
+si.source["entries"][0]["page"]    # -> 'Schinke'
+si.source["rationale"]             # -> why this entry, and what it cannot tell you
+```
+
+For anything else, import your own measured data with
+`default_library.add_from_file(path, name=..., persist=True)` rather than typing
+a table from recollection.
+
+**Read `.source['rationale']` before a number goes in a report** — it is where
+the traps are written down. Three worth knowing:
+
+- **`aSi`** is Karaman 2025, a 100-nm film on fused silica. a-Si has no
+  canonical optical constants (they depend on deposition), and that entry's
+  `k` is **exactly 0 above 856 nm — the ellipsometry's floor, not physics**.
+  Never quote a loss-free 1550 nm a-Si design off this table; real a-Si keeps a
+  sub-gap tail of order 1e-4. Absorption there is a measurement.
+- **`Si`** is crystalline (Schinke 2015 spliced to Li 1980 above 1450 nm) and
+  its `k` is 0 above the seam for the same reason. `aSi` is the amorphous one —
+  they differ by ~7% in `n` at 1550 nm, so picking the wrong one is a real bug.
+- **`TiO2`** is an ALD *film* (Siefke 2016) with genuine `k` near the band edge,
+  not lossless bulk rutile; `n` is ~7% below the bulk value, and a blue-end
+  design now loses energy that a lossless table let it keep.
+
+Materials cover ~300–2000 nm (`Si3N4` from 310, `GaN` from 350, `Au`/`Ag` to
+1937). Outside its table a material **clamps to the end sample** rather than
+refusing, so check the range before trusting an edge wavelength.
 
 **Anisotropic (birefringent) materials:** anywhere a material goes you may also
 pass a 3-tuple `(n_x, n_y, n_z)` (diagonal tensor; each element any scalar spec,
