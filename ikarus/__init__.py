@@ -35,12 +35,11 @@ from . import shapes
 from .sweep import Sweep, SweepResult
 from ._progress import progress
 
-# PEP 440 development version: this is UNRELEASED work heading for 1.2.0.
-# `main` always carries a `.devN` suffix between releases, so that reading
-# __version__ can never suggest you are on the published package when you
-# are actually on an editable checkout. At release time this becomes the
-# bare number ("1.2.0") in the same commit that tags it.
-__version__ = "1.2.0.dev0"
+# Released versions are bare ("1.2.0"). Between releases `main` carries a
+# PEP 440 `.devN` suffix for the NEXT version, so that reading __version__ can
+# never suggest you are on the published package when you are actually on an
+# editable checkout. The suffix is stripped in the commit that tags a release.
+__version__ = "1.2.0"
 
 
 def ai_guide() -> str:

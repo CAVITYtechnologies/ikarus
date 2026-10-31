@@ -6,6 +6,8 @@ semantic versioning.
 
 ## Unreleased
 
+## 1.2.0 — 2026-10-31
+
 ### Changed behaviour — read before upgrading
 - **Diffraction orders now follow the grating equation `kx_p = kx0 + p·2π/P`.**
   Ikarus labelled orders with the opposite sign, so `order=(1, 0)` — in
