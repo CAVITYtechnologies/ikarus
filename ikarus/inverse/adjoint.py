@@ -74,7 +74,9 @@ def check_compatible(atom, targets) -> None:
 # Differentiable Target evaluation (mirrors targets.Target semantics)
 # ---------------------------------------------------------------------------
 def _order_flat_index(grid: HarmonicGrid, order) -> int:
-    p, q = grid.index_arrays()
+    # Grating-equation labels, matching SimulationResult.order_index, so a
+    # Target's order=(1, 0) means the same beam through either engine.
+    p, q = grid.diffraction_orders()
     hit = np.where((p == order[0]) & (q == order[1]))[0]
     if hit.size == 0:
         raise ValueError(f"order {order} not in the truncated set")

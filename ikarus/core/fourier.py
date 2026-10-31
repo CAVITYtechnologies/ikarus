@@ -72,8 +72,31 @@ class HarmonicGrid:
         p, q = np.meshgrid(self.orders_x, self.orders_y, indexing="ij")
         return p.ravel(), q.ravel()
 
+    def diffraction_orders(self) -> tuple[np.ndarray, np.ndarray]:
+        """``(p, q)`` **diffraction-order labels** for the public API.
+
+        These are the orders of the grating equation that every other solver
+        and every textbook uses,
+
+            kx_p = kx0 + p * 2*pi/period_x,
+
+        so order ``+1`` is the beam deflected towards **+x**.
+
+        They are the *negative* of :meth:`index_arrays`, which is the solver's
+        internal harmonic index.  Ikarus builds its wavevectors as
+        ``kx = kx0 - p*lambda/period`` (see ``solver.wavevector_matrices``) and
+        pairs the convolution matrix with that same labelling, so the internal
+        scheme is self-consistent and the physics it produces is right -- its
+        ``p`` is just the grating equation's ``-p``.  Flipping the sign inside
+        the solver would also require transposing the convolution matrix, so
+        the translation belongs here, at the boundary, where it is one negation
+        and cannot affect a field solve.
+        """
+        ip, iq = self.index_arrays()
+        return -ip, -iq
+
     def zero_order_index(self) -> int:
-        """Flat index of the specular ``(0, 0)`` harmonic."""
+        """Flat index of the specular ``(0, 0)`` harmonic (sign-independent)."""
         return self.n_orders_x * self.num_y + self.n_orders_y
 
 
