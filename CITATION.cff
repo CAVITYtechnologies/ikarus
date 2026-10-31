@@ -14,8 +14,8 @@ authors:
   - family-names: "Shelling Neto"
     given-names: "Liam"
     affiliation: "CAVITY technologies GmbH"
-version: "1.1.0"
-date-released: "2026-09-22"
+version: "1.2.0"
+date-released: "2026-10-31"
 license: MIT
 repository-code: "https://github.com/CAVITYtechnologies/ikarus"
 url: "https://cavitytechnologies.github.io/ikarus/"
