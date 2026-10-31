@@ -27,6 +27,9 @@ identifiers:
   - type: doi
     value: 10.5281/zenodo.22894315
     description: "Version DOI for v1.1.0"
+  - type: doi
+    value: 10.5281/zenodo.23839405
+    description: "Version DOI for v1.2.0"
 keywords:
   - rigorous coupled-wave analysis
   - RCWA
