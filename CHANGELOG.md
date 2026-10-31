@@ -6,6 +6,42 @@ semantic versioning.
 
 ## Unreleased
 
+### Changed behaviour — read before upgrading
+- **Diffraction orders now follow the grating equation `kx_p = kx0 + p·2π/P`.**
+  Ikarus labelled orders with the opposite sign, so `order=(1, 0)` — in
+  `result.order_index`, `result.orders` and `Target(order=...)` — selected the beam
+  deflected towards **-x**. The physics was always right (totals, energy balance,
+  per-order efficiencies, exit angles all agreed); only the *name* of each beam was
+  mirrored, which made it invisible in every efficiency number. **Efficiencies from
+  earlier runs stand, but `order=(p, q)` with `p != 0` now selects the other beam**:
+  a design asked to steer into `+1` was steering towards -x. Re-check any device
+  where the deflection side matters, and any saved script that hard-codes a nonzero
+  order. `(0, 0)` and mirror-symmetric analyses are unaffected. Fixed at the public
+  boundary (`HarmonicGrid.diffraction_orders`); the field solve is unchanged.
+  Pinned by `test_order_convention.py`, which uses oblique incidence where the
+  grating equation alone decides which orders propagate, because a mirror-symmetric
+  grating at normal incidence makes ±1 degenerate and cannot see a sign error.
+- **The shipped material data changed.** Every material is now a cited
+  refractiveindex.info entry; before, most were coarse tables marked
+  "representative" and `TiO2` was a bulk-rutile Sellmeier extrapolated outside its
+  430–1530 nm validity range. Change at 400/650/1064/1550 nm: `SiO2`, `Si3N4`, `Ag`
+  0.00%; `Si` <1.5%; `GaP` 1–10%; `GaN` 4–7%; `Au` 2–9%; `TiO2` 7–10%; **`aSi` 6–25%**
+  (`n` at 1550 nm 3.5437 → 3.7771). Lossless dielectric designs barely move;
+  anything using `aSi` or `TiO2`, or any absorbing material, shifts. `TiO2` is now
+  an ALD film with real `k` near its band edge, so a blue-end design loses energy it
+  used to keep. Each material's `.source` records the entry, reference, sample note
+  and the reason it was chosen; read `.source["rationale"]` before quoting a number.
+  Note `aSi`'s `k` is exactly 0 above 856 nm — that measurement's detection floor,
+  not physics — so a loss-free 1550 nm a-Si result is not something the table can
+  tell you.
+
+### Fixed
+- **Tabulated `n`/`k` were interpolated with a natural cubic spline**, which
+  overshoots between samples on a coarse, strongly curved table. The old `Si` table
+  gave `k(650 nm) = 0.0079`, *below both* bracketing samples (0.024 and 0.011) —
+  absorption understated about 2x. Interpolation is now shape-preserving (PCHIP) and
+  cannot leave a sample pair's bracket. Affects every absorbing material.
+
 ### Internal
 - **Conical incidence (`phi != 0`) is now tested.** `phi` is wired through `Source`
   and used by the solver, but the whole suite previously contained one mention of
